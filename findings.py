@@ -14,7 +14,7 @@ import ast
 import json
 from dataclasses import dataclass, field
 from typing import Optional
-
+from fingerprints import HIGH_RISK_SAAS
 
 # ---------------------------------------------------------------------------
 # Certificate data
@@ -604,3 +604,412 @@ class DatazagCanonicalAdapter:
             "_email_auth":     record.email_auth,
             "_changes":        record.changes,
         }
+
+
+def passive_security_findings_v2(record) -> list[dict]:
+    """
+    Generates a finding for every security layer — both present and missing.
+    Missing layers are flagged with their security implication, not just noted.
+    """
+    findings = []
+    ea  = record.email_auth
+    ann = record.annotation
+    c   = record.https_cert
+    s   = record.smtp
+
+    # -----------------------------------------------------------------------
+    # SPF
+    # -----------------------------------------------------------------------
+    if not ea.spf_raw:
+        findings.append({
+            "finding":     "no_spf",
+            "severity":    "critical",
+            "title":       "No SPF record",
+            "evidence":    "spf_auth status: NOT_FOUND",
+            "detail":      (
+                f"Any mail server in the world can send email claiming to be from "
+                f"@{record.domain} and most receivers will accept it. This is the "
+                f"baseline requirement for email authentication."
+            ),
+            "remediation": (
+                f"Add TXT record at {record.domain}: "
+                f"'v=spf1 include:<your-mail-provider> -all'. "
+                f"If the domain sends no email use 'v=spf1 -all'."
+            ),
+        })
+    elif ea.spf_all_mechanism in ("+all", "?all"):
+        findings.append({
+            "finding":     "spf_too_permissive",
+            "severity":    "critical",
+            "title":       f"SPF uses {ea.spf_all_mechanism} — anyone can send",
+            "evidence":    ea.spf_raw,
+            "detail":      (
+                f"{ea.spf_all_mechanism} neutralises SPF entirely. Any server can send "
+                f"as @{record.domain} and SPF will pass."
+            ),
+            "remediation": "Change to -all (hard fail). Use ~all only as a temporary testing measure.",
+        })
+    elif ea.spf_all_mechanism == "~all":
+        findings.append({
+            "finding":     "spf_soft_fail",
+            "severity":    "medium",
+            "title":       "SPF uses ~all (soft fail) — not hard fail",
+            "evidence":    ea.spf_raw,
+            "detail":      (
+                "Soft fail marks unauthorised mail as suspicious but many receivers "
+                "still deliver it. Hard fail (-all) provides stronger protection."
+            ),
+            "remediation": "Change ~all to -all once all legitimate senders are in the SPF record.",
+        })
+
+    if ea.spf_raw and ea.spf_lookup_count >= 8:
+        findings.append({
+            "finding":     "spf_lookup_limit",
+            "severity":    "medium",
+            "title":       f"SPF approaching 10-lookup limit ({ea.spf_lookup_count} lookups)",
+            "evidence":    f"Includes: {', '.join(ea.spf_includes)}",
+            "detail":      (
+                "DNS resolvers stop processing SPF after 10 lookups. Legitimate mail "
+                "may fail SPF if the limit is exceeded, causing delivery failures."
+            ),
+            "remediation": "Flatten SPF using a service like dmarcian or Valimail, or consolidate senders.",
+        })
+
+    # -----------------------------------------------------------------------
+    # DMARC
+    # -----------------------------------------------------------------------
+    dmarc_status = getattr(record, '_dmarc_raw_status', None)
+    if not ea.dmarc_policy:
+        nxdomain = ea.dmarc_rua is None and ea.dmarc_ruf is None
+        findings.append({
+            "finding":     "no_dmarc",
+            "severity":    "critical",
+            "title":       "No DMARC record" + (" — _dmarc subdomain NXDOMAIN" if nxdomain else ""),
+            "evidence":    f"_dmarc.{record.domain} returns {'NXDOMAIN' if nxdomain else 'no policy'}",
+            "detail":      (
+                f"Without DMARC, receivers have no policy for handling spoofed mail from "
+                f"@{record.domain}. The domain owner also receives no reports about "
+                f"spoofing attempts."
+            ),
+            "remediation": (
+                f"Add TXT record at _dmarc.{record.domain}: "
+                f"'v=DMARC1; p=quarantine; rua=mailto:dmarc@{record.domain}; pct=100'. "
+                f"Start with p=quarantine, escalate to p=reject after monitoring reports."
+            ),
+        })
+    elif ea.dmarc_policy == "none":
+        findings.append({
+            "finding":     "dmarc_policy_none",
+            "severity":    "high",
+            "title":       "DMARC policy is p=none — monitoring only, no enforcement",
+            "evidence":    ea.dmarc_raw,
+            "detail":      (
+                "p=none instructs receivers to take no action on unauthenticated mail. "
+                "It provides reporting visibility but zero spoofing protection."
+            ),
+            "remediation": "Escalate to p=quarantine once reports confirm all legitimate senders are authenticated.",
+        })
+    elif ea.dmarc_policy == "quarantine":
+        findings.append({
+            "finding":     "dmarc_quarantine_strict_alignment",
+            "severity":    "medium",
+            "title":       "DMARC p=quarantine — one step from full enforcement",
+            "evidence":    ea.dmarc_raw,
+            "detail":      (
+                "Spoofed mail is sent to spam rather than rejected outright. "
+                + (f"aspf={ea.dmarc_aspf} and adkim={ea.dmarc_adkim} alignment already set. "
+                   if ea.dmarc_aspf and ea.dmarc_adkim else "")
+                + "Escalating to p=reject is the final step."
+            ),
+            "remediation": "Change p=quarantine to p=reject. Monitor rua reports for 2-4 weeks first if unsure.",
+        })
+
+    if ea.dmarc_policy and not ea.dmarc_rua:
+        findings.append({
+            "finding":     "dmarc_no_reporting",
+            "severity":    "medium",
+            "title":       "DMARC configured but no reporting address (rua)",
+            "evidence":    ea.dmarc_raw,
+            "detail":      (
+                "Without rua=, the domain owner receives no aggregate reports about "
+                "who is sending mail on their behalf. Reporting is essential for "
+                "identifying legitimate senders before escalating policy."
+            ),
+            "remediation": f"Add rua=mailto:dmarc@{record.domain} to the DMARC record.",
+        })
+
+    if ea.dmarc_policy and ea.dmarc_pct and ea.dmarc_pct < 100:
+        findings.append({
+            "finding":     "dmarc_partial_enforcement",
+            "severity":    "medium",
+            "title":       f"DMARC pct={ea.dmarc_pct} — partial enforcement only",
+            "evidence":    ea.dmarc_raw,
+            "detail":      (
+                f"Only {ea.dmarc_pct}% of unauthenticated mail is subject to the DMARC policy. "
+                f"The remaining {100 - ea.dmarc_pct}% is delivered regardless."
+            ),
+            "remediation": "Increase pct=100 once you are confident all legitimate senders pass authentication.",
+        })
+
+    # -----------------------------------------------------------------------
+    # MTA-STS
+    # -----------------------------------------------------------------------
+    if ea.mta_sts_status in ("NXDOMAIN", "NOT_FOUND", "NODATA"):
+        findings.append({
+            "finding":     "no_mta_sts",
+            "severity":    "medium",
+            "title":       "No MTA-STS policy",
+            "evidence":    f"_mta-sts.{record.domain} returns {ea.mta_sts_status}",
+            "detail":      (
+                "MTA-STS (RFC 8461) prevents SMTP downgrade attacks by publishing a policy "
+                "that instructs sending mail servers to require TLS. Without it, an attacker "
+                "with network access can intercept email by stripping TLS from the connection."
+            ),
+            "remediation": (
+                f"1. Create DNS TXT record: _mta-sts.{record.domain} → 'v=STSv1; id=<timestamp>'\n"
+                f"2. Serve policy at https://mta-sts.{record.domain}/.well-known/mta-sts.txt\n"
+                f"   Content: version: STSv1 / mode: enforce / mx: {record.mx_records[0]['host'] if record.mx_records else '<your-mx>'} / max_age: 86400"
+            ),
+        })
+    elif ea.mta_sts_mode and ea.mta_sts_mode != "enforce":
+        findings.append({
+            "finding":     "mta_sts_not_enforcing",
+            "severity":    "medium",
+            "title":       f"MTA-STS present but mode={ea.mta_sts_mode} — not enforcing",
+            "evidence":    f"mta_sts_mode: {ea.mta_sts_mode}",
+            "detail":      "MTA-STS is configured but not in enforce mode — TLS is not required.",
+            "remediation": "Change MTA-STS policy mode from testing to enforce.",
+        })
+
+    # -----------------------------------------------------------------------
+    # TLS-RPT
+    # -----------------------------------------------------------------------
+    if ea.tls_rpt_status in ("NXDOMAIN", "NOT_FOUND", "NODATA"):
+        findings.append({
+            "finding":     "no_tls_rpt",
+            "severity":    "info",
+            "title":       "No TLS-RPT reporting configured",
+            "evidence":    f"_smtp._tls.{record.domain} returns {ea.tls_rpt_status}",
+            "detail":      (
+                "TLS-RPT (RFC 8460) provides reports on SMTP TLS connection failures. "
+                "Without it there is no visibility into delivery failures, "
+                "certificate errors, or MTA-STS policy violations."
+            ),
+            "remediation": (
+                f"Add TXT record at _smtp._tls.{record.domain}: "
+                f"'v=TLSRPTv1; rua=mailto:tls-rpt@{record.domain}'"
+            ),
+        })
+
+    # -----------------------------------------------------------------------
+    # BIMI
+    # -----------------------------------------------------------------------
+    if ea.bimi_status in ("NOT_FOUND", "NXDOMAIN", "NODATA"):
+        findings.append({
+            "finding":     "no_bimi",
+            "severity":    "info",
+            "title":       "No BIMI record — brand logo not displayed in email",
+            "evidence":    f"default._bimi.{record.domain} not found",
+            "detail":      (
+                "BIMI (Brand Indicators for Message Identification) displays your brand logo "
+                "in Gmail, Apple Mail, and Yahoo Mail for authenticated email. "
+                "It requires DMARC p=reject as a prerequisite."
+                + (" DMARC p=reject is not yet in place — fix that first." 
+                   if ea.dmarc_policy != "reject" else "")
+            ),
+            "remediation": (
+                "Prerequisites: DMARC p=reject + a verified SVG logo. "
+                f"Then add TXT record: default._bimi.{record.domain} → "
+                "'v=BIMI1; l=https://yourdomain.com/logo.svg'"
+            ),
+        })
+
+    # -----------------------------------------------------------------------
+    # DNSSEC
+    # -----------------------------------------------------------------------
+    if not ea.dnssec_enabled:
+        findings.append({
+            "finding":     "no_dnssec",
+            "severity":    "info",
+            "title":       "DNSSEC not enabled",
+            "evidence":    "dnssec field empty or false",
+            "detail":      (
+                "DNSSEC cryptographically signs DNS responses, preventing cache poisoning "
+                "and DNS spoofing attacks. Without it, an attacker could redirect traffic "
+                "by poisoning DNS caches."
+            ),
+            "remediation": "Enable DNSSEC through your DNS provider or registrar. Both must support it.",
+        })
+
+    # -----------------------------------------------------------------------
+    # CAA records
+    # -----------------------------------------------------------------------
+    if not record.has_caa:
+        findings.append({
+            "finding":     "no_caa",
+            "severity":    "medium",
+            "title":       "No CAA records — any CA can issue certificates",
+            "evidence":    f"CAA query returns NODATA",
+            "detail":      (
+                f"Certificate Authority Authorisation records restrict which CAs can issue "
+                f"TLS certificates for {record.domain}. Without CAA records, any of the "
+                f"hundreds of publicly-trusted CAs could issue a certificate, increasing "
+                f"the risk of mis-issuance or fraudulent certificates."
+                + (f" Currently using {record.https_cert.issuer_org if record.https_cert else 'unknown CA'} for HTTPS"
+                   + (f" and {record.smtp.cert.issuer_org if record.smtp.cert else ''} for SMTP." 
+                      if record.smtp.cert else ".")
+                   if record.https_cert else "")
+            ),
+            "remediation": (
+                f"Add CAA records for each CA you use. "
+                f"Example: '0 issue \"{record.https_cert.issuer_org.lower().replace(' ','')+'.com' if record.https_cert and record.https_cert.issuer_org else 'letsencrypt.org'}\"'. "
+                f"Check crt.sh to identify all CAs that have issued certificates for this domain."
+            ),
+        })
+
+    # -----------------------------------------------------------------------
+    # Security.txt
+    # -----------------------------------------------------------------------
+    if not record.has_security_txt:
+        findings.append({
+            "finding":     "no_security_txt",
+            "severity":    "info",
+            "title":       "No security.txt — no responsible disclosure policy",
+            "evidence":    "has_security_txt: false",
+            "detail":      (
+                "security.txt (RFC 9116) provides a standardised way for security "
+                "researchers to report vulnerabilities. Without it, researchers "
+                "have no formal channel and may disclose publicly."
+            ),
+            "remediation": (
+                f"Publish at https://{record.domain}/.well-known/security.txt "
+                f"with Contact, Expires, and Preferred-Languages fields."
+            ),
+        })
+
+    # -----------------------------------------------------------------------
+    # Certificate findings
+    # -----------------------------------------------------------------------
+    if c:
+        if c.is_expiring_soon:
+            findings.append({
+                "finding":     "cert_expiring_soon",
+                "severity":    "high",
+                "title":       f"HTTPS certificate expires in {c.days_remaining} days",
+                "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
+                "detail":      (
+                    f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
+                    f"After expiry, browsers will show a security warning to all visitors."
+                ),
+                "remediation": "Trigger certificate renewal immediately. Check auto-renewal is configured.",
+            })
+
+        if s.cert and c.issuer_org and s.cert.issuer_org and c.issuer_org != s.cert.issuer_org:
+            findings.append({
+                "finding":     "mixed_cert_authorities",
+                "severity":    "info",
+                "title":       f"Two CAs in use — {c.issuer_org} (HTTPS) and {s.cert.issuer_org} (SMTP)",
+                "evidence":    f"HTTPS issuer: {c.issuer}, SMTP issuer: {s.cert.issuer}",
+                "detail":      (
+                    "Using different CAs for HTTPS and SMTP increases complexity "
+                    "and means CAA records must list both. Consolidating to one CA simplifies management."
+                ),
+                "remediation": f"Add CAA records for both: {c.issuer_org} and {s.cert.issuer_org}.",
+            })
+
+    # -----------------------------------------------------------------------
+    # SMTP banner verification
+    # -----------------------------------------------------------------------
+    if s.provider_confirmed:
+        findings.append({
+            "finding":     "mx_provider_banner_confirmed",
+            "severity":    "info",
+            "title":       f"MX provider confirmed live via SMTP banner",
+            "evidence":    s.banner_raw,
+            "detail":      (
+                f"{s.provider_name} gateway is live and responding. "
+                f"Provider identity confirmed from banner — not just DNS assertion."
+            ),
+            "remediation": None,
+        })
+
+    # -----------------------------------------------------------------------
+    # ASN / network risk from rule engine
+    # -----------------------------------------------------------------------
+    for reason in record.risk.positive_contributions:
+        if "network_risk" in reason.rule or "asn" in reason.rule.lower():
+            findings.append({
+                "finding":     reason.rule,
+                "severity":    "high" if reason.points >= 8 else "medium",
+                "title":       f"Network risk penalty: {reason.rule} (+{reason.points} points)",
+                "evidence":    f"ASN: {ann.asn} ({ann.isp_name}) — risk level: {ann.asn_risk_level}",
+                "detail":      (
+                    f"The hosting ASN AS{ann.asn} ({ann.isp_name}) contributed "
+                    f"+{reason.points} points to the risk score. "
+                    f"ASN risk level: {ann.asn_risk_level}. "
+                    f"This is common for shared CDN infrastructure (Cloudflare, Fastly) "
+                    f"which hosts both legitimate and malicious content."
+                ),
+                "remediation": (
+                    "Verify this is expected infrastructure. For CDN-hosted sites "
+                    "this is a known false-positive — the penalty reflects shared "
+                    "infrastructure risk, not a direct threat signal."
+                ),
+            })
+        elif "ttl" in reason.rule.lower():
+            findings.append({
+                "finding":     reason.rule,
+                "severity":    "medium" if reason.points >= 5 else "info",
+                "title":       f"Short TTL penalty: {reason.rule} (+{reason.points} points)",
+                "evidence":    f"label_ttl_bucket: {record.label_ttl_bucket}, a_ttl: {getattr(record, 'a_ttl', '?')}",
+                "detail":      (
+                    f"DNS TTL is classified as '{record.label_ttl_bucket}'. "
+                    f"Short TTLs are a characteristic of fast-flux infrastructure "
+                    f"and contributed +{reason.points} to the risk score. "
+                    f"Legitimate reasons include CDN failover requirements."
+                ),
+                "remediation": (
+                    "If infrastructure is stable, increase A record TTL to 3600+ seconds "
+                    "to reduce the fast-flux penalty and improve DNS caching efficiency."
+                ),
+            })
+
+    # -----------------------------------------------------------------------
+    # IPv6
+    # -----------------------------------------------------------------------
+    if not record.is_dual_stack:
+        findings.append({
+            "finding":     "no_ipv6",
+            "severity":    "info",
+            "title":       "No IPv6 — single-stack IPv4 only",
+            "evidence":    "AAAA record status: NODATA",
+            "detail":      (
+                "The domain has no AAAA records. IPv6 is increasingly expected "
+                "for modern infrastructure. Single-stack IPv4 may indicate legacy "
+                "hosting or origin infrastructure."
+            ),
+            "remediation": "Enable IPv6 at your hosting provider or CDN if supported.",
+        })
+
+    # -----------------------------------------------------------------------
+    # Spoofing summary finding
+    # -----------------------------------------------------------------------
+    if ea.is_spoofable:
+        findings.append({
+            "finding":     "domain_spoofable",
+            "severity":    ea.spoofing_severity,
+            "title":       f"Domain is spoofable — {ea.spoofing_severity} severity",
+            "evidence":    (
+                f"SPF: {ea.spf_all_mechanism or 'missing'}, "
+                f"DMARC: {ea.dmarc_policy or 'missing'}"
+            ),
+            "detail":      (
+                f"The combination of current SPF and DMARC configuration means "
+                f"@{record.domain} addresses can be impersonated. "
+                f"An attacker can send phishing or BEC email appearing to come from "
+                f"this domain with no access to its infrastructure."
+            ),
+            "remediation": ea.missing_layers[0] if ea.missing_layers else "Review email authentication configuration.",
+        })
+
+    return [f for f in findings if f.get("finding")]

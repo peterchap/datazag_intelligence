@@ -14,7 +14,7 @@ import ast
 import json
 from dataclasses import dataclass, field
 from typing import Optional
-
+from fingerprints import TXT_FINGERPRINTS, ADDITIONAL_TXT_FINGERPRINTS, TXT_ANOMALY_PATTERNS
 
 # ---------------------------------------------------------------------------
 # Certificate data
@@ -55,6 +55,7 @@ class EmailAuthProfile:
     spf_includes: list[str]
     spf_ip4_ranges: list[str]
     spf_all_mechanism: str          # "-all" | "~all" | "+all" | "?all" | "none"
+    spf_lookup_count: int
 
     # DMARC
     dmarc_raw: Optional[str]
@@ -298,10 +299,16 @@ class DatazagCanonicalAdapter:
     # --- Email auth ---------------------------------------------------------
 
     def _parse_email_auth(self) -> EmailAuthProfile:
-        import re
-
         spf_raw = self.r.get("spf_raw") or self.dns_profile.get("spf_auth", {}).get("raw")
         
+        # Count SPF DNS lookups
+        lookup_count = 0
+        if spf_raw:
+            for token in spf_raw.split():
+                t = token.lower()
+                if t.startswith(("include:", "a:", "mx:", "exists:", "redirect=")):
+                    lookup_count += 1
+
         # Parse SPF
         includes, ip4s, all_mech = [], [], "none"
         if spf_raw:
@@ -393,6 +400,7 @@ class DatazagCanonicalAdapter:
             spf_includes=includes,
             spf_ip4_ranges=ip4s,
             spf_all_mechanism=all_mech,
+            spf_lookup_count=lookup_count,
             dmarc_raw=dmarc_str,
             dmarc_policy=dmarc_policy,
             dmarc_pct=dmarc_pct,

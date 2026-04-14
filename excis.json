@@ -1,0 +1,168 @@
+{
+  "domain": "excis.com",
+  "scanned_at_utc": "2026-04-13T17:15:29.111641Z",
+  "dns_profile": {
+    "bimi_auth": {
+      "raw": null,
+      "status": "NOT_FOUND"
+    },
+    "dmarc_auth": {
+      "raw": [
+        "v=DMARC1;p=quarantine;rua=mailto:postmaster@excis.com;pct=100;ruf=mailto:postmaster@excis.com;fo=0:d:s;aspf=s;adkim=s;"
+      ],
+      "status": "NOERROR",
+      "ttl": 3086
+    },
+    "mta_sts_auth": {
+      "raw": [],
+      "status": "NXDOMAIN",
+      "ttl": 60
+    },
+    "records": {
+      "A": {
+        "raw": ["188.114.96.3", "188.114.97.3"],
+        "status": "NOERROR",
+        "ttl": 3086
+      },
+      "AAAA": {
+        "raw": ["2a06:98c1:3121::3", "2a06:98c1:3120::3"],
+        "status": "NOERROR",
+        "ttl": 3086
+      },
+      "CAA": {
+        "raw": [],
+        "status": "NODATA",
+        "ttl": 60
+      },
+      "CNAME": {
+        "raw": [],
+        "status": "NODATA",
+        "ttl": 60
+      },
+      "MAIL_A": {
+        "raw": ["188.114.97.3", "188.114.96.3"],
+        "status": "NOERROR",
+        "ttl": 3086
+      },
+      "MX": {
+        "raw": ["0:excis.in.tmes.trendmicro.com"],
+        "status": "NOERROR",
+        "ttl": 3086
+      },
+      "NAPTR": {
+        "raw": [],
+        "status": "NODATA",
+        "ttl": 60
+      },
+      "NS": {
+        "raw": ["suzanne.ns.cloudflare.com", "cory.ns.cloudflare.com"],
+        "status": "NOERROR",
+        "ttl": 42686
+      },
+      "PTR": {
+        "raw": [],
+        "status": "NODATA",
+        "ttl": 60
+      },
+      "SOA": {
+        "raw": ["cory.ns.cloudflare.com"],
+        "status": "NOERROR",
+        "ttl": 3086
+      },
+      "SRV": {
+        "raw": [],
+        "status": "NODATA",
+        "ttl": 60
+      },
+      "TXT": {
+        "raw": [
+          "v=verifydomain MS=2255260",
+          "MS=10B429C02D4C3B2CDECF7AD171F4268855D0FF44",
+          "google-site-verification=KKxjcLXyFAzx46cl9mFjbj59ppazCapXEnlvtFMWXNQ",
+          "tmes=580007fb525164c4103a8b73856a161a",
+          "v=spf1 include:spf.tmes.trendmicro.com include:transmail.net include:spf-us.tmes.trendmicro.com include:spf.protection.outlook.com -all"
+        ],
+        "status": "NOERROR",
+        "ttl": 3086
+      },
+      "WWW_A": {
+        "raw": ["188.114.96.3", "188.114.97.3"],
+        "status": "NOERROR",
+        "ttl": 3086
+      }
+    },
+    "spf_auth": {
+      "raw": "v=spf1 include:spf.tmes.trendmicro.com include:transmail.net include:spf-us.tmes.trendmicro.com include:spf.protection.outlook.com -all",
+      "status": "FOUND"
+    },
+    "tls_rpt_auth": {
+      "raw": [],
+      "status": "NXDOMAIN",
+      "ttl": 60
+    }
+  },
+  "https_cert_ok": true,
+  "https_cert_days_left": 61,
+  "https_cert_issuer": "countryName=US, organizationName=Let's Encrypt, commonName=E7",
+  "https_cert_san_count": 2,
+  "has_security_txt": false,
+  "security_txt_url": "",
+  "security_txt_preview": "",
+  "smtp_cert_ok": true,
+  "smtp_cert_days_left": 99,
+  "smtp_cert_issuer": "countryName=BE, organizationName=GlobalSign nv-sa, commonName=GlobalSign RSA OV SSL CA 2018",
+  "mx_banner_raw": "220 inpre01.tmes.trendmicro.com ESMTP Trend Micro Email Security",
+  "mx_banner_host": "inpre01.tmes.trendmicro.com",
+  "mx_banner_details": "Trend Micro Email Security",
+  "mx_banner_provider": "",
+  "mx_banner_category": "",
+  "registered_domain": "excis.com",
+  "ns": "suzanne.ns.cloudflare.com",
+  "ip_int": 3161612291,
+  "mx_host_norm": "excis.in.tmes.trendmicro.com",
+  "mx_regdom_norm": "trendmicro.com",
+  "has_a_records": true,
+  "dmarc": "['v=DMARC1;p=quarantine;rua=mailto:postmaster@excis.com;pct=100;ruf=mailto:postmaster@excis.com;fo=0:d:s;aspf=s;adkim=s;']",
+  "spf_raw": "v=spf1 include:spf.tmes.trendmicro.com include:transmail.net include:spf-us.tmes.trendmicro.com include:spf.protection.outlook.com -all",
+  "a_ttl_min": 3086,
+  "mx_provider_name": "Trend Micro",
+  "mx_mbp_category": "Email Security Provider",
+  "mx_risk_bias": -2.0,
+  "ns_provider_name": null,
+  "ns_provider_category": null,
+  "ns_risk_bias": null,
+  "ns_brand_hit": false,
+  "asn": 13335,
+  "isp_name": "CLOUDFLARENET",
+  "isp_country": "US",
+  "asn_risk_level": "critical",
+  "tld_country": null,
+  "tld_risk_level": "benign",
+  "mx_trust_nudge": 2.0,
+  "provider_trust_nudge": -0.0,
+  "is_cdn_ugc": false,
+  "label_dmarc_policy": "quarantine",
+  "label_spf_strictness": "strict",
+  "label_ttl_bucket": "short",
+  "label_ssl_issuer": "low_friction_ca",
+  "label_active_infrastructure": true,
+  "is_phishing": false,
+  "is_malware": false,
+  "is_new_domain": false,
+  "ns_changed": false,
+  "ip_changed": false,
+  "country_changed": false,
+  "ttl_drop_big": false,
+  "is_dynamic_dns": false,
+  "mx_misconfigured_provider": false,
+  "mta_sts_mode": "",
+  "tlsrpt_rua_present": "",
+  "dnssec": "",
+  "parking_points": 0,
+  "subdomain_points": 0,
+  "risk_score": 7,
+  "risk_bucket": "low",
+  "reasons": "[{\"rule\":\"mx_provider_trust\",\"points\":-2},{\"rule\":\"network_risk\",\"points\":8},{\"rule\":\"dmarc_policy_trust\",\"points\":-2},{\"rule\":\"spf_strictness_trust\",\"points\":-2},{\"rule\":\"fast_flux_ttl_penalty\",\"points\":5}]",
+  "risk_profile": "default",
+  "risk_config_version": "2025.10.20-rc2"
+}

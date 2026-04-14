@@ -1,11 +1,10 @@
-# run.py
 """
 Entry point. Run against any Datazag DNS JSON file:
 
-    python run.py guardian.json
-    python run.py atlassian.json --audience insurer
-    python run.py adaptavist.json --partner "Atlassian Platinum Partner" \
-                                  --threat "Atlassian ransom demand April 2026"
+    python run.py --dns_file excis.json
+    python run.py --dns_file atlassian.json --audience insurer
+    python run.py --dns_file adaptavist.json --partner "Atlassian Platinum Partner" \
+                                              --threat "Atlassian ransom demand April 2026"
 
 Outputs JSON + Markdown + HTML for each audience to ./output/<domain>/
 """
@@ -14,7 +13,7 @@ import argparse
 import asyncio
 import json
 import os
-import sys
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -23,9 +22,96 @@ load_dotenv()
 
 from adapter import DatazagCanonicalAdapter
 from findings import passive_security_findings_v2
-from scorer import DatazagCompositeScorer, NormalisedAnnotation
+from fingerprints import TXT_FINGERPRINTS, ADDITIONAL_TXT_FINGERPRINTS
+from scorer import DatazagCompositeScorer, NormalisedAnnotation, NormalisedDomainScore
 from narrative import enrich_with_narrative
+from renderers import render_all
+from branding import BrandConfig
 
+DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
+
+
+# ---------------------------------------------------------------------------
+# TXT intelligence extractor
+# ---------------------------------------------------------------------------
+
+def _extract_txt_intelligence(record) -> dict:
+    """
+    Extracts SaaS stack, identity providers, and anomalies
+    from TXT records using the fingerprint patterns.
+    """
+    all_patterns = TXT_FINGERPRINTS + ADDITIONAL_TXT_FINGERPRINTS
+
+    saas, identity, payment, ai_infra, security, email_mktg = [], [], [], [], [], []
+    anomalies  = []
+    unrecognised = []
+    seen = set()
+
+    category_map = {
+        "saas":     saas,
+        "identity": identity,
+        "payment":  payment,
+        "ai_infra": ai_infra,
+        "security": security,
+        "email":    email_mktg,
+    }
+
+    ANOMALY_PATTERNS = [
+        r"[^a-zA-Z0-9=:_\-. /+@]",
+        r"(?:password|passwd|secret|token|key|api_key|credential)",
+    ]
+
+    for txt in record.txt_records:
+        matched = False
+        for pattern, service, category in all_patterns:
+            if re.search(pattern, txt, re.IGNORECASE):
+                if service not in seen:
+                    seen.add(service)
+                    bucket = category_map.get(category, saas)
+                    bucket.append(service)
+                matched = True
+                break
+
+        if not matched:
+            skip_prefixes = (
+                "v=spf1", "v=dmarc1", "v=mcpv1",
+                "google-site-verification", "ms=",
+                "apple-domain-verification", "_",
+            )
+            if (not any(txt.lower().startswith(p) for p in skip_prefixes)
+                    and len(txt) > 8):
+                unrecognised.append(txt[:80])
+
+        for pattern in ANOMALY_PATTERNS:
+            skip = ("v=spf1","v=dmarc1","google-site-verification","ms=","apple-domain")
+            if any(txt.lower().startswith(s) for s in skip):
+                break
+            if re.search(pattern, txt, re.IGNORECASE):
+                anomalies.append(txt[:80])
+                break
+
+    stripe_count   = sum(1 for t in record.txt_records if t.startswith("stripe-verification="))
+    docusign_count = sum(1 for t in record.txt_records if t.startswith("docusign="))
+
+    return {
+        "saas_platforms":     saas,
+        "identity_providers": identity,
+        "payment_processors": payment,
+        "ai_infrastructure":  ai_infra,
+        "security_tooling":   security,
+        "email_marketing":    email_mktg,
+        "all_identified":     list(seen),
+        "total_identified":   len(seen),
+        "anomalous_records":  anomalies,
+        "unrecognised":       unrecognised,
+        "stripe_count":       stripe_count,
+        "docusign_count":     docusign_count,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Main pipeline
+# ---------------------------------------------------------------------------
 
 async def run(
     dns_file: str,
@@ -33,7 +119,12 @@ async def run(
     partner_context: str = None,
     threat_context: str = None,
     skip_narrative: bool = False,
+    output_dir: Path = None,
+    brand_profile: str = None,   
 ) -> dict:
+    # Load brand config early
+    brand = BrandConfig.load(brand_profile)
+    print(f"  Brand: {brand.brand_name}")
 
     # 1. Load raw record
     with open(dns_file) as f:
@@ -56,12 +147,9 @@ async def run(
     print(f"  Findings — {len(critical)} critical, {len(high)} high, "
           f"{len(findings)} total")
 
-    # 4. Compute composite score using inline annotation
-    scorer     = DatazagCompositeScorer()
-    annotation = NormalisedAnnotation.from_raw(raw)
-
-    # Build a minimal domain score from inline fields
-    from scorer import NormalisedDomainScore
+    # 4. Compute composite score
+    scorer       = DatazagCompositeScorer()
+    annotation   = NormalisedAnnotation.from_raw(raw)
     domain_score = NormalisedDomainScore(
         domain=domain,
         ip=record.a_records[0] if record.a_records else "",
@@ -77,8 +165,8 @@ async def run(
         last_scanned=record.scanned_at,
         is_flagged=record.is_phishing or record.is_malware,
         threat_categories=(
-            ["phishing"] * record.is_phishing +
-            ["malware"]  * record.is_malware
+            (["phishing"] if record.is_phishing else []) +
+            (["malware"]  if record.is_malware  else [])
         ),
     )
 
@@ -86,10 +174,12 @@ async def run(
         domain=domain,
         dns_posture_score=record.risk.score,
         email_spoof_score={
-            "critical": 100, "high": 70,
-            "medium": 40, "none": 5,
+            "critical": 100,
+            "high":      70,
+            "medium":    40,
+            "none":       5,
         }.get(record.email_auth.spoofing_severity, 20),
-        ip_score=None,            # No separate IP lookup needed — inline
+        ip_score=None,
         domain_score=domain_score,
         annotation=annotation,
     )
@@ -97,39 +187,14 @@ async def run(
           f"({composite.risk_band}) | confidence: {composite.confidence}")
     print(f"  Driver — {composite.primary_driver}")
 
-    # 5. Narrative enrichment (Claude API)
-    narrative = {}
-    if not skip_narrative and os.environ.get("ANTHROPIC_API_KEY"):
-        print(f"  Generating narrative ({audience} audience)...")
-        email_summary = (
-            f"SPF {record.email_auth.spf_all_mechanism}, "
-            f"DMARC p={record.email_auth.dmarc_policy or 'missing'}, "
-            f"spoofable: {record.email_auth.is_spoofable}"
-        )
-        saas = record.annotation.mx_provider_name and \
-               [record.annotation.mx_provider_name] or []
-        
-        narrative = await enrich_with_narrative(
-            domain=domain,
-            score=composite.composite_score,
-            risk_band=composite.risk_band,
-            findings=findings,
-            saas_stack=saas,
-            email_auth_summary=email_summary,
-            partner_context=partner_context,
-            threat_context=threat_context,
-            audience=audience,
-        )
-        print(f"  Key finding: {narrative.get('key_finding','')[:80]}...")
-    elif not os.environ.get("ANTHROPIC_API_KEY"):
-        print("  Skipping narrative — ANTHROPIC_API_KEY not set")
-
-    # 6. Assemble output
+    # 5. Assemble the FULL output dict first
+    #    Narrative needs the complete data — do this before the API call
     output = {
-        "domain":        domain,
-        "scanned_at":    record.scanned_at,
-        "generated_at":  datetime.utcnow().isoformat() + "Z",
-        "audience":      audience,
+        "domain":       domain,
+        "scanned_at":   record.scanned_at,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "audience":     audience,
+
         "composite_score": {
             "score":          composite.composite_score,
             "risk_band":      composite.risk_band,
@@ -139,146 +204,220 @@ async def run(
             "nudges": {
                 "mx_provider":    record.annotation.mx_provider_name,
                 "mx_trust_nudge": composite.mx_trust_nudge_applied,
-                "asn_risk_level": record.annotation.asn_risk_level,
+                "mx_risk_bias":   record.annotation.mx_risk_bias,
+                "provider_trust": composite.provider_trust_nudge_applied,
                 "tld_risk":       record.annotation.tld_risk_level,
+                "tld_adjustment": composite.tld_risk_adjustment,
+                "asn_risk_level": record.annotation.asn_risk_level,
             },
         },
-        "risk_score_breakdown": [
-            {"rule": r.rule, "points": r.points}
-            for r in record.risk.reasons
-        ],
+
+        "risk_score_engine": {
+            "score":          record.risk.score,
+            "bucket":         record.risk.bucket,
+            "profile":        record.risk.profile,
+            "config_version": record.risk.config_version,
+            "rules": [
+                {"rule": r.rule, "points": r.points}
+                for r in record.risk.reasons
+            ],
+            "trust_rules": [
+                {"rule": r.rule, "points": r.points}
+                for r in record.risk.negative_contributions
+            ],
+            "risk_rules": [
+                {"rule": r.rule, "points": r.points}
+                for r in record.risk.positive_contributions
+            ],
+        },
+
+        "dns_records": {
+            "a":      record.a_records,
+            "aaaa":   record.aaaa_records,
+            "mx":     record.mx_records,
+            "ns":     record.ns_records,
+            "txt":    record.txt_records,
+            "caa":    record.caa_records,
+            "mail_a": record.mail_a_records,
+            "www_a":  record.www_a_records,
+        },
+
         "email_auth": {
-            "spf":              record.email_auth.spf_all_mechanism,
-            "dmarc_policy":     record.email_auth.dmarc_policy,
-            "dmarc_pct":        record.email_auth.dmarc_pct,
-            "aspf":             record.email_auth.dmarc_aspf,
-            "adkim":            record.email_auth.dmarc_adkim,
-            "mta_sts":          record.email_auth.mta_sts_status,
-            "tls_rpt":          record.email_auth.tls_rpt_status,
-            "bimi":             record.email_auth.bimi_status,
-            "is_spoofable":     record.email_auth.is_spoofable,
-            "missing_layers":   record.email_auth.missing_layers,
+            "spf":                    record.email_auth.spf_all_mechanism,
+            "spf_raw":                record.email_auth.spf_raw,
+            "spf_includes":           record.email_auth.spf_includes,
+            "spf_ip4_ranges":         record.email_auth.spf_ip4_ranges,
+            "spf_strictness":         record.email_auth.spf_strictness,
+            "dmarc_policy":           record.email_auth.dmarc_policy,
+            "dmarc_raw":              record.email_auth.dmarc_raw,
+            "dmarc_pct":              record.email_auth.dmarc_pct,
+            "aspf":                   record.email_auth.dmarc_aspf,
+            "adkim":                  record.email_auth.dmarc_adkim,
+            "dmarc_rua":              record.email_auth.dmarc_rua,
+            "dmarc_ruf":              record.email_auth.dmarc_ruf,
+            "dmarc_fo":               record.email_auth.dmarc_fo,
+            "mta_sts":                record.email_auth.mta_sts_status,
+            "mta_sts_mode":           record.email_auth.mta_sts_mode,
+            "tls_rpt":                record.email_auth.tls_rpt_status,
+            "tls_rpt_rua":            record.email_auth.tls_rpt_rua,
+            "bimi":                   record.email_auth.bimi_status,
+            "bimi_raw":               record.email_auth.bimi_raw,
+            "dnssec":                 record.email_auth.dnssec_enabled,
+            "is_spoofable":           record.email_auth.is_spoofable,
+            "spoofing_severity":      record.email_auth.spoofing_severity,
+            "is_fully_authenticated": record.email_auth.is_fully_authenticated,
+            "missing_layers":         record.email_auth.missing_layers,
         },
+
+        "technographics": {
+            "mx_provider_name":     record.annotation.mx_provider_name,
+            "mx_mbp_category":      record.annotation.mx_mbp_category,
+            "mx_risk_bias":         record.annotation.mx_risk_bias,
+            "mx_trust_nudge":       record.annotation.mx_trust_nudge,
+            "ns_provider_name":     record.annotation.ns_provider_name,
+            "ns_provider_category": record.annotation.ns_provider_category,
+            "ns_brand_hit":         record.annotation.ns_brand_hit,
+            "isp_name":             record.annotation.isp_name,
+            "isp_country":          record.annotation.isp_country,
+            "asn":                  record.annotation.asn,
+            "asn_risk_level":       record.annotation.asn_risk_level,
+            "tld_country":          record.annotation.tld_country,
+            "tld_risk_level":       record.annotation.tld_risk_level,
+            "is_cdn_ugc":           record.annotation.is_cdn_ugc,
+            "net_trust_score":      record.annotation.net_trust_score,
+        },
+
         "infrastructure": {
-            "cdn":              record.annotation.mx_provider_name,
-            "isp":              record.annotation.isp_name,
-            "asn":              record.annotation.asn,
-            "dual_stack":       record.is_dual_stack,
-            "mx_provider":      record.annotation.mx_provider_name,
-            "mx_category":      record.annotation.mx_mbp_category,
-            "ns_provider":      record.annotation.ns_provider_name,
+            "cdn":         record.annotation.isp_name,
+            "isp":         record.annotation.isp_name,
+            "asn":         record.annotation.asn,
+            "dual_stack":  record.is_dual_stack,
+            "ip_int":      record.ip_int,
+            "ns_primary":  record.ns_primary,
+            "mx_provider": record.annotation.mx_provider_name,
+            "mx_category": record.annotation.mx_mbp_category,
+            "ns_provider": record.annotation.ns_provider_name,
         },
+
         "certificates": {
-            "https_days_left":  record.https_cert.days_remaining if record.https_cert else None,
-            "https_issuer":     record.https_cert.issuer_org if record.https_cert else None,
-            "https_expiring":   record.https_cert.is_expiring_soon if record.https_cert else None,
-            "smtp_days_left":   record.smtp.cert.days_remaining if record.smtp.cert else None,
-            "smtp_banner":      record.smtp.banner_raw,
-            "provider_live":    record.smtp.provider_confirmed,
+            "https_ok":           record.https_cert.ok if record.https_cert else None,
+            "https_days_left":    record.https_cert.days_remaining if record.https_cert else None,
+            "https_issuer":       record.https_cert.issuer if record.https_cert else None,
+            "https_issuer_org":   record.https_cert.issuer_org if record.https_cert else None,
+            "https_san_count":    record.https_cert.san_count if record.https_cert else None,
+            "https_label":        record.https_cert.label if record.https_cert else None,
+            "https_lets_encrypt": record.https_cert.is_lets_encrypt if record.https_cert else None,
+            "https_expiring":     record.https_cert.is_expiring_soon if record.https_cert else None,
+            "smtp_ok":            record.smtp.cert.ok if record.smtp.cert else None,
+            "smtp_days_left":     record.smtp.cert.days_remaining if record.smtp.cert else None,
+            "smtp_issuer":        record.smtp.cert.issuer if record.smtp.cert else None,
+            "smtp_issuer_org":    record.smtp.cert.issuer_org if record.smtp.cert else None,
+            "smtp_banner":        record.smtp.banner_raw,
+            "smtp_banner_host":   record.smtp.banner_host,
+            "smtp_banner_detail": record.smtp.banner_detail,
+            "provider_live":      record.smtp.provider_confirmed,
         },
+
+        "labels": {
+            "dmarc_policy":          record.label_dmarc_policy,
+            "spf_strictness":        record.label_spf_strictness,
+            "ttl_bucket":            record.label_ttl_bucket,
+            "ssl_issuer":            record.label_ssl_issuer,
+            "active_infrastructure": record.label_active_infrastructure,
+        },
+
+        "threat_flags": {
+            "is_phishing":      record.is_phishing,
+            "is_malware":       record.is_malware,
+            "is_new_domain":    record.is_new_domain,
+            "has_security_txt": record.has_security_txt,
+            "has_caa":          record.has_caa,
+        },
+
         "change_signals": {
-            "any_change":       record.changes.any_change_signal,
-            "any_threat":       record.changes.any_threat_signal,
-            "ns_changed":       record.changes.ns_changed,
-            "ip_changed":       record.changes.ip_changed,
+            "ns_changed":      record.changes.ns_changed,
+            "ip_changed":      record.changes.ip_changed,
+            "country_changed": record.changes.country_changed,
+            "ttl_drop_big":    record.changes.ttl_drop_big,
+            "is_dynamic_dns":  record.changes.is_dynamic_dns,
+            "mx_misconfigured": record.changes.mx_misconfigured_provider,
+            "parking_points":  record.changes.parking_points,
+            "subdomain_points": record.changes.subdomain_points,
+            "any_change":      record.changes.any_change_signal,
+            "any_threat":      record.changes.any_threat_signal,
         },
-        "findings": findings,
-        "narrative": narrative,
+
+        "txt_intelligence": _extract_txt_intelligence(record),
+
+        "findings":  findings,
+        "narrative": {},        # Populated below after API call
     }
 
-    # 7. Write output files
-    out_dir = Path("output") / domain.replace(".", "_")
+    # 6. Narrative enrichment — called with the FULL output dict
+    if not skip_narrative and os.environ.get("ANTHROPIC_API_KEY"):
+        print(f"  Generating narrative ({audience} audience)...")
+        narrative = await enrich_with_narrative(
+            domain=domain,
+            score=composite.composite_score,
+            risk_band=composite.risk_band,
+            findings=findings,
+            output=output,          # full dict — all fields now populated
+            partner_context=partner_context,
+            threat_context=threat_context,
+            audience=audience,
+        )
+        output["narrative"] = narrative
+        print(f"  Key finding: {narrative.get('key_finding','')[:80]}...")
+    else:
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            print("  Skipping narrative — ANTHROPIC_API_KEY not set")
+
+    # 7. Render and write output files
+    all_reports = render_all(output, brand=brand)
+
+    out_dir = (output_dir or DEFAULT_OUTPUT_DIR) / domain.replace(".", "_")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # JSON
-    json_path = out_dir / f"{audience}.json"
-    with open(json_path, "w") as f:
-        json.dump(output, f, indent=2, default=str)
-
-    # Markdown
-    md_path = out_dir / f"{audience}.md"
-    with open(md_path, "w") as f:
-        f.write(_to_markdown(output))
+    for aud, formats in all_reports.items():
+        for fmt, content in formats.items():
+            ext = {"json": "json", "markdown": "md", "html": "html"}[fmt]
+            path = out_dir / f"{aud}.{ext}"
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
 
     print(f"\n  Output written to {out_dir}/")
-    print(f"    {json_path}")
-    print(f"    {md_path}")
+    print("  12 files — 4 audiences × 3 formats (JSON, Markdown, HTML)")
 
     return output
 
 
-def _to_markdown(o: dict) -> str:
-    cs = o["composite_score"]
-    ea = o["email_auth"]
-    n  = o.get("narrative", {})
-
-    lines = [
-        f"# Intelligence brief — {o['domain']}",
-        f"*{o['generated_at']} · {o['audience']} view*",
-        "",
-    ]
-
-    if n.get("key_finding"):
-        lines += [f"> {n['key_finding']}", ""]
-
-    lines += [
-        f"## Score: {cs['score']}/100 — {cs['risk_band'].upper()}",
-        f"Confidence: {cs['confidence']} · Primary driver: {cs['primary_driver']}",
-        "",
-        "| Component | Score |",
-        "|-----------|-------|",
-    ]
-    for k, v in cs.get("components", {}).items():
-        lines.append(f"| {k.replace('_', ' ').title()} | {v} |")
-
-    lines += [
-        "",
-        "## Email security",
-        f"- SPF: `{ea['spf']}`",
-        f"- DMARC: `p={ea['dmarc_policy'] or 'missing'}`"
-        + (f" pct={ea['dmarc_pct']}" if ea["dmarc_policy"] else ""),
-        f"- Spoofable: {'YES' if ea['is_spoofable'] else 'No'}",
-        f"- Missing: {', '.join(ea['missing_layers']) or 'nothing critical'}",
-        "",
-        "## Findings",
-        "",
-    ]
-
-    for sev in ["critical", "high", "medium", "info"]:
-        fs = [f for f in o["findings"] if f.get("severity") == sev]
-        if fs:
-            lines.append(f"### {sev.upper()}")
-            for f in fs:
-                lines += [
-                    f"**{f['title']}**  ",
-                    f"{f.get('detail', '')}  ",
-                    f"*Fix: {f.get('remediation', 'n/a')}*",
-                    "",
-                ]
-
-    if n.get("threat_narrative"):
-        lines += ["## Threat narrative", "", n["threat_narrative"], ""]
-
-    return "\n".join(lines)
-
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Datazag DNS Intelligence Engine")
-    parser.add_argument("file",    help="Path to Datazag DNS JSON file")
-    parser.add_argument("--audience",  default="insurer",
+    parser.add_argument("--dns_file", default="C:/Users/PeterChaplin/Downloads/mge_com.json",
+                        help="Path to Datazag DNS JSON file")
+    parser.add_argument("--audience",     default="insurer",
                         choices=["insurer","consultant","it","sales"])
-    parser.add_argument("--partner",   default=None,
+    parser.add_argument("--partner",      default=None,
                         help="Partner context e.g. 'Atlassian Platinum Partner'")
-    parser.add_argument("--threat",    default=None,
+    parser.add_argument("--threat",       default=None,
                         help="Threat context e.g. 'Subject of ransom demand'")
+    parser.add_argument("--output-dir",   default=None,
+                        help="Output directory (overrides OUTPUT_DIR in .env)")
     parser.add_argument("--no-narrative", action="store_true",
                         help="Skip Claude API call (faster, no cost)")
+    parser.add_argument("--brand", default=None,
+                    help="Brand profile name (e.g. 'acme_mssp') or omit for Datazag default")
     args = parser.parse_args()
 
     asyncio.run(run(
-        dns_file=args.file,
+        dns_file=args.dns_file,
         audience=args.audience,
         partner_context=args.partner,
         threat_context=args.threat,
         skip_narrative=args.no_narrative,
+        output_dir=Path(args.output_dir) if args.output_dir else None,
     ))
