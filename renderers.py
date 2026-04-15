@@ -1272,7 +1272,7 @@ class ConsultantRenderer(BaseRenderer):
         guide = self.REMEDIATION_GUIDES.get(finding.get("finding", ""))
         if guide:
             return guide.format(domain=self.domain)
-        return finding.get("remediation", "")
+        return finding.get("remediation") or ""
 
     def to_markdown(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
@@ -1364,7 +1364,7 @@ class ConsultantRenderer(BaseRenderer):
                 f'padding:2px 6px;border-radius:3px;display:block;margin:4px 0">'
                 f'{f.get("evidence","")[:100]}</code>'
                 f'<div style="font-size:11px;color:#555;margin-top:6px;font-style:italic">'
-                f'Fix: {self._remediation_detail(f)[:120]}</div>'
+                f'Fix: {(self._remediation_detail(f) or "")[:120]}</div>'
                 f'</div>'
             )
 

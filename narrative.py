@@ -43,7 +43,7 @@ async def enrich_with_narrative(
         f"  [{f['severity'].upper()}] {f['title']}\n"
         f"    Evidence: {f.get('evidence','')[:120]}\n"
         f"    Detail: {f.get('detail','')[:200]}\n"
-        f"    Fix: {f.get('remediation','')[:120]}"
+        f"    Fix: {(f.get('remediation') or '')[:120]}"
         for f in sorted(
             findings,
             key=lambda x: ["critical","high","medium","info"].index(

@@ -14,7 +14,7 @@ import asyncio
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime,timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -192,7 +192,7 @@ async def run(
     output = {
         "domain":       domain,
         "scanned_at":   record.scanned_at,
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
         "audience":     audience,
 
         "composite_score": {
@@ -397,7 +397,7 @@ async def run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Datazag DNS Intelligence Engine")
-    parser.add_argument("--dns_file", default="C:/Users/PeterChaplin/Downloads/mge_com.json",
+    parser.add_argument("--dns_file", default="C:/Users/PeterChaplin/Downloads/adaptavist.json",
                         help="Path to Datazag DNS JSON file")
     parser.add_argument("--audience",     default="insurer",
                         choices=["insurer","consultant","it","sales"])
