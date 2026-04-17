@@ -32,6 +32,68 @@ DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
 
 
 # ---------------------------------------------------------------------------
+# Ducklake Infrastructure Intelligence Extractor
+# ---------------------------------------------------------------------------
+
+def _fetch_infrastructure_intelligence(domain: str) -> dict:
+    """
+    Connects to the DuckLake Medallion architecture (via DuckDB) and extracts 
+    the mathematically modeled risk vectors like Fast Flux, Dangling CNAMEs, and MOAS.
+    Supports R2 remote lakes or local fallbacks.
+    """
+    import duckdb
+
+    # Identify targets
+    local_path = "C:/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet" if os.name == 'nt' else "/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet"
+    target_path = os.environ.get("DUCKLAKE_GOLD_PATH", local_path)
+    
+    db = duckdb.connect()
+    
+    try:
+        # Check for remote R2 HTTPFS setup
+        if target_path.startswith("r2://") or target_path.startswith("s3://"):
+            access_key = os.environ.get('R2_ACCESS_KEY', '')
+            secret_key = os.environ.get('R2_SECRET_KEY', '')
+            account_id = os.environ.get('R2_ACCOUNT_ID', '')
+            if access_key and secret_key and account_id:
+                db.execute("INSTALL httpfs; LOAD httpfs;")
+                db.execute(f"""
+                    CREATE OR REPLACE SECRET r2_creds (
+                        TYPE r2,
+                        KEY_ID '{access_key}',
+                        SECRET '{secret_key}',
+                        ACCOUNT_ID '{account_id}'
+                    );
+                """)
+            else:
+                return {} # Remote path but missing credentials, fail gracefully
+                
+        # Fast query across Gold Risk Tables
+        query = f"""
+            SELECT domain_risk_score, domain_risk_context 
+            FROM read_parquet('{target_path}') 
+            WHERE domain = '{domain}'
+            LIMIT 1
+        """
+        df = db.execute(query).df()
+        if not df.empty:
+            raw_result = df.to_dict(orient="records")[0]
+            # Context is a JSON string containing the reason codes array. 
+            # Safely deserialise it so it can be dumped natively into the JSON payload.
+            try:
+                if raw_result.get("domain_risk_context"):
+                    if isinstance(raw_result["domain_risk_context"], str):
+                        raw_result["domain_risk_context"] = json.loads(raw_result["domain_risk_context"])
+            except Exception:
+                pass
+            return raw_result
+        return {}
+    except Exception as e:
+        # Silently degrade if the Gold table hasn't caught up to this domain yet
+        return {}
+
+
+# ---------------------------------------------------------------------------
 # TXT intelligence extractor
 # ---------------------------------------------------------------------------
 
@@ -186,6 +248,11 @@ async def run(
     print(f"  Score — {composite.composite_score}/100 "
           f"({composite.risk_band}) | confidence: {composite.confidence}")
     print(f"  Driver — {composite.primary_driver}")
+
+    # Fetch deep infrastructure intelligence locally or from R2!
+    infra_intel = _fetch_infrastructure_intelligence(domain)
+    if infra_intel:
+        print(f"  [+] Attached Gold Infrastructure Risk (Score: {infra_intel.get('domain_risk_score', 0):.2f})")
 
     # 5. Assemble the FULL output dict first
     #    Narrative needs the complete data — do this before the API call
@@ -347,6 +414,7 @@ async def run(
             "any_threat":      record.changes.any_threat_signal,
         },
 
+        "infrastructure_intelligence": infra_intel,
         "txt_intelligence": _extract_txt_intelligence(record),
 
         "findings":  findings,
@@ -397,7 +465,7 @@ async def run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Datazag DNS Intelligence Engine")
-    parser.add_argument("--dns_file", default="C:/Users/PeterChaplin/Downloads/adaptavist.json",
+    parser.add_argument("--dns_file", default="C:/Users/PeterChaplin/Downloads/excis.json",
                         help="Path to Datazag DNS JSON file")
     parser.add_argument("--audience",     default="insurer",
                         choices=["insurer","consultant","it","sales"])

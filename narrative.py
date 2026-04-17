@@ -38,6 +38,7 @@ async def enrich_with_narrative(
     risk_eng = output.get("risk_score_engine", {})
     cs_raw   = output.get("composite_score", {})
     cs       = cs_raw if isinstance(cs_raw, dict) else {"score": cs_raw}
+    infra_intel = output.get("infrastructure_intelligence", {})
 
     findings_detail = "\n".join(
         f"  [{f['severity'].upper()}] {f['title']}\n"
@@ -182,6 +183,11 @@ For each missing layer above, explain:
 2. What an attacker can do because it is missing
 3. The specific DNS record needed to fix it
 
+=== DATAZAG GLOBAL INFRASTRUCTURE INTELLIGENCE ===
+This is high-fidelity telemetry derived directly from the DuckLake Medallion Architecture mathematically compiling 1.8 billion external BGP and DNS events:
+- Infrastructure Risk Score: {infra_intel.get('domain_risk_score', 'NO_DATA')}/100
+- Detected Risk Vectors: {json.dumps(infra_intel.get('domain_risk_context', []), indent=2)}
+
 === ALL FINDINGS ===
 {findings_detail}
 ---
@@ -191,10 +197,10 @@ Return ONLY a valid JSON object with exactly these fields:
 {{
   "key_finding": "The single most important finding in one precise sentence. Reference specific evidence.",
   "executive_summary": "3-4 sentences. Lead with composite score and primary driver. Name specific services and risk signals.",
-  "threat_narrative": "5-8 sentences of deep interpretive analysis connecting findings to real threat scenarios. Reference specific DNS evidence throughout.",
+  "threat_narrative": "5-8 sentences of deep interpretive analysis connecting findings to real threat scenarios. CRITICALLY: Interweave the 'Datazag Global Infrastructure Intelligence' flags (e.g. MOAS anomalies, Fast Flux, Dangling CNAMEs) into this section if present.",
   "positive_signals": "2-3 sentences identifying what this domain does well. Name specific providers, policies, and score contributions.",
   "remediation_priority": "For each critical or high finding, one sentence with the specific fix and expected impact. Numbered list.",
-  "insurer_signals": "3-4 sentences translating technical findings into policy risk language. Mention attack vectors, likely claim types, premium implications.",
+  "insurer_signals": "3-4 sentences translating technical findings into policy risk language. EXPLICITLY reference how the Datazag Infrastructure Telemetry (BGP routing strangeness, infrastructure scores) impacts actuarial cyber risk premiums and likelihood of a claim.",
   "saas_stack_analysis": "2-3 sentences on the SaaS stack breadth, any high-risk services, what it reveals about the organisation, supply chain implications."
 }}"""
 
