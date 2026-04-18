@@ -94,6 +94,55 @@ def _fetch_infrastructure_intelligence(domain: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Certstream Dynamic Intelligence Array
+# ---------------------------------------------------------------------------
+
+def _fetch_certstream_ip_intel(raw_json: dict) -> dict:
+    """
+    Scans any resolved IP within the physical layer of the target payload,
+    and dynamically checks if it is participating in an active BGP CertStream threat loop.
+    """
+    import re
+    import duckdb
+    
+    # 1. Bruteforce extract all underlying IPs from the parsed Domain JSON
+    raw_str = json.dumps(raw_json)
+    ips = list(set(re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', raw_str)))
+    if not ips:
+        return {}
+        
+    certstream_path = "C:/root/asn_data_v3/cache/certstream/certstream.parquet" if os.name == 'nt' else "/root/asn_data_v3/cache/certstream/certstream.parquet"
+    if not os.path.exists(certstream_path):
+        return {}
+        
+    db = duckdb.connect()
+    try:
+        # 2. Vectorized Ducklake Lookup matching any extracted local IP to the global Threat Parquet
+        ip_list_str = "['" + "', '".join(ips) + "']"
+        query = f"""
+            SELECT 
+                SUM(certstream_hits) as total_threat_hits,
+                SUM(a_certstream_hits) as a_hits,
+                SUM(ns_certstream_hits) as ns_hits,
+                SUM(mx_certstream_hits) as mx_hits
+            FROM read_parquet('{certstream_path}')
+            WHERE ip IN (SELECT * FROM UNNEST({ip_list_str}))
+        """
+        df = db.execute(query).df()
+        if not df.empty and df['total_threat_hits'].iloc[0] is not None:
+            hits = int(df['total_threat_hits'].iloc[0])
+            if hits > 0:
+                return {
+                    "certstream_anomalies": hits,
+                    "certstream_a_risk": int(df['a_hits'].iloc[0] or 0),
+                    "certstream_ns_risk": int(df['ns_hits'].iloc[0] or 0),
+                    "certstream_mx_risk": int(df['mx_hits'].iloc[0] or 0)
+                }
+    except Exception:
+        pass
+    return {}
+
+# ---------------------------------------------------------------------------
 # TXT intelligence extractor
 # ---------------------------------------------------------------------------
 
@@ -204,11 +253,23 @@ async def run(
 
     # 3. Generate passive findings
     findings = passive_security_findings_v2(record)
+    
+    # 3.5 Dynamic Certstream Threat Hit Injection!
+    # Evaluates physical infrastructure against Ducklake Gold BGP tables
+    certstream_intel = _fetch_certstream_ip_intel(raw)
+    if certstream_intel.get("certstream_anomalies"):
+        findings.append({
+            "severity": "high",
+            "category": "threat_intelligence",
+            "label": "CERTSTREAM_INFRA_HIT",
+            "description": f"Domain perfectly overlays infrastructure actively serving {certstream_intel['certstream_anomalies']} distinct malicious certificates inside the Datazag Global BGP Feed."
+        })
+        
     critical = [f for f in findings if f["severity"] == "critical"]
     high     = [f for f in findings if f["severity"] == "high"]
     print(f"  Findings — {len(critical)} critical, {len(high)} high, "
           f"{len(findings)} total")
-
+          
     # 4. Compute composite score
     scorer       = DatazagCompositeScorer()
     annotation   = NormalisedAnnotation.from_raw(raw)
