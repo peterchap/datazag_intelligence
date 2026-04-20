@@ -1,4 +1,5 @@
 import httpx
+import asyncio
 from datetime import datetime
 
 REGISTRAR_RISK = {
@@ -235,80 +236,192 @@ def get_governance_metrics(data):
         "dnssec": dnssec
     }
 
-def rdap_lookup(domain):
-    # 1. Clean the input to avoid malformed URL errors
+async def rdap_lookup_async(domain: str) -> dict:
+    """
+    Async version of rdap_lookup returning structured data for pipeline use.
+    Replaces the synchronous WHOIS domain age call in compile_pure_dns_report.
+    Returns a dict with all fields needed to populate the report.
+    """
     domain = domain.strip().lower()
-    url = f"https://rdap.org/domain/{domain}"
-    
-    # 2. Set a User-Agent to avoid being blocked as a basic bot
+    url     = f"https://rdap.org/domain/{domain}"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (compatible; Datazag-InfraScout/1.0)"
+    }
+
+    result = {
+        # Domain lifecycle
+        "registered":        None,
+        "updated":           None,
+        "expires":           None,
+        "domain_age_days":   -1,
+        "days_to_expiry":    -1,
+
+        # Registrar
+        "registrar_name":    None,
+        "registrar_address": None,
+        "registrar_score":   0,
+        "registrar_label":   "Unknown",
+
+        # Nameservers (from RDAP — cross-check against DNS)
+        "nameservers":       [],
+        "ns_score":          0,
+        "ns_reasons":        [],
+
+        # Status flags
+        "status":            [],
+        "status_score":      0,
+        "status_reasons":    [],
+        "lock_count":        0,
+
+        # Security
+        "dnssec_enabled":    False,
+
+        # Abuse
+        "abuse_email":       None,
+        "abuse_contact_present": False,
+
+        # Transfer history
+        "transfer_events":   [],
+        "recent_transfer":   False,
+
+        # Composite risk from RDAP signals
+        "rdap_risk_score":   0,
+        "rdap_risk_reasons": [],
+
+        "rdap_available": False,
+        "rdap_error":     None,
     }
 
     try:
-        # 3. Explicitly follow redirects (essential for rdap.org)
-        with httpx.Client(follow_redirects=True, headers=headers) as client:
-            response = client.get(url, timeout=10.0)
-            
-            if response.status_code == 400:
-                print(f"Error 400: The server rejected the request for '{domain}'.")
-                print("Check if the domain is typed correctly (e.g., 'google.com' not '://google.com')")
-                return
-                
-            response.raise_for_status()
+        async with httpx.AsyncClient(
+            follow_redirects=True, headers=headers, timeout=10.0
+        ) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
 
-            data = response.json()
-            # Extract Dates using next() for efficiency
-            events = data.get('events', [])
-            raw_reg = next((e['eventDate'] for e in events if e['eventAction'] == 'registration'), "N/A")
-            raw_mod = next((e['eventDate'] for e in events if e['eventAction'] == 'last changed'), "N/A")
-            
-            # Registrar
-            reg_info = find_registrar_info(data.get('entities', [])) or {"name": "N/A", "address": "N/A"}
+        # ── Dates ──────────────────────────────────────────────────────────
+        events    = data.get("events", [])
+        raw_reg   = next((e["eventDate"] for e in events
+                          if e["eventAction"] == "registration"), None)
+        raw_mod   = next((e["eventDate"] for e in events
+                          if e["eventAction"] == "last changed"), None)
+        raw_exp   = next((e["eventDate"] for e in events
+                          if e["eventAction"] == "expiration"), None)
 
-        # Extract Status
-        status = data.get('status', []) # returns a list like ['client transfer prohibited']
+        result["registered"] = format_date(raw_reg)
+        result["updated"]    = format_date(raw_mod)
+        result["expires"]    = format_date(raw_exp)
 
-        # Extract Name Servers
-        ns_list = [ns.get('ldhName') for ns in data.get('nameservers', [])]
+        if raw_reg and raw_reg != "N/A":
+            try:
+                reg_date = datetime.strptime(raw_reg[:10], "%Y-%m-%d")
+                result["domain_age_days"] = max(0, (datetime.now() - reg_date).days)
+            except Exception:
+                pass
 
-        # Extract Remarks (for abuse reporting info)
-        remarks = [r.get('description', [])[0] for r in data.get('remarks', []) if r.get('description')]
+        if raw_exp and raw_exp != "N/A":
+            try:
+                exp_date = datetime.strptime(raw_exp[:10], "%Y-%m-%d")
+                result["days_to_expiry"] = (exp_date - datetime.now()).days
+            except Exception:
+                pass
 
-        # Calculate Risk
-        risk_score, risk_reasons = calculate_risk_score(data, raw_reg)
+        # ── Registrar ──────────────────────────────────────────────────────
+        entities   = data.get("entities", [])
+        reg_info   = find_registrar_info(entities) or {"name": None, "address": None}
+        reg_score, reg_label = score_registrar(reg_info.get("name"))
 
-        # Governance Metrics
-        gov = get_governance_metrics(data)
+        result["registrar_name"]    = reg_info.get("name")
+        result["registrar_address"] = reg_info.get("address")
+        result["registrar_score"]   = reg_score
+        result["registrar_label"]   = reg_label
 
-        # Print Results
-        
-        print(f"--- {domain.upper()} ---")
-        print(f"Created:   {format_date(raw_reg)}")
-        print(f"Updated:   {format_date(raw_mod)}")
-        print(f"Registrar: {reg_info['name']}")
-        print(f"Location:  {reg_info['address']}")
-        print(f"Status:      {', '.join(status)}")
-        print(f"NameServers: {', '.join(ns_list)}")
-        print(f"Abuse Info:  {remarks[0] if remarks else 'N/A'}")
-        print(f"\n--- GOVERNANCE ---")
-        print(f"Expiration:  {gov['expiration']}")
-        print(f"DNSSEC:      {gov['dnssec']}")  
-        print(f"\n--- THREAT INTEL REPORT ---")
-        print(f"Risk Score:  {risk_score}/7")
-        if risk_reasons:
-            print(f"Warnings:    {', '.join(risk_reasons)}")
-            
-        if risk_score >= 3:
-            print("🚨 HIGH RISK: This domain matches common phishing/malware patterns.")
-        else:
-            print("✅ LOW RISK: Domain appears established.")
-        
+        # ── Nameservers ────────────────────────────────────────────────────
+        ns_list = [
+            ns.get("ldhName", "").lower()
+            for ns in data.get("nameservers", [])
+        ]
+        ns_score, ns_reasons = score_nameservers(ns_list)
+        result["nameservers"] = ns_list
+        result["ns_score"]    = ns_score
+        result["ns_reasons"]  = ns_reasons
+
+        # ── Status flags ───────────────────────────────────────────────────
+        status_list   = data.get("status", [])
+        status_score, status_reasons = status_risk(status_list)
+        lock_count = sum(
+            1 for s in status_list
+            if s.lower().replace(" ", "").replace("-", "") in LOW_RISK_STATUS
+        )
+
+        result["status"]         = status_list
+        result["status_score"]   = status_score
+        result["status_reasons"] = status_reasons
+        result["lock_count"]     = lock_count
+
+        # ── DNSSEC ─────────────────────────────────────────────────────────
+        secure_dns = data.get("secureDNS", {})
+        result["dnssec_enabled"] = bool(secure_dns.get("delegationSigned"))
+
+        # ── Abuse contact ──────────────────────────────────────────────────
+        abuse_email = find_abuse_contact(entities)
+        result["abuse_email"]          = abuse_email
+        result["abuse_contact_present"] = abuse_email is not None
+
+        # ── Transfer history ───────────────────────────────────────────────
+        transfers = extract_transfer_events(events)
+        result["transfer_events"] = transfers
+        # Recent transfer = any transfer in last 180 days
+        if transfers:
+            try:
+                latest = datetime.strptime(
+                    max(t for t in transfers if t != "N/A"),
+                    "%Y-%m-%d"
+                )
+                result["recent_transfer"] = (datetime.now() - latest).days < 180
+            except Exception:
+                pass
+
+        # ── Composite RDAP risk score ──────────────────────────────────────
+        rdap_score   = reg_score + ns_score + status_score
+        rdap_reasons = (
+            ([f"Registrar: {reg_label}"] if reg_score > 0 else []) +
+            ns_reasons +
+            status_reasons
+        )
+
+        if result["domain_age_days"] != -1:
+            if result["domain_age_days"] < 30:
+                rdap_score   += 3
+                rdap_reasons.append("Ultra-new domain (< 30 days)")
+            elif result["domain_age_days"] < 90:
+                rdap_score   += 1
+                rdap_reasons.append("New domain (< 90 days)")
+
+        if result["days_to_expiry"] != -1 and 0 < result["days_to_expiry"] < 30:
+            rdap_score   += 2
+            rdap_reasons.append(f"Domain expires in {result['days_to_expiry']} days")
+
+        if result["recent_transfer"]:
+            rdap_score   += 1
+            rdap_reasons.append("Registrar transfer within last 180 days")
+
+        if not result["dnssec_enabled"]:
+            rdap_score   += 1
+            rdap_reasons.append("DNSSEC not enabled")
+
+        result["rdap_risk_score"]   = rdap_score
+        result["rdap_risk_reasons"] = rdap_reasons
+        result["rdap_available"]    = True
+
     except httpx.HTTPStatusError as e:
-        print(f"HTTP Error {e.response.status_code}: {e.response.text[:100]}")
+        result["rdap_error"] = f"HTTP {e.response.status_code}"
     except Exception as e:
-        print(f"Connection Error: {e}")
+        result["rdap_error"] = str(e)[:200]
+
+    return result
 
 if __name__ == "__main__":
     target = "excis.com"
-    rdap_lookup(target)
+    asyncio.run(rdap_lookup_async(target))
