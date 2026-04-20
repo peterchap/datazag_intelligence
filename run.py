@@ -10,25 +10,24 @@ Outputs JSON + Markdown + HTML for each audience to ./output/<domain>/
 """
 
 import argparse
-import asyncio
+import asyncio 
+import duckdb
 import json
 import os
 import re
 from datetime import datetime,timezone
 from pathlib import Path
+
 from dotenv import load_dotenv
+load_dotenv()
 
 from adapter import DatazagCanonicalAdapter
-from dnsproject.scripts.dns_generator import compile_pure_dns_report
-from enrichment import enrich_http_and_shodan
 from findings import passive_security_findings_v2
 from fingerprints import TXT_FINGERPRINTS, ADDITIONAL_TXT_FINGERPRINTS
 from scorer import DatazagCompositeScorer, NormalisedAnnotation, NormalisedDomainScore
 from narrative import enrich_with_narrative
 from renderers import render_all
 from branding import BrandConfig
-
-load_dotenv()
 
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
 
@@ -43,7 +42,7 @@ def _fetch_infrastructure_intelligence(domain: str) -> dict:
     the mathematically modeled risk vectors like Fast Flux, Dangling CNAMEs, and MOAS.
     Supports R2 remote lakes or local fallbacks.
     """
-    import duckdb
+   
 
     # Identify targets
     local_path = "C:/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet" if os.name == 'nt' else "/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet"
@@ -104,8 +103,6 @@ def _fetch_certstream_ip_intel(raw_json: dict) -> dict:
     Scans any resolved IP within the physical layer of the target payload,
     and dynamically checks if it is participating in an active BGP CertStream threat loop.
     """
-    import re
-    import duckdb
     
     # 1. Bruteforce extract all underlying IPs from the parsed Domain JSON
     raw_str = json.dumps(raw_json)
@@ -227,34 +224,23 @@ def _extract_txt_intelligence(record) -> dict:
 # ---------------------------------------------------------------------------
 
 async def run(
-    dns_file: str = None,       # existing — load from JSON
-    domain: str = None,         # new — live DNS fetch
+    dns_file: str,
     audience: str = "insurer",
     partner_context: str = None,
     threat_context: str = None,
     skip_narrative: bool = False,
     output_dir: Path = None,
-    brand_profile: str = None,
+    brand_profile: str = None,   
 ) -> dict:
-    # Validate — must have one or the other
-    if not dns_file and not domain:
-        raise ValueError("Provide either --dns_file or --domain")
-    if dns_file and not domain:
-        # Will be set from raw after load — existing behaviour
-        pass
     # Load brand config early
     brand = BrandConfig.load(brand_profile)
     print(f"  Brand: {brand.brand_name}")
 
     # 1. Load raw record
-    if dns_file:
-        with open(dns_file) as f:
-            raw = json.load(f)
-        domain = raw.get("domain", "unknown")
-    else:
-        # Live DNS fetch — calls the full pipeline directly
-        print(f"\n  Running live DNS fetch for {domain}...")
-        raw = await compile_pure_dns_report(domain)
+    with open(dns_file) as f:
+        raw = json.load(f)
+
+    domain = raw.get("domain", "unknown")
     print(f"\n  Analysing {domain}...")
 
     # 2. Parse canonical record
@@ -282,16 +268,7 @@ async def run(
     high     = [f for f in findings if f["severity"] == "high"]
     print(f"  Findings — {len(critical)} critical, {len(high)} high, "
           f"{len(findings)} total")
-
-    http_section, shodan_section = await enrich_http_and_shodan(
-    domain=domain,
-    record=record,
-    raw=raw,
-    shodan_api_key=os.environ.get("SHODAN_API_KEY"),
-    )
-    findings.extend(http_section.get("findings", []))
-    findings.extend(shodan_section.get("findings", []))
-
+          
     # 4. Compute composite score
     scorer       = DatazagCompositeScorer()
     annotation   = NormalisedAnnotation.from_raw(raw)
@@ -498,9 +475,8 @@ async def run(
         },
 
         "infrastructure_intelligence": infra_intel,
-        "http_enrichment":   http_section,
-        "shodan_enrichment": shodan_section,
         "txt_intelligence": _extract_txt_intelligence(record),
+
         "findings":  findings,
         "narrative": {},        # Populated below after API call
     }
@@ -549,31 +525,27 @@ async def run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Datazag DNS Intelligence Engine")
+    parser.add_argument("--dns_file", default="C:/Users/PeterChaplin/Downloads/excis.json",
+                        help="Path to Datazag DNS JSON file")
+    parser.add_argument("--audience",     default="insurer",
+                        choices=["insurer","consultant","it","sales"])
+    parser.add_argument("--partner",      default=None,
+                        help="Partner context e.g. 'Atlassian Platinum Partner'")
+    parser.add_argument("--threat",       default=None,
+                        help="Threat context e.g. 'Subject of ransom demand'")
+    parser.add_argument("--output-dir",   default=None,
+                        help="Output directory (overrides OUTPUT_DIR in .env)")
+    parser.add_argument("--no-narrative", action="store_true",
+                        help="Skip Claude API call (faster, no cost)")
+    parser.add_argument("--brand", default=None,
+                    help="Brand profile name (e.g. 'acme_mssp') or omit for Datazag default")
+    args = parser.parse_args()
 
-# Input — mutually exclusive
-input_group = parser.add_mutually_exclusive_group(required=True)
-input_group.add_argument("--dns_file", default=None,
-                         help="Path to pre-collected Datazag DNS JSON file")
-input_group.add_argument("--domain",   default=None,
-                         help="Domain to scan live e.g. adaptavist.com")
-
-parser.add_argument("--audience",     default="insurer",
-                    choices=["insurer","consultant","it","sales"])
-parser.add_argument("--partner",      default=None)
-parser.add_argument("--threat",       default=None)
-parser.add_argument("--output-dir",   default=None)
-parser.add_argument("--no-narrative", action="store_true")
-parser.add_argument("--brand",        default=None)
-
-args = parser.parse_args()
-
-asyncio.run(run(
-    dns_file=args.dns_file,
-    domain=args.domain,
-    audience=args.audience,
-    partner_context=args.partner,
-    threat_context=args.threat,
-    skip_narrative=args.no_narrative,
-    output_dir=Path(args.output_dir) if args.output_dir else None,
-    brand_profile=args.brand,
-))
+    asyncio.run(run(
+        dns_file=args.dns_file,
+        audience=args.audience,
+        partner_context=args.partner,
+        threat_context=args.threat,
+        skip_narrative=args.no_narrative,
+        output_dir=Path(args.output_dir) if args.output_dir else None,
+    ))
