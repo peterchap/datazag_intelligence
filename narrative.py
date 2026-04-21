@@ -96,7 +96,14 @@ Nudges applied:
 
 
 === RULE ENGINE BREAKDOWN ===
-risk_eng = output.get("risk_score_engine", {})
+risk_eng = output.get("risk_score_engine", {
+    "score":          0,
+    "bucket":         "unknown",
+    "config_version": "unknown",
+    "risk_rules":     [],
+    "trust_rules":    [],
+    "rules":          [],
+})
 
 rules_detail = "\n".join(
     f"  +{r['points']:5.1f}  {r['rule']}"
