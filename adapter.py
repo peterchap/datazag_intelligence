@@ -110,6 +110,7 @@ class InfrastructureAnnotation:
     # Provider trust
     provider_trust_nudge: float
     is_cdn_ugc: bool
+    is_hosting_cdn: bool 
 
     # ASN / ISP
     asn: int
@@ -503,6 +504,7 @@ class DatazagCanonicalAdapter:
             ns_risk_bias=float(ns_risk) if ns_risk is not None else None,
             provider_trust_nudge=prov_trust,
             is_cdn_ugc=bool(self.r.get("is_cdn_ugc")),
+            is_hosting_cdn=bool(self.r.get("is_hosting_cdn")),
             asn=int(self.r.get("asn", 0)),
             isp_name=self.r.get("isp_name"),
             isp_country=self.r.get("isp_country"),

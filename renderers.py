@@ -949,10 +949,10 @@ class InsurerRenderer(BaseRenderer):
 
     def _key_signals(self) -> list[dict]:
         signals = []
-        critical = [f for f in self.findings if f.get("severity") == "critical"]
+        critical = [f for f in self.findings if f.get("severity") in ("critical", "high")]
         for f in critical:
             signals.append({
-                "signal":    f["finding"],
+                "signal":    f["finding", ""],
                 "severity":  "critical",
                 "title":     f["title"],
                 "evidence":  f.get("evidence", ""),

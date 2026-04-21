@@ -158,9 +158,10 @@ MX provider: {tech.get('mx_provider_name', '?')} — category: {tech.get('mx_mbp
 NS provider: {tech.get('ns_provider_name', '?')} — category: {tech.get('ns_provider_category', '?')}
 ISP: {tech.get('isp_name', '?')} ({tech.get('isp_country', '?')}) — ASN: {tech.get('asn', '?')}
 ASN risk level: {tech.get('asn_risk_level', '?')}
+Hosting CDN: {'Yes — known CDN infrastructure, fast-flux and network risk signals are suppressed for this domain' if tech.get('is_hosting_cdn') else 'No'}
 TLD risk: {tech.get('tld_risk_level', '?')} ({tech.get('tld_country', '?')})
 Net trust score: {tech.get('net_trust_score', 0):+.1f}
-CDN/UGC: {tech.get('is_cdn_ugc', False)}
+CDN/UGC mail: {tech.get('is_cdn_ugc', False)}
 
 SaaS stack ({ti.get('total_identified', 0)} services identified):
   All: {', '.join(saas_all) if saas_all else 'none'}

@@ -443,6 +443,7 @@ async def run(
             "tld_country":          record.annotation.tld_country,
             "tld_risk_level":       record.annotation.tld_risk_level,
             "is_cdn_ugc":           record.annotation.is_cdn_ugc,
+            "is_hosting_cdn":       record.annotation.is_hosting_cdn,
             "net_trust_score":      record.annotation.net_trust_score,
         },
 
