@@ -289,8 +289,17 @@ async def run(
     raw=raw,
     shodan_api_key=os.environ.get("SHODAN_API_KEY"),
     )
+    
+    # ── Merge findings ──────────────────────────────────────────────────────
+
+    _NORMALISE_SEV = {"elevated": "high", "low": "medium"}
+
     findings.extend(http_section.get("findings", []))
     findings.extend(shodan_section.get("findings", []))
+    
+    # Normalise to canonical vocabulary before anything else sees the list
+    for f in findings:
+        f["severity"] = _NORMALISE_SEV.get(f.get("severity", "info"), f.get("severity", "info"))
 
     # 4. Compute composite score
     scorer       = DatazagCompositeScorer()

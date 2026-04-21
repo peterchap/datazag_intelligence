@@ -26,6 +26,11 @@ RISK_COLOURS = {
     "info":     {"bg": "#EAF3DE", "text": "#27500A", "border": "#3B6D11"},
 }
 
+_SEV_ORDER = {
+    "critical": 0, "high": 1, "elevated": 2,
+    "medium": 3,   "low": 4,  "info": 5,
+}
+
 RISK_BAND_COLOUR = {
     "critical": "#A32D2D",
     "high":     "#854F0B",
@@ -834,19 +839,22 @@ class BaseRenderer:
 
     # --- Shared helpers -----------------------------------------------------
 
+    _SEV_ORDER = {
+    "critical": 0, "high": 1, "elevated": 2,
+    "medium": 3,   "low": 4,  "info": 5,
+    }
+
     def _findings_by_severity(self, max_severity: str = "info") -> list[dict]:
-        order = ["critical", "high", "medium", "info"]
-        cutoff = order.index(max_severity)
+        cutoff = _SEV_ORDER.get(max_severity, 5)
         return [
             f for f in self.findings
-            if order.index(f.get("severity", "info")) <= cutoff
+            if _SEV_ORDER.get(f.get("severity", "info"), 5) <= cutoff
         ]
 
     def _sorted_findings(self) -> list[dict]:
-        order = ["critical", "high", "medium", "info"]
         return sorted(
             self.findings,
-            key=lambda f: order.index(f.get("severity", "info"))
+            key=lambda f: _SEV_ORDER.get(f.get("severity", "info"), 5)
         )
 
     def _key_finding(self) -> str:
