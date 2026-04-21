@@ -1,5 +1,6 @@
 import httpx
 import asyncio
+import json
 from datetime import datetime
 
 REGISTRAR_RISK = {
@@ -423,5 +424,6 @@ async def rdap_lookup_async(domain: str) -> dict:
     return result
 
 if __name__ == "__main__":
-    target = "excis.com"
-    asyncio.run(rdap_lookup_async(target))
+    target = "srql.com"
+    output = asyncio.run(rdap_lookup_async(target))
+    print(json.dumps(output, indent=2))
