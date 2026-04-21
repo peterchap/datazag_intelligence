@@ -1,8 +1,8 @@
 # narrative.py
-
-import os
-import json
 import aiohttp
+import json
+import os
+import re
 from aiohttp import TCPConnector
 from aiohttp.resolver import ThreadedResolver
 from typing import Optional
@@ -47,9 +47,8 @@ async def enrich_with_narrative(
         f"    Fix: {(f.get('remediation') or '')[:120]}"
         for f in sorted(
             findings,
-            key=lambda x: ["critical","high","medium","info"].index(
-                x.get("severity","info")
-            )
+            SEVERITY_ORDER = {"critical": 0, "high": 1, "elevated": 2, "medium": 3, "low": 4, "info": 5}
+            key=lambda x: SEVERITY_ORDER.get(x.get("severity", "info"), 5)
         )
     )
 
@@ -250,7 +249,7 @@ Return ONLY a valid JSON object with exactly these fields:
         text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
     try:
-        return json.loads(text)
+        return _safe_parse_narrative(json.loads(text))
     except json.JSONDecodeError:
         return {
             "key_finding":          text[:200],
@@ -262,6 +261,36 @@ Return ONLY a valid JSON object with exactly these fields:
             "saas_stack_analysis":  "",
         }
 
+def _safe_parse_narrative(raw: str) -> dict:
+    """
+    Parse narrative JSON response defensively.
+    Handles: empty string, markdown fences, error messages.
+    """
+    if not raw or not raw.strip():
+        return {"error": "Empty response from API"}
+
+    text = raw.strip()
+
+    # Strip markdown code fences if present — ```json ... ```
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+        text = text.strip()
+
+    # If it still doesn't start with { it's an error message not JSON
+    if not text.startswith("{"):
+        return {
+            "error":       "Non-JSON response from narrative API",
+            "raw_response": text[:200],
+        }
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        return {
+            "error":       f"JSON parse error: {e}",
+            "raw_response": text[:200],
+        }
 
 def _empty_narrative() -> dict:
     return {
