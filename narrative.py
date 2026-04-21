@@ -92,10 +92,35 @@ Nudges applied:
   ASN risk level: {cs.get('nudges',{}).get('asn_risk_level','?')}
   TLD risk: {cs.get('nudges',{}).get('tld_risk','?')} (adjustment: {cs.get('nudges',{}).get('tld_adjustment',0):+.1f})
 
+
+
+
 === RULE ENGINE BREAKDOWN ===
+risk_eng = output.get("risk_score_engine", {})
+
+rules_detail = "\n".join(
+    f"  +{r['points']:5.1f}  {r['rule']}"
+    for r in risk_eng.get("risk_rules", [])
+    if r.get("points", 0) > 0
+)
+
+trust_detail = "\n".join(
+    f"  -{abs(r['points']):5.1f}  {r['rule']}"
+    for r in risk_eng.get("trust_rules", [])
+    if r.get("points", 0) != 0
+)
+
+# Replace empty strings with a placeholder so the prompt isn't blank
+if not rules_detail:
+    rules_detail = "  (no risk rules fired)"
+if not trust_detail:
+    trust_detail = "  (no trust rules fired)"
+
 Score: {risk_eng.get('score',0)}/100 ({risk_eng.get('bucket','?')}) — config {risk_eng.get('config_version','?')}
-Rules:
+Risk rules fired:
 {rules_detail}
+Trust rules fired:
+{trust_detail}
 
 === EMAIL AUTHENTICATION ===
 SPF: {ea.get('spf_raw','NOT FOUND')}
