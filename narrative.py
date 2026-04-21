@@ -40,21 +40,21 @@ async def enrich_with_narrative(
     cs       = cs_raw if isinstance(cs_raw, dict) else {"score": cs_raw}
     infra_intel = output.get("infrastructure_intelligence", {})
 
+    _SEV_ORDER = {
+        "critical": 0, "high": 1, "elevated": 2,
+        "medium": 3,   "low": 4,  "info": 5,
+    }
+
     findings_detail = "\n".join(
-        f"  [{f['severity'].upper()}] {f['title']}\n"
-        f"    Evidence: {f.get('evidence','')[:120]}\n"
-        f"    Detail: {f.get('detail','')[:200]}\n"
+        f"  [{f.get('severity', 'info').upper()}] "
+        f"{f.get('title') or f.get('label', 'Finding')}\n"
+        f"    Evidence: {f.get('evidence', '')[:120]}\n"
+        f"    Detail: {(f.get('detail') or f.get('description', ''))[:200]}\n"
         f"    Fix: {(f.get('remediation') or '')[:120]}"
         for f in sorted(
             findings,
-            SEVERITY_ORDER = {"critical": 0, "high": 1, "elevated": 2, "medium": 3, "low": 4, "info": 5}
-            key=lambda x: SEVERITY_ORDER.get(x.get("severity", "info"), 5)
+            key=lambda x: _SEV_ORDER.get(x.get("severity", "info"), 5)
         )
-    )
-
-    rules_detail = "\n".join(
-        f"  {'+' if r['points']>0 else ''}{r['points']:+d}  {r['rule']}"
-        for r in risk_eng.get("rules", [])
     )
 
     saas_all = ti.get("all_identified", [])
