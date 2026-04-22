@@ -607,6 +607,6 @@ asyncio.run(run(
     partner_context=args.partner,
     threat_context=args.threat,
     skip_narrative=args.no_narrative,
-    output_dir=Path(args.output_dir) if args.output_dir else "/root/OneDrive/output",
+    output_dir=Path(args.output_dir) if args.output_dir else None,
     brand_profile=args.brand,
 ))
