@@ -523,11 +523,20 @@ async def run(
         "findings":  findings,
         "narrative": {},        # Populated below after API call
     }
-
+    
     # DEBUG — remove once working
-print(f"  DEBUG raw subdomains: {len(raw.get('subdomains', []))}", flush=True)
-print(f"  DEBUG raw rdap available: {raw.get('rdap', {}).get('rdap_available')}", flush=True)
-print(f"  DEBUG raw rdap registrar: {raw.get('rdap', {}).get('registrar_name')}", flush=True)
+    print(f"  DEBUG output subdomains: {len(output.get('subdomains', []))}", flush=True)
+    print(f"  DEBUG output rdap available: {output.get('rdap', {}).get('rdap_available')}", flush=True)
+    print(f"  DEBUG output rdap registrar: {output.get('rdap', {}).get('registrar_name')}", flush=True)
+    # Save the full output (JSON + domain + scanned_at + enriched subdomains + rdap)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        domain_key = record.domain.replace(".", "_")
+        scanned_at = record.scanned_at.replace(":", "").replace(" ", "__")
+        path = output_dir / f"{domain_key}__{scanned_at}.json"
+        with open(path, "w") as f:
+            json.dump(output, f, indent=2)
+        print(f"  Saved: {path}")
 
     # 6. Narrative enrichment — called with the FULL output dict
     if not skip_narrative and os.environ.get("ANTHROPIC_API_KEY"):
@@ -598,6 +607,6 @@ asyncio.run(run(
     partner_context=args.partner,
     threat_context=args.threat,
     skip_narrative=args.no_narrative,
-    output_dir=Path(args.output_dir) if args.output_dir else None,
+    output_dir=Path(args.output_dir) if args.output_dir else "/root/OneDrive/output",
     brand_profile=args.brand,
 ))
