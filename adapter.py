@@ -248,6 +248,9 @@ class DatazagCanonicalAdapter:
     def parse(self) -> CanonicalDNSRecord:
         return CanonicalDNSRecord(
             domain=self.r["domain"],
+            subdomains=self.r.get("subdomains", []),
+            cert_analysis=self.r.get("cert_analysis", {}),
+            rdap=self.r.get("rdap", {}),    
             scanned_at=self.r.get("scanned_at_utc", ""),
             a_records=self._get_raw("A"),
             aaaa_records=self._get_raw("AAAA"),
