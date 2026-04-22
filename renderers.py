@@ -1012,12 +1012,12 @@ class InsurerRenderer(BaseRenderer):
         lines += ["", "## Critical and high findings", ""]
         for f in self._findings_by_severity("high"):
             lines += [
-                f"### [{f['severity'].upper()}] {f['title']}",
-                f.get("detail", ""),
+                f"### [{f.get('severity','info').upper()}] {f.get('title','Finding')}",
+                str(f.get("detail") or ""),
                 f"*Evidence:* `{f.get('evidence','n/a')}`",
-                f"*Fix:* {f.get('remediation','n/a')}",
+                f"*Fix:* {str(f.get('remediation') or 'n/a')}",
                 "",
-            ]
+    ]
 
         if self._executive_summary():
             lines += ["## Executive summary", "", self._executive_summary(), ""]

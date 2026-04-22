@@ -103,6 +103,7 @@ class FaviconResult:
     size_bytes:     Optional[int] = None
     md5:            Optional[str] = None
     sha1:           Optional[str] = None
+    mmh3:           Optional[int] = None
     phash:          Optional[str] = None  # Perceptual hash (hex)
     error:          Optional[str] = None
 
