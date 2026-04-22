@@ -476,7 +476,7 @@ async def fetch_certspotter_subdomains(
 # ── Demo ───────────────────────────────────────────────────────────────────
 
 async def get_subdomains():
-    result  = await fetch_certspotter_subdomains("example.com")
+    result  = await fetch_certspotter_subdomains("srql.com")
     summary = result["cert_analysis"]["summary"]
     print(f"\n── Summary ──")
     for k, v in summary.items():

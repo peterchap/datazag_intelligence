@@ -176,6 +176,9 @@ class ChangeSignals:
 @dataclass
 class CanonicalDNSRecord:
     domain: str
+    subdomains: list[dict] = field(default_factory=list)
+    cert_analysis: dict = field(default_factory=dict)
+    rdap: dict = field(default_factory=dict)
     scanned_at: str
 
     # Infrastructure

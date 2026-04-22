@@ -350,6 +350,9 @@ async def run(
     #    Narrative needs the complete data — do this before the API call
     output = {
         "domain":       domain,
+        "subdomains":    raw.get("subdomains", []),
+        "cert_analysis": raw.get("cert_analysis", {}),
+        "rdap":          raw.get("rdap", {}),
         "scanned_at":   record.scanned_at,
         "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
         "audience":     audience,
