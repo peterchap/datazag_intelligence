@@ -1861,101 +1861,101 @@ if self.o.get("certstream_anomalies"):
             )
         body += cs_html
 
-        # RDAP block
-        rdap_html = ""
-        if self.rdap.get("rdap_available"):
-            risk_reasons = ", ".join(self.rdap.get("rdap_risk_reasons", [])) or "none"
-            rdap_html = f"""
-            <h2>Domain registration</h2>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0">
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Registrar</div>
-                <div style="font-size:13px;font-weight:500">{self.rdap.get('registrar_name', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('registrar_label', '')}</div>
-            </div>
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Domain age</div>
-                <div style="font-size:22px;font-weight:600">{self.rdap.get('domain_age_days', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">days · registered {self.rdap.get('registered', '—')}</div>
-            </div>
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Expiry</div>
-                <div style="font-size:13px;font-weight:500">{self.rdap.get('expires', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('days_to_expiry', '—')} days remaining</div>
-            </div>
-            </div>
-            <div style="font-size:12px;color:#555;margin-top:6px">
-            DNSSEC: {'enabled' if self.rdap.get('dnssec_enabled') else 'not enabled'} ·
-            RDAP risk score: {self.rdap.get('rdap_risk_score', 0)} ·
-            {f'Risk signals: {risk_reasons}' if risk_reasons != 'none' else 'No registration risk signals'}
-            </div>"""
+    # RDAP block
+    rdap_html = ""
+    if self.rdap.get("rdap_available"):
+        risk_reasons = ", ".join(self.rdap.get("rdap_risk_reasons", [])) or "none"
+        rdap_html = f"""
+        <h2>Domain registration</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0">
+        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Registrar</div>
+            <div style="font-size:13px;font-weight:500">{self.rdap.get('registrar_name', '—')}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('registrar_label', '')}</div>
+        </div>
+        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Domain age</div>
+            <div style="font-size:22px;font-weight:600">{self.rdap.get('domain_age_days', '—')}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">days · registered {self.rdap.get('registered', '—')}</div>
+        </div>
+        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Expiry</div>
+            <div style="font-size:13px;font-weight:500">{self.rdap.get('expires', '—')}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('days_to_expiry', '—')} days remaining</div>
+        </div>
+        </div>
+        <div style="font-size:12px;color:#555;margin-top:6px">
+        DNSSEC: {'enabled' if self.rdap.get('dnssec_enabled') else 'not enabled'} ·
+        RDAP risk score: {self.rdap.get('rdap_risk_score', 0)} ·
+        {f'Risk signals: {risk_reasons}' if risk_reasons != 'none' else 'No registration risk signals'}
+        </div>"""
 
-        # Cert analysis block
-        cert_html = ""
-        summary = self.cert_analysis.get("summary", {})
-        if summary:
-            missed = self.cert_analysis.get("missed_renewals", [])
-            expired = self.cert_analysis.get("expired", [])
-            churn   = self.cert_analysis.get("cert_churn", [])
-            cert_html = f"""
-            <h2>Certificate intelligence — {summary.get('total_unique_subdomains', 0)} subdomains</h2>
-            <div class="grid">
-            <div class="card">
-                <div class="num">{summary.get('total_unique_subdomains', 0)}</div>
-                <div class="lbl">Total subdomains</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('expiring_within_60d',0) > 0 else 'inherit'}">{summary.get('expiring_within_60d', 0)}</div>
-                <div class="lbl">Expiring 60d</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('expired',0) > 0 else 'inherit'}">{summary.get('expired', 0)}</div>
-                <div class="lbl">Expired</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('missed_renewals',0) > 0 else 'inherit'}">{summary.get('missed_renewals', 0)}</div>
-                <div class="lbl">Missed renewals</div>
-            </div>
-            <div class="card">
-                <div class="num">{summary.get('wildcard_zones', 0)}</div>
-                <div class="lbl">Wildcard zones</div>
-            </div>
-            <div class="card">
-                <div class="num">{summary.get('cross_domain_sans', 0)}</div>
-                <div class="lbl">Cross-domain SANs</div>
-            </div>
-            </div>
-            {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Missed renewals:</strong> {", ".join(r["dns_name"] for r in missed[:5])}</div>' if missed else ''}
-            {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Expired certs:</strong> {", ".join(r["dns_name"] for r in expired[:5])}</div>' if expired else ''}
-            {f'<div style="background:#FAEEDA;border-left:3px solid #854F0B;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>High cert churn:</strong> {", ".join(r["dns_name"] for r in churn[:5])}</div>' if churn else ''}"""
+    # Cert analysis block
+    cert_html = ""
+    summary = self.cert_analysis.get("summary", {})
+    if summary:
+        missed = self.cert_analysis.get("missed_renewals", [])
+        expired = self.cert_analysis.get("expired", [])
+        churn   = self.cert_analysis.get("cert_churn", [])
+        cert_html = f"""
+        <h2>Certificate intelligence — {summary.get('total_unique_subdomains', 0)} subdomains</h2>
+        <div class="grid">
+        <div class="card">
+            <div class="num">{summary.get('total_unique_subdomains', 0)}</div>
+            <div class="lbl">Total subdomains</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if summary.get('expiring_within_60d',0) > 0 else 'inherit'}">{summary.get('expiring_within_60d', 0)}</div>
+            <div class="lbl">Expiring 60d</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if summary.get('expired',0) > 0 else 'inherit'}">{summary.get('expired', 0)}</div>
+            <div class="lbl">Expired</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if summary.get('missed_renewals',0) > 0 else 'inherit'}">{summary.get('missed_renewals', 0)}</div>
+            <div class="lbl">Missed renewals</div>
+        </div>
+        <div class="card">
+            <div class="num">{summary.get('wildcard_zones', 0)}</div>
+            <div class="lbl">Wildcard zones</div>
+        </div>
+        <div class="card">
+            <div class="num">{summary.get('cross_domain_sans', 0)}</div>
+            <div class="lbl">Cross-domain SANs</div>
+        </div>
+        </div>
+        {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Missed renewals:</strong> {", ".join(r["dns_name"] for r in missed[:5])}</div>' if missed else ''}
+        {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Expired certs:</strong> {", ".join(r["dns_name"] for r in expired[:5])}</div>' if expired else ''}
+        {f'<div style="background:#FAEEDA;border-left:3px solid #854F0B;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>High cert churn:</strong> {", ".join(r["dns_name"] for r in churn[:5])}</div>' if churn else ''}"""
 
-        # Subdomain table
-        sub_html = ""
-        if self.subdomains:
-            rows = ""
-            for s in self.subdomains[:30]:
-                expired = s.get("is_expired", False)
-                days    = s.get("days_remaining")
-                colour  = "#A32D2D" if expired else "#854F0B" if days and days < 30 else "#3B6D11"
-                rows += (
-                    f"<tr>"
-                    f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>{s['dns_name']}</td>"
-                    f"<td style='padding:5px 10px;font-size:11px'>{s.get('issuer_category','—')}</td>"
-                    f"<td style='padding:5px 10px;font-size:11px;color:{colour}'>"
-                    f"{'EXPIRED' if expired else f'{days}d' if days is not None else '—'}</td>"
-                    f"</tr>"
-                )
-            overflow = f"<p style='font-size:11px;color:#888;margin:6px 0'>+ {len(self.subdomains)-30} more subdomains</p>" if len(self.subdomains) > 30 else ""
-            sub_html = f"""
-            <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
-            <table style="width:100%;border-collapse:collapse">
-            <thead><tr style="background:#f5f5f5">
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Issuer</th>
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Cert expiry</th>
-            </tr></thead>
-            <tbody>{rows}</tbody>
-            </table>{overflow}"""
+    # Subdomain table
+    sub_html = ""
+    if self.subdomains:
+        rows = ""
+        for s in self.subdomains[:30]:
+            expired = s.get("is_expired", False)
+            days    = s.get("days_remaining")
+            colour  = "#A32D2D" if expired else "#854F0B" if days and days < 30 else "#3B6D11"
+            rows += (
+                f"<tr>"
+                f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>{s['dns_name']}</td>"
+                f"<td style='padding:5px 10px;font-size:11px'>{s.get('issuer_category','—')}</td>"
+                f"<td style='padding:5px 10px;font-size:11px;color:{colour}'>"
+                f"{'EXPIRED' if expired else f'{days}d' if days is not None else '—'}</td>"
+                f"</tr>"
+            )
+        overflow = f"<p style='font-size:11px;color:#888;margin:6px 0'>+ {len(self.subdomains)-30} more subdomains</p>" if len(self.subdomains) > 30 else ""
+        sub_html = f"""
+        <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
+        <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f5f5f5">
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Issuer</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Cert expiry</th>
+        </tr></thead>
+        <tbody>{rows}</tbody>
+        </table>{overflow}"""
 
         # Add to body assembly
         body += rdap_html
@@ -1973,7 +1973,7 @@ if self.o.get("certstream_anomalies"):
         body += self._risk_breakdown_html()
         body += self._technographics_html()
 
-        return self._html_shell_branded(brand, "Technical Security Assessment", body)
+    return self._html_shell_branded(brand, "Technical Security Assessment", body)
 
 
 # ---------------------------------------------------------------------------
