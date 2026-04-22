@@ -177,9 +177,7 @@ class ChangeSignals:
 class CanonicalDNSRecord:
     domain: str
     scanned_at: str
-    subdomains: list[dict] = field(default_factory=list)
-    cert_analysis: dict = field(default_factory=dict)
-    rdap: dict = field(default_factory=dict)
+    
 
     # Infrastructure
     a_records: list[str]
@@ -228,6 +226,10 @@ class CanonicalDNSRecord:
     has_caa: bool
     caa_records: list[str]
 
+    # Expanded profiles (newly added)
+    subdomains: list[dict] = field(default_factory=list)
+    cert_analysis: dict = field(default_factory=dict)
+    rdap: dict = field(default_factory=dict)
 
 # ---------------------------------------------------------------------------
 # Parser
