@@ -1678,19 +1678,19 @@ class ConsultantRenderer(BaseRenderer):
                 )
             if len(self.subdomains) > 20:
                 lines.append(f"- *...and {len(self.subdomains) - 20} more*")
-            lines.append("")
+                lines.append("")
             
-                for f in self._sorted_findings():
-                    lines += [
-                        f"### [{f['severity'].upper()}] {f['title']}",
-                        "",
-                        f.get("detail", ""),
-                        "",
-                        f"**Evidence:** `{f.get('evidence','n/a')}`",
-                        "",
-                        f"**Remediation:** {self._remediation_detail(f)}",
-                        "",
-            ]
+        for f in self._sorted_findings():
+            lines += [
+                f"### [{f['severity'].upper()}] {f['title']}",
+                "",
+                f.get("detail", ""),
+                "",
+                f"**Evidence:** `{f.get('evidence','n/a')}`",
+                "",
+                f"**Remediation:** {self._remediation_detail(f)}",
+                "",
+                ]
 
         if self.score_breakdown:
             lines += ["## Risk score rule breakdown", ""]
