@@ -1631,7 +1631,7 @@ class ConsultantRenderer(BaseRenderer):
             f"| BIMI | {self.ea['bimi']} | — |",
             "",
             "## Findings",
-            "",
+            "",]
         # RDAP section
         if self.rdap.get("rdap_available"):
             lines += [
