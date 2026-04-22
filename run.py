@@ -255,6 +255,12 @@ async def run(
         # Live DNS fetch — calls the full pipeline directly
         print(f"\n  Running live DNS fetch for {domain}...")
         raw = await compile_pure_dns_report(domain)
+        raw.setdefault("domain", domain)
+
+# DEBUG — remove once working
+print(f"  DEBUG raw subdomains: {len(raw.get('subdomains', []))}", flush=True)
+print(f"  DEBUG raw rdap available: {raw.get('rdap', {}).get('rdap_available')}", flush=True)
+print(f"  DEBUG raw rdap registrar: {raw.get('rdap', {}).get('registrar_name')}", flush=True)
     print(f"\n  Analysing {domain}...")
 
     # 2. Parse canonical record
