@@ -14,7 +14,6 @@ from typing import Optional
 from branding import BrandConfig
 
 
-
 # ---------------------------------------------------------------------------
 # Shared utilities
 # ---------------------------------------------------------------------------
@@ -49,30 +48,21 @@ def _badge(severity: str) -> str:
 
 
 def _score_bar(score: int, invert: bool = True) -> str:
-    """Visual 0–100 bar. invert=True means higher = more red."""
     if invert:
         colour = "#A32D2D" if score >= 75 else "#854F0B" if score >= 40 else "#3B6D11"
     else:
         colour = "#3B6D11" if score >= 75 else "#854F0B" if score >= 40 else "#A32D2D"
     return (
-        f'<div style="background:#eee;border-radius:3px;'
-        f'height:6px;width:100%;margin:4px 0">'
-        f'<div style="background:{colour};width:{score}%;'
-        f'height:100%;border-radius:3px"></div></div>'
+        f'<div style="background:#eee;border-radius:3px;height:6px;width:100%;margin:4px 0">'
+        f'<div style="background:{colour};width:{score}%;height:100%;border-radius:3px"></div></div>'
     )
 
 
-def _findings_table(
-    findings: list[dict],
-    columns: list[tuple],
-    max_rows: int = 50,
-) -> str:
-    th = ('style="text-align:left;padding:8px 12px;font-size:11px;'
-          'font-weight:600;border-bottom:1px solid #e0e0e0;'
-          'color:#666;text-transform:uppercase;letter-spacing:.04em;'
-          'white-space:nowrap"')
-    td = ('style="padding:7px 12px;font-size:12px;'
-          'border-bottom:1px solid #f5f5f5;vertical-align:top"')
+def _findings_table(findings: list[dict], columns: list[tuple], max_rows: int = 50) -> str:
+    th = ('style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;'
+          'border-bottom:1px solid #e0e0e0;color:#666;text-transform:uppercase;'
+          'letter-spacing:.04em;white-space:nowrap"')
+    td = ('style="padding:7px 12px;font-size:12px;border-bottom:1px solid #f5f5f5;vertical-align:top"')
 
     headers = "".join(f"<th {th}>{label}</th>" for label, _ in columns)
     rows = ""
@@ -95,57 +85,13 @@ def _findings_table(
     )
 
 
-def _html_shell(title: str, subtitle: str, body: str) -> str:
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{title}</title>
-<style>
-  body  {{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-          font-size:14px;color:#1a1a1a;margin:0;padding:32px 40px;
-          background:#fff;max-width:960px;margin:0 auto}}
-  h1    {{font-size:24px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}}
-  h2    {{font-size:15px;font-weight:600;margin:32px 0 12px;
-          border-bottom:1px solid #ebebeb;padding-bottom:8px;color:#111}}
-  h3    {{font-size:13px;font-weight:600;margin:18px 0 8px;color:#333}}
-  .meta {{font-size:12px;color:#888;margin:0 0 28px}}
-  .grid {{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-          gap:12px;margin:16px 0}}
-  .card {{background:#f7f7f7;border-radius:8px;padding:14px 16px}}
-  .card .num {{font-size:26px;font-weight:600;line-height:1.1}}
-  .card .lbl {{font-size:11px;color:#666;margin-top:4px;text-transform:uppercase;
-               letter-spacing:.04em}}
-  .signal {{border-left:3px solid;padding:10px 14px;margin:8px 0;
-            border-radius:0 6px 6px 0;font-size:13px;line-height:1.6}}
-  code  {{font-family:ui-monospace,monospace;font-size:11px;
-          background:#f0f0f0;padding:1px 5px;border-radius:3px}}
-  table {{font-size:12px}}
-  @media print {{body{{padding:16px}} .noprint{{display:none}}}}
-</style>
-</head>
-<body>
-<h1>{title}</h1>
-<p class="meta">{subtitle}</p>
-{body}
-</body>
-</html>"""
-
-
 # ---------------------------------------------------------------------------
 # Base renderer
 # ---------------------------------------------------------------------------
 
 class BaseRenderer:
     def __init__(self, output: dict):
-        """
-        output: the dict returned by run.py's run() function.
-        Keys: domain, composite_score, email_auth, infrastructure,
-              certificates, findings, narrative, risk_score_breakdown,
-              change_signals, scanned_at, generated_at, audience
-        """
-        self.o = output
+        self.o           = output
         self.domain      = output["domain"]
         self.cs          = output["composite_score"]
         self.ea          = output["email_auth"]
@@ -155,160 +101,94 @@ class BaseRenderer:
         self.narrative   = output.get("narrative", {})
         self.changes     = output.get("change_signals", {})
         self.score_breakdown = output.get("risk_score_breakdown", [])
-
-        # New full-fidelity fields
-        self.dns      = output.get("dns_records", {})
-        self.subdomains    = output.get("subdomains", [])
+        self.dns         = output.get("dns_records", {})
+        self.subdomains  = output.get("subdomains", [])
         self.cert_analysis = output.get("cert_analysis", {})
-        self.rdap          = output.get("rdap", {})
-        self.domain_age_days = output.get("domain_age_days", -1)
-        self.abuse_contact_present = output.get("abuse_contact_present", False)
-        self.registrar_abuse_score = output.get("registrar_abuse_score", 0)
-        self.tech     = output.get("technographics", {})
-        self.labels   = output.get("labels", {})
-        self.flags    = output.get("threat_flags", {})
-        self.txt_intel = output.get("txt_intelligence", {})
+        self.rdap        = output.get("rdap", {})
+        self.tech        = output.get("technographics", {})
+        self.labels      = output.get("labels", {})
+        self.flags       = output.get("threat_flags", {})
+        self.txt_intel   = output.get("txt_intelligence", {})
         self.risk_engine = output.get("risk_score_engine", {})
 
-    # --- Branding and narrative -------------------------------------------
+    # --- Branding -----------------------------------------------------------
 
     def _html_header(self, brand: "BrandConfig", report_type: str) -> str:
-        """
-        Professional branded header with logo, report type, domain, and date.
-        """
         return f"""
         <div style="background:{brand.primary_colour};margin:-32px -40px 32px;
-                    padding:24px 40px;display:flex;justify-content:space-between;
-                    align-items:flex-start">
+                    padding:24px 40px;display:flex;justify-content:space-between;align-items:flex-start">
         <div style="display:flex;align-items:center;gap:16px">
             {brand.wordmark_svg(height=36)}
-            <div style="border-left:1px solid rgba(255,255,255,.2);
-                        padding-left:16px;margin-left:4px">
-            <div style="color:rgba(255,255,255,.6);font-size:11px;
-                        text-transform:uppercase;letter-spacing:.08em;
-                        margin-bottom:2px">{brand.report_prefix}</div>
-            <div style="color:{brand.text_on_primary};font-size:13px;
-                        font-weight:500">{report_type}</div>
+            <div style="border-left:1px solid rgba(255,255,255,.2);padding-left:16px;margin-left:4px">
+            <div style="color:rgba(255,255,255,.6);font-size:11px;text-transform:uppercase;
+                        letter-spacing:.08em;margin-bottom:2px">{brand.report_prefix}</div>
+            <div style="color:{brand.text_on_primary};font-size:13px;font-weight:500">{report_type}</div>
             </div>
         </div>
         <div style="text-align:right">
-            <div style="color:{brand.accent_colour};font-size:20px;
-                        font-weight:700;letter-spacing:-.02em">{self.domain}</div>
+            <div style="color:{brand.accent_colour};font-size:20px;font-weight:700;
+                        letter-spacing:-.02em">{self.domain}</div>
             <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:3px">
             {self.o.get('generated_at','')[:10]}
             </div>
         </div>
         </div>"""
 
-
     def _html_contact_block(self, brand: "BrandConfig") -> str:
-        """
-        Contact and query section — professional, actionable.
-        """
         phone_html = ""
         if brand.contact_phone:
             phone_html = f"""
             <div style="margin-top:6px">
             <span style="color:#888;font-size:12px">Phone </span>
-            <a href="tel:{brand.contact_phone}"
-                style="color:#333;font-size:12px;text-decoration:none">
-                {brand.contact_phone}
-            </a>
-            </div>"""
-
+            <a href="tel:{brand.contact_phone}" style="color:#333;font-size:12px;text-decoration:none">
+                {brand.contact_phone}</a></div>"""
         powered_by = ""
         if brand.is_white_label and brand.powered_by_text:
             powered_by = f"""
-            <div style="margin-top:16px;padding-top:12px;
-                        border-top:1px solid #f0f0f0;text-align:center">
-            <span style="color:#ccc;font-size:10px">{brand.powered_by_text}</span>
-            </div>"""
-
+            <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0;text-align:center">
+            <span style="color:#ccc;font-size:10px">{brand.powered_by_text}</span></div>"""
         return f"""
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;
-                    margin-top:40px;padding-top:24px;
-                    border-top:2px solid {brand.accent_colour}">
-
-        <!-- Contact details -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;
+                    padding-top:24px;border-top:2px solid {brand.accent_colour}">
         <div>
             <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:12px">
-            Questions about this report?
-            </div>
-            <div>
-            <span style="color:#888;font-size:12px">Email </span>
+            Questions about this report?</div>
+            <div><span style="color:#888;font-size:12px">Email </span>
             <a href="mailto:{brand.contact_email}"
-                style="color:{brand.primary_colour};font-size:12px;font-weight:500;
-                        text-decoration:none">
-                {brand.contact_email}
-            </a>
-            </div>
+               style="color:{brand.primary_colour};font-size:12px;font-weight:500;text-decoration:none">
+               {brand.contact_email}</a></div>
             {phone_html}
-            <div style="margin-top:6px">
-            <span style="color:#888;font-size:12px">Web </span>
+            <div style="margin-top:6px"><span style="color:#888;font-size:12px">Web </span>
             <a href="{brand.contact_web}" target="_blank"
-                style="color:{brand.primary_colour};font-size:12px;text-decoration:none">
-                {brand.contact_web}
-            </a>
-            </div>
-            <div style="margin-top:8px;font-size:11px;color:#aaa">
-            {brand.contact_address}
-            </div>
+               style="color:{brand.primary_colour};font-size:12px;text-decoration:none">
+               {brand.contact_web}</a></div>
+            <div style="margin-top:8px;font-size:11px;color:#aaa">{brand.contact_address}</div>
         </div>
-
-        <!-- CTA -->
         <div style="background:#f8f9fa;border-radius:10px;padding:16px 18px;
                     border-left:3px solid {brand.accent_colour}">
-            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:6px">
-            {brand.cta_heading}
-            </div>
-            <div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:12px">
-            {brand.cta_body}
-            </div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:6px">{brand.cta_heading}</div>
+            <div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:12px">{brand.cta_body}</div>
             <a href="{brand.cta_button_url}" target="_blank"
-            style="display:inline-block;background:{brand.primary_colour};
-                    color:{brand.text_on_primary};padding:8px 16px;
-                    border-radius:5px;font-size:12px;font-weight:600;
-                    text-decoration:none;letter-spacing:.01em">
-            {brand.cta_button_text} →
-            </a>
+               style="display:inline-block;background:{brand.primary_colour};color:{brand.text_on_primary};
+                      padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;
+                      text-decoration:none;letter-spacing:.01em">{brand.cta_button_text} →</a>
             <div style="margin-top:8px;font-size:11px;color:#888">
             {brand.cta_secondary_text}
-            <a href="{brand.cta_secondary_url}"
-                style="color:{brand.primary_colour};text-decoration:none">
-                {brand.contact_email}
-            </a>
-            </div>
+            <a href="{brand.cta_secondary_url}" style="color:{brand.primary_colour};text-decoration:none">
+            {brand.contact_email}</a></div>
         </div>
-        </div>
-        {powered_by}"""
-
+        </div>{powered_by}"""
 
     def _html_footer(self, brand: "BrandConfig") -> str:
-        """
-        Confidentiality notice and report footer.
-        """
         footer_text = "" if brand.is_white_label else brand.report_footer
-
         return f"""
-        <div style="margin-top:40px;padding:16px 0;
-                    border-top:1px solid #ebebeb">
+        <div style="margin-top:40px;padding:16px 0;border-top:1px solid #ebebeb">
         <div style="font-size:10px;color:#aaa;line-height:1.6;margin-bottom:8px">
-            {brand.confidentiality_notice}
-        </div>
-        {f'<div style="font-size:10px;color:#ccc;line-height:1.6">{footer_text}</div>'
-            if footer_text else ''}
+            {brand.confidentiality_notice}</div>
+        {f'<div style="font-size:10px;color:#ccc;line-height:1.6">{footer_text}</div>' if footer_text else ''}
         </div>"""
 
-
-    def _html_shell_branded(
-        self,
-        brand: "BrandConfig",
-        report_type: str,
-        body: str,
-    ) -> str:
-        """
-        Full HTML shell with branding. Replaces _html_shell() for all renderers.
-        """
+    def _html_shell_branded(self, brand: "BrandConfig", report_type: str, body: str) -> str:
         return f"""<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -317,52 +197,31 @@ class BaseRenderer:
     <title>{brand.report_prefix} — {self.domain}</title>
     <style>
     * {{ box-sizing: border-box }}
-    body  {{
-        font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-        font-size: 14px; color: #1a1a1a; margin: 0;
-        padding: 32px 40px; background: #fff;
-        max-width: 1000px; margin: 0 auto;
-    }}
+    body  {{ font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+             font-size: 14px; color: #1a1a1a; margin: 0;
+             padding: 32px 40px; background: #fff; max-width: 1000px; margin: 0 auto; }}
     h1   {{ font-size: 24px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.02em }}
-    h2   {{
-        font-size: 14px; font-weight: 700; margin: 28px 0 10px;
-        text-transform: uppercase; letter-spacing: .06em;
-        color: {brand.primary_colour};
-        border-bottom: 2px solid {brand.accent_colour};
-        padding-bottom: 6px;
-    }}
+    h2   {{ font-size: 14px; font-weight: 700; margin: 28px 0 10px;
+            text-transform: uppercase; letter-spacing: .06em;
+            color: {brand.primary_colour}; border-bottom: 2px solid {brand.accent_colour};
+            padding-bottom: 6px; }}
     h3   {{ font-size: 13px; font-weight: 600; margin: 16px 0 8px; color: #333 }}
     .meta {{ font-size: 12px; color: #888; margin: 0 0 24px }}
-    .grid {{
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 10px; margin: 12px 0 20px;
-    }}
-    .card {{
-        background: #f7f8f9; border-radius: 8px;
-        padding: 12px 14px;
-        border-top: 2px solid {brand.accent_colour};
-    }}
+    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+             gap: 10px; margin: 12px 0 20px; }}
+    .card {{ background: #f7f8f9; border-radius: 8px; padding: 12px 14px;
+             border-top: 2px solid {brand.accent_colour}; }}
     .card .num {{ font-size: 24px; font-weight: 700; line-height: 1.1 }}
-    .card .lbl {{
-        font-size: 10px; color: #888; margin-top: 4px;
-        text-transform: uppercase; letter-spacing: .05em;
-    }}
-    .signal {{
-        border-left: 3px solid; padding: 10px 14px; margin: 8px 0;
-        border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.6;
-    }}
-    code {{
-        font-family: ui-monospace,monospace; font-size: 11px;
-        background: #f0f0f0; padding: 1px 5px; border-radius: 3px;
-    }}
+    .card .lbl {{ font-size: 10px; color: #888; margin-top: 4px;
+                  text-transform: uppercase; letter-spacing: .05em; }}
+    .signal {{ border-left: 3px solid; padding: 10px 14px; margin: 8px 0;
+               border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.6; }}
+    code {{ font-family: ui-monospace,monospace; font-size: 11px;
+            background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }}
     a {{ color: {brand.primary_colour} }}
     table {{ font-size: 12px; border-collapse: collapse; width: 100% }}
     th {{ text-align: left }}
-    @media print {{
-        body {{ padding: 16px }}
-        .noprint {{ display: none }}
-    }}
+    @media print {{ body {{ padding: 16px }} .noprint {{ display: none }} }}
     </style>
     </head>
     <body>
@@ -373,17 +232,14 @@ class BaseRenderer:
     </body>
     </html>"""
 
-    # --- Shared section builders -------------------------------------------
+    # --- Shared markdown builders -------------------------------------------
 
     def _dns_records_md(self) -> str:
         lines = ["## DNS records", ""]
         for rtype, records in self.dns.items():
             if not records:
                 continue
-            if rtype == "mx":
-                vals = [f"{r['priority']}:{r['host']}" for r in records]
-            else:
-                vals = records
+            vals = [f"{r['priority']}:{r['host']}" for r in records] if rtype == "mx" else records
             lines.append(f"**{rtype.upper()}**")
             for v in vals:
                 lines.append(f"  - `{v}`")
@@ -391,13 +247,10 @@ class BaseRenderer:
         return "\n".join(lines)
 
     def _technographics_md(self) -> str:
-        t = self.tech
-        ti = self.txt_intel
+        t, ti = self.tech, self.txt_intel
         lines = [
-            "## Technographics",
-            "",
-            "| Signal | Value |",
-            "|--------|-------|",
+            "## Technographics", "",
+            "| Signal | Value |", "|--------|-------|",
             f"| MX provider | {t.get('mx_provider_name') or '—'} ({t.get('mx_mbp_category') or '—'}) |",
             f"| MX trust nudge | {t.get('mx_trust_nudge',0):+.1f} |",
             f"| MX risk bias | {t.get('mx_risk_bias',0):+.1f} |",
@@ -407,16 +260,14 @@ class BaseRenderer:
             f"| TLD risk | {t.get('tld_risk_level') or '—'} |",
             f"| Net trust score | {t.get('net_trust_score',0):+.1f} |",
             f"| CDN/UGC | {'Yes' if t.get('is_cdn_ugc') else 'No'} |",
-            "",
-            "### SaaS stack",
-            "",
+            f"| Hosting CDN | {'Yes' if t.get('is_hosting_cdn') else 'No'} |",
+            "", "### SaaS stack", "",
         ]
         if ti.get("all_identified"):
             for svc in ti["all_identified"]:
                 lines.append(f"- {svc}")
         else:
             lines.append("- No services identified from TXT records")
-
         if ti.get("anomalous_records"):
             lines += ["", "### Anomalous TXT records", ""]
             for a in ti["anomalous_records"]:
@@ -426,13 +277,9 @@ class BaseRenderer:
     def _risk_breakdown_md(self) -> str:
         re = self.risk_engine
         lines = [
-            "## Risk score breakdown",
-            "",
-            f"Score: **{re.get('score',0)}/100** ({re.get('bucket','?')}) — "
-            f"config {re.get('config_version','?')}",
-            "",
-            "| Rule | Points |",
-            "|------|--------|",
+            "## Risk score breakdown", "",
+            f"Score: **{re.get('score',0)}/100** ({re.get('bucket','?')}) — config {re.get('config_version','?')}",
+            "", "| Rule | Points |", "|------|--------|",
         ]
         for r in re.get("rules", []):
             sign = f"+{r['points']}" if r["points"] > 0 else str(r["points"])
@@ -440,13 +287,10 @@ class BaseRenderer:
         return "\n".join(lines)
 
     def _labels_md(self) -> str:
-        lbl = self.labels
-        flags = self.flags
+        lbl, flags = self.labels, self.flags
         lines = [
-            "## Labels and flags",
-            "",
-            "| Label | Value |",
-            "|-------|-------|",
+            "## Labels and flags", "",
+            "| Label | Value |", "|-------|-------|",
             f"| DMARC policy | {lbl.get('dmarc_policy') or '—'} |",
             f"| SPF strictness | {lbl.get('spf_strictness') or '—'} |",
             f"| TTL bucket | {lbl.get('ttl_bucket') or '—'} |",
@@ -463,13 +307,9 @@ class BaseRenderer:
     def _certs_md(self) -> str:
         c = self.certs
         lines = [
-            "## Certificates",
-            "",
-            "| Field | Value |",
-            "|-------|-------|",
+            "## Certificates", "", "| Field | Value |", "|-------|-------|",
             f"| HTTPS issuer | {c.get('https_issuer_org') or '—'} (`{c.get('https_label') or '—'}`) |",
-            f"| HTTPS days left | {c.get('https_days_left') or '—'} "
-            f"{'⚠ EXPIRING SOON' if c.get('https_expiring') else ''} |",
+            f"| HTTPS days left | {c.get('https_days_left') or '—'} {'⚠ EXPIRING SOON' if c.get('https_expiring') else ''} |",
             f"| HTTPS SANs | {c.get('https_san_count') or '—'} |",
             f"| SMTP issuer | {c.get('smtp_issuer_org') or '—'} |",
             f"| SMTP days left | {c.get('smtp_days_left') or '—'} |",
@@ -481,10 +321,7 @@ class BaseRenderer:
     def _changes_md(self) -> str:
         ch = self.changes
         lines = [
-            "## Change signals",
-            "",
-            "| Signal | Status |",
-            "|--------|--------|",
+            "## Change signals", "", "| Signal | Status |", "|--------|--------|",
             f"| NS changed | {'YES ⚠' if ch.get('ns_changed') else 'No'} |",
             f"| IP changed | {'YES ⚠' if ch.get('ip_changed') else 'No'} |",
             f"| Country changed | {'YES ⚠' if ch.get('country_changed') else 'No'} |",
@@ -495,14 +332,183 @@ class BaseRenderer:
         ]
         return "\n".join(lines)
 
-    def _technographics_html(self) -> str:
-        t     = self.tech
-        ti    = self.txt_intel
-        lbl   = self.labels
-        flags = self.flags
-        dns   = self.dns
+    def _rdap_md(self) -> str:
+        rdap = self.rdap
+        if not rdap.get("rdap_available"):
+            return ""
+        lines = [
+            "## Domain registration", "",
+            "| Field | Value |", "|-------|-------|",
+            f"| Registrar | {rdap.get('registrar_name', '—')} |",
+            f"| Registrar risk | {rdap.get('registrar_label', '—')} |",
+            f"| Registered | {rdap.get('registered', '—')} |",
+            f"| Expires | {rdap.get('expires', '—')} |",
+            f"| Days to expiry | {rdap.get('days_to_expiry', '—')} |",
+            f"| Domain age | {rdap.get('domain_age_days', '—')} days |",
+            f"| DNSSEC | {'enabled' if rdap.get('dnssec_enabled') else 'not enabled'} |",
+            f"| Abuse contact | {rdap.get('abuse_email') or 'not found'} |",
+            f"| RDAP risk score | {rdap.get('rdap_risk_score', 0)} |",
+        ]
+        reasons = rdap.get("rdap_risk_reasons", [])
+        if reasons:
+            lines += ["", "**Registration risk signals:**"]
+            for r in reasons:
+                lines.append(f"- {r}")
+        return "\n".join(lines)
 
-        # --- SaaS pills by category ---
+    def _cert_analysis_md(self) -> str:
+        summary = self.cert_analysis.get("summary", {})
+        if not summary:
+            return ""
+        lines = [
+            "## Certificate intelligence", "",
+            "| Metric | Value |", "|--------|-------|",
+            f"| Total subdomains | {summary.get('total_unique_subdomains', 0)} |",
+            f"| Wildcard zones | {summary.get('wildcard_zones', 0)} |",
+            f"| Expiring within 30d | {summary.get('expiring_within_30d', 0)} |",
+            f"| Expiring within 60d | {summary.get('expiring_within_60d', 0)} |",
+            f"| Expired | {summary.get('expired', 0)} |",
+            f"| Missed renewals | {summary.get('missed_renewals', 0)} |",
+            f"| Cross-domain SANs | {summary.get('cross_domain_sans', 0)} |",
+            f"| High churn subdomains | {summary.get('high_churn_subdomains', 0)} |",
+            "",
+        ]
+        for section, label in [
+            ("missed_renewals",   "Missed renewals"),
+            ("expired",           "Expired certs"),
+            ("cert_churn",        "High cert churn"),
+            ("cross_domain_sans", "Cross-domain SANs"),
+        ]:
+            items = self.cert_analysis.get(section, [])
+            if items:
+                lines += [f"**{label}:**"]
+                for r in items[:5]:
+                    lines.append(f"- `{r['dns_name']}`")
+                lines.append("")
+        return "\n".join(lines)
+
+    def _subdomains_md(self, limit: int = 30) -> str:
+        if not self.subdomains:
+            return ""
+        lines = [f"## Subdomain corpus ({len(self.subdomains)} subdomains)", ""]
+        for s in self.subdomains[:limit]:
+            expired    = s.get("is_expired", False)
+            days       = s.get("days_remaining")
+            days_label = "EXPIRED ⚠" if expired else f"{days}d" if days is not None else "—"
+            lines.append(f"- `{s['dns_name']}` — {s.get('issuer_category', '—')} · {days_label}")
+        if len(self.subdomains) > limit:
+            lines.append(f"- *...and {len(self.subdomains) - limit} more*")
+        return "\n".join(lines)
+
+    # --- Shared HTML builders -----------------------------------------------
+
+    def _rdap_html(self) -> str:
+        rdap = self.rdap
+        if not rdap.get("rdap_available"):
+            return ""
+        risk_reasons = ", ".join(rdap.get("rdap_risk_reasons", [])) or "none"
+        risk_block = ""
+        if risk_reasons != "none":
+            risk_block = (
+                f'<div style="background:#FAEEDA;border-left:3px solid #854F0B;'
+                f'padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:10px 0;color:#412402">'
+                f'<strong>Registration risk signals:</strong> {risk_reasons}</div>'
+            )
+        return f"""
+        <h2>Domain registration</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0">
+        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Registrar</div>
+            <div style="font-size:13px;font-weight:500">{rdap.get('registrar_name') or '—'}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">{rdap.get('registrar_label') or ''}</div>
+        </div>
+        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Domain age</div>
+            <div style="font-size:22px;font-weight:600">{rdap.get('domain_age_days', '—')}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">days · registered {rdap.get('registered', '—')}</div>
+        </div>
+        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Expiry</div>
+            <div style="font-size:13px;font-weight:500">{rdap.get('expires', '—')}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">{rdap.get('days_to_expiry', '—')} days remaining</div>
+        </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#555;margin-top:6px">
+        <span>DNSSEC: <strong>{'enabled' if rdap.get('dnssec_enabled') else 'not enabled'}</strong></span>
+        <span>RDAP risk score: <strong>{rdap.get('rdap_risk_score', 0)}</strong></span>
+        <span>Abuse contact: <strong>{rdap.get('abuse_email') or 'not found'}</strong></span>
+        </div>
+        {risk_block}"""
+
+    def _cert_analysis_html(self) -> str:
+        summary = self.cert_analysis.get("summary", {})
+        if not summary:
+            return ""
+        missed  = self.cert_analysis.get("missed_renewals", [])
+        expired = self.cert_analysis.get("expired", [])
+        churn   = self.cert_analysis.get("cert_churn", [])
+        cross   = self.cert_analysis.get("cross_domain_sans", [])
+
+        def alert_block(colour_key, label, items):
+            if not items:
+                return ""
+            colours = {"red": ("#FCEBEB","#A32D2D"), "orange": ("#FAEEDA","#854F0B"), "blue": ("#E6F1FB","#185FA5")}
+            bg, border = colours[colour_key]
+            names = ", ".join(r["dns_name"] for r in items[:5])
+            return (f'<div style="background:{bg};border-left:3px solid {border};'
+                    f'padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0">'
+                    f'<strong>{label}:</strong> {names}</div>')
+
+        exp_colour = lambda n, k: f"color:{'#A32D2D' if summary.get(k,0) > 0 else 'inherit'}"
+        return f"""
+        <h2>Certificate intelligence — {summary.get('total_unique_subdomains', 0)} subdomains</h2>
+        <div class="grid">
+        <div class="card"><div class="num">{summary.get('total_unique_subdomains', 0)}</div><div class="lbl">Total subdomains</div></div>
+        <div class="card"><div class="num" style="{exp_colour(0,'expiring_within_60d')}">{summary.get('expiring_within_60d', 0)}</div><div class="lbl">Expiring 60d</div></div>
+        <div class="card"><div class="num" style="{exp_colour(0,'expired')}">{summary.get('expired', 0)}</div><div class="lbl">Expired</div></div>
+        <div class="card"><div class="num" style="{exp_colour(0,'missed_renewals')}">{summary.get('missed_renewals', 0)}</div><div class="lbl">Missed renewals</div></div>
+        <div class="card"><div class="num">{summary.get('wildcard_zones', 0)}</div><div class="lbl">Wildcard zones</div></div>
+        <div class="card"><div class="num">{summary.get('cross_domain_sans', 0)}</div><div class="lbl">Cross-domain SANs</div></div>
+        </div>
+        {alert_block("red",    "Missed renewals",         missed)}
+        {alert_block("red",    "Expired certs",           expired)}
+        {alert_block("orange", "High cert churn",         churn)}
+        {alert_block("blue",   "Cross-domain SANs found", cross)}"""
+
+    def _subdomains_html(self, limit: int = 30) -> str:
+        if not self.subdomains:
+            return ""
+        rows = ""
+        for s in self.subdomains[:limit]:
+            expired    = s.get("is_expired", False)
+            days       = s.get("days_remaining")
+            colour     = "#A32D2D" if expired else "#854F0B" if days is not None and days < 30 else "#3B6D11"
+            days_label = "EXPIRED" if expired else f"{days}d" if days is not None else "—"
+            rows += (
+                f"<tr style='border-bottom:1px solid #f5f5f5'>"
+                f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>{s['dns_name']}</td>"
+                f"<td style='padding:5px 10px;font-size:11px;color:#666'>{s.get('issuer_category', '—')}</td>"
+                f"<td style='padding:5px 10px;font-size:11px;font-weight:500;color:{colour}'>{days_label}</td>"
+                f"</tr>"
+            )
+        overflow = (
+            f'<p style="font-size:11px;color:#888;margin:6px 0">+ {len(self.subdomains) - limit} more subdomains</p>'
+            if len(self.subdomains) > limit else ""
+        )
+        return f"""
+        <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
+        <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f5f5f5">
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Issuer</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Cert expiry</th>
+        </tr></thead>
+        <tbody>{rows}</tbody>
+        </table>{overflow}"""
+
+    def _technographics_html(self) -> str:
+        t, ti, lbl, flags, dns = self.tech, self.txt_intel, self.labels, self.flags, self.dns
+
         PILL_STYLES = {
             "saas_platforms":     "background:#EEEDFE;color:#3C3489",
             "identity_providers": "background:#E6F1FB;color:#0C447C",
@@ -514,72 +520,51 @@ class BaseRenderer:
         pills_html = ""
         for category, style in PILL_STYLES.items():
             for svc in ti.get(category, []):
-                is_risky = any(
-                    k in svc.lower()
-                    for k in ("lastpass","okta","twilio","mailchimp","circleci","dropbox sign")
-                )
+                is_risky = any(k in svc.lower() for k in ("lastpass","okta","twilio","mailchimp","circleci","dropbox sign"))
                 final_style = "background:#FCEBEB;color:#791F1F" if is_risky else style
                 pills_html += (
                     f'<span style="{final_style};padding:2px 8px;border-radius:4px;'
-                    f'font-size:11px;font-weight:500;display:inline-block;'
-                    f'margin:2px 3px 2px 0">{svc}</span>'
+                    f'font-size:11px;font-weight:500;display:inline-block;margin:2px 3px 2px 0">{svc}</span>'
                 )
         if not pills_html:
             pills_html = '<span style="color:#888;font-size:12px">None identified from TXT records</span>'
 
-        # --- Anomalous TXT ---
         anomalies_html = ""
         for a in ti.get("anomalous_records", []):
             anomalies_html += (
-                f'<div style="font-family:monospace;font-size:11px;'
-                f'background:#FCEBEB;color:#791F1F;padding:4px 8px;'
-                f'border-radius:3px;margin:3px 0;word-break:break-all">{a}</div>'
+                f'<div style="font-family:monospace;font-size:11px;background:#FCEBEB;color:#791F1F;'
+                f'padding:4px 8px;border-radius:3px;margin:3px 0;word-break:break-all">{a}</div>'
             )
 
-        # --- Full DNS records table — every record type, every value ---
         dns_rows = ""
-        RECORD_ORDER = ["a", "aaaa", "mx", "ns", "txt", "caa", "mail_a", "www_a"]
-        for rtype in RECORD_ORDER:
+        for rtype in ["a", "aaaa", "mx", "ns", "txt", "caa", "mail_a", "www_a"]:
             records = dns.get(rtype, [])
             if not records:
                 dns_rows += (
                     f"<tr style='opacity:.4'>"
-                    f"<td style='padding:5px 10px;font-weight:600;font-size:11px;"
-                    f"text-transform:uppercase;color:#888;white-space:nowrap;"
-                    f"vertical-align:top;width:70px'>{rtype.upper()}</td>"
-                    f"<td style='padding:5px 10px;font-family:monospace;font-size:11px;"
-                    f"color:#aaa'>—</td></tr>"
+                    f"<td style='padding:5px 10px;font-weight:600;font-size:11px;text-transform:uppercase;"
+                    f"color:#888;white-space:nowrap;vertical-align:top;width:70px'>{rtype.upper()}</td>"
+                    f"<td style='padding:5px 10px;font-family:monospace;font-size:11px;color:#aaa'>—</td></tr>"
                 )
                 continue
-            if rtype == "mx":
-                vals = [f"{r['priority']}  {r['host']}" for r in records]
-            else:
-                vals = [str(r) for r in records]
-            # Each value on its own line
+            vals = [f"{r['priority']}  {r['host']}" for r in records] if rtype == "mx" else [str(r) for r in records]
             cell = "<br>".join(
-                f'<span style="display:block;padding:1px 0;word-break:break-all">{v}</span>'
-                for v in vals
+                f'<span style="display:block;padding:1px 0;word-break:break-all">{v}</span>' for v in vals
             )
             dns_rows += (
-                f"<tr style='border-bottom:1px solid var(--color-border-tertiary,#f0f0f0)'>"
-                f"<td style='padding:5px 10px;font-weight:600;font-size:11px;"
-                f"text-transform:uppercase;color:#555;white-space:nowrap;"
-                f"vertical-align:top;width:70px'>{rtype.upper()}</td>"
-                f"<td style='padding:5px 10px;font-family:monospace;font-size:11px;"
-                f"color:#222;line-height:1.6'>{cell}</td></tr>"
+                f"<tr style='border-bottom:1px solid #f0f0f0'>"
+                f"<td style='padding:5px 10px;font-weight:600;font-size:11px;text-transform:uppercase;"
+                f"color:#555;white-space:nowrap;vertical-align:top;width:70px'>{rtype.upper()}</td>"
+                f"<td style='padding:5px 10px;font-family:monospace;font-size:11px;color:#222;line-height:1.6'>{cell}</td></tr>"
             )
-    
-        # --- Security layer checklist ---
-        ea = self.ea
-        certs = self.certs
-    
-        def status_pill(ok: bool, good_text: str, bad_text: str) -> str:
+
+        ea, certs = self.ea, self.certs
+
+        def status_pill(ok, good_text, bad_text):
             if ok:
-                return (f'<span style="background:#EAF3DE;color:#27500A;padding:2px 8px;'
-                        f'border-radius:4px;font-size:11px;font-weight:500">{good_text}</span>')
-            return (f'<span style="background:#FCEBEB;color:#791F1F;padding:2px 8px;'
-                    f'border-radius:4px;font-size:11px;font-weight:500">{bad_text}</span>')
-    
+                return f'<span style="background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500">{good_text}</span>'
+            return f'<span style="background:#FCEBEB;color:#791F1F;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500">{bad_text}</span>'
+
         spf_ok    = ea.get("spf") in ("-all", "~all")
         dmarc_ok  = ea.get("dmarc_policy") in ("reject", "quarantine")
         reject_ok = ea.get("dmarc_policy") == "reject"
@@ -590,405 +575,153 @@ class BaseRenderer:
         caa_ok    = flags.get("has_caa", False)
         sec_ok    = flags.get("has_security_txt", False)
         smtp_ok   = certs.get("provider_live", False)
-    
-        checklist = f"""
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead><tr style="background:#f5f5f5">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Layer</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Status</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Detail</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Impact if missing</th>
-          </tr></thead>
-          <tbody>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">SPF</td>
-              <td style="padding:6px 10px">{status_pill(spf_ok, ea.get('spf') or 'present', 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">{ea.get('spf_raw','Not found')[:80]}</td>
-              <td style="padding:6px 10px;color:#888">Any server can send email as this domain</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">DMARC</td>
-              <td style="padding:6px 10px">{status_pill(dmarc_ok, f"p={ea.get('dmarc_policy')}", 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {f"pct={ea.get('dmarc_pct',0)} · aspf={ea.get('aspf','?')} · adkim={ea.get('adkim','?')}" if dmarc_ok else 'No DMARC record found'}
-              </td>
-              <td style="padding:6px 10px;color:#888">Spoofed mail delivered without policy enforcement</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">DMARC p=reject</td>
-              <td style="padding:6px 10px">{status_pill(reject_ok, 'p=reject', 'not reject')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {'Full enforcement — spoofed mail rejected' if reject_ok else f"Currently p={ea.get('dmarc_policy','missing')} — upgrade to reject for full protection"}
-              </td>
-              <td style="padding:6px 10px;color:#888">Spoofed mail quarantined or delivered depending on policy</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">MTA-STS</td>
-              <td style="padding:6px 10px">{status_pill(mta_ok, 'configured', 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {'Mode: ' + (ea.get('mta_sts_mode') or 'unknown') if mta_ok else 'NXDOMAIN — policy not published'}
-              </td>
-              <td style="padding:6px 10px;color:#888">Inbound SMTP vulnerable to TLS downgrade attacks</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">TLS-RPT</td>
-              <td style="padding:6px 10px">{status_pill(tls_ok, 'configured', 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {ea.get('tls_rpt_rua') or ('NXDOMAIN — no SMTP TLS reporting' if not tls_ok else 'Configured')}
-              </td>
-              <td style="padding:6px 10px;color:#888">No visibility into SMTP delivery failures or TLS issues</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">BIMI</td>
-              <td style="padding:6px 10px">{status_pill(bimi_ok, 'configured', 'not configured')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {'Brand logo in email clients' if bimi_ok else 'Requires DMARC p=reject first, then default._bimi TXT record'}
-              </td>
-              <td style="padding:6px 10px;color:#888">Brand logo not displayed in Gmail, Apple Mail, Yahoo</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">DNSSEC</td>
-              <td style="padding:6px 10px">{status_pill(dnssec_ok, 'enabled', 'not enabled')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {'DNSSEC signatures present' if dnssec_ok else 'DNS responses are not cryptographically signed'}
-              </td>
-              <td style="padding:6px 10px;color:#888">DNS cache poisoning and response tampering possible</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">CAA records</td>
-              <td style="padding:6px 10px">{status_pill(caa_ok, 'present', 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {', '.join(dns.get('caa', [])) or 'No CAA records — any CA can issue certificates'}
-              </td>
-              <td style="padding:6px 10px;color:#888">Unauthorised certificates can be issued for this domain</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">security.txt</td>
-              <td style="padding:6px 10px">{status_pill(sec_ok, 'present', 'missing')}</td>
-              <td style="padding:6px 10px;color:#555">
-                {'Published at /.well-known/security.txt' if sec_ok else 'No responsible disclosure policy published'}
-              </td>
-              <td style="padding:6px 10px;color:#888">Security researchers have no formal disclosure channel</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f5f5f5">
-              <td style="padding:6px 10px;font-weight:500">SMTP banner</td>
-              <td style="padding:6px 10px">{status_pill(smtp_ok, 'verified', 'not verified')}</td>
-              <td style="padding:6px 10px;color:#555;font-family:monospace;font-size:11px">
-                {certs.get('smtp_banner') or 'No banner captured'}
-              </td>
-              <td style="padding:6px 10px;color:#888">MX provider identity unconfirmed from DNS alone</td>
-            </tr>
-          </tbody>
-        </table>"""
-    
-        # --- Labels ---
+
         labels_html = "".join(
-            f'<span style="background:#f0f0f0;color:#444;padding:3px 10px;'
-            f'border-radius:4px;font-size:12px;display:inline-block;margin:2px 3px 2px 0">'
+            f'<span style="background:#f0f0f0;color:#444;padding:3px 10px;border-radius:4px;'
+            f'font-size:12px;display:inline-block;margin:2px 3px 2px 0">'
             f'<strong>{k.replace("_"," ").title()}:</strong> {v}</span>'
             for k, v in lbl.items() if v is not None
         )
-    
+
+        net_trust = float(t.get('net_trust_score', 0))
+        net_colour = '#3B6D11' if net_trust > 0 else '#A32D2D'
+
         return f"""
         <h2>Security layer checklist</h2>
-        {checklist}
-    
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:#f5f5f5">
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Layer</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Status</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Detail</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Impact if missing</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">SPF</td>
+              <td style="padding:6px 10px">{status_pill(spf_ok, ea.get('spf') or 'present', 'MISSING')}</td>
+              <td style="padding:6px 10px;color:#555">{ea.get('spf_raw','Not found')[:80]}</td>
+              <td style="padding:6px 10px;color:#888">Any server can send email as this domain</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DMARC</td>
+              <td style="padding:6px 10px">{status_pill(dmarc_ok, f"p={ea.get('dmarc_policy')}", 'MISSING')}</td>
+              <td style="padding:6px 10px;color:#555">{f"pct={ea.get('dmarc_pct',0)} · aspf={ea.get('aspf','?')} · adkim={ea.get('adkim','?')}" if dmarc_ok else 'No DMARC record found'}</td>
+              <td style="padding:6px 10px;color:#888">Spoofed mail delivered without policy enforcement</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DMARC p=reject</td>
+              <td style="padding:6px 10px">{status_pill(reject_ok, 'p=reject', 'not reject')}</td>
+              <td style="padding:6px 10px;color:#555">{'Full enforcement — spoofed mail rejected' if reject_ok else f"Currently p={ea.get('dmarc_policy','missing')} — upgrade to reject"}</td>
+              <td style="padding:6px 10px;color:#888">Spoofed mail quarantined or delivered depending on policy</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">MTA-STS</td>
+              <td style="padding:6px 10px">{status_pill(mta_ok, 'configured', 'MISSING')}</td>
+              <td style="padding:6px 10px;color:#555">{'Mode: ' + (ea.get('mta_sts_mode') or 'unknown') if mta_ok else 'NXDOMAIN — policy not published'}</td>
+              <td style="padding:6px 10px;color:#888">Inbound SMTP vulnerable to TLS downgrade attacks</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">TLS-RPT</td>
+              <td style="padding:6px 10px">{status_pill(tls_ok, 'configured', 'MISSING')}</td>
+              <td style="padding:6px 10px;color:#555">{ea.get('tls_rpt_rua') or ('NXDOMAIN — no SMTP TLS reporting' if not tls_ok else 'Configured')}</td>
+              <td style="padding:6px 10px;color:#888">No visibility into SMTP delivery failures or TLS issues</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">BIMI</td>
+              <td style="padding:6px 10px">{status_pill(bimi_ok, 'configured', 'not configured')}</td>
+              <td style="padding:6px 10px;color:#555">{'Brand logo in email clients' if bimi_ok else 'Requires DMARC p=reject first'}</td>
+              <td style="padding:6px 10px;color:#888">Brand logo not displayed in Gmail, Apple Mail, Yahoo</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DNSSEC</td>
+              <td style="padding:6px 10px">{status_pill(dnssec_ok, 'enabled', 'not enabled')}</td>
+              <td style="padding:6px 10px;color:#555">{'DNSSEC signatures present' if dnssec_ok else 'DNS responses are not cryptographically signed'}</td>
+              <td style="padding:6px 10px;color:#888">DNS cache poisoning and response tampering possible</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">CAA records</td>
+              <td style="padding:6px 10px">{status_pill(caa_ok, 'present', 'MISSING')}</td>
+              <td style="padding:6px 10px;color:#555">{', '.join(dns.get('caa', [])) or 'No CAA records — any CA can issue certificates'}</td>
+              <td style="padding:6px 10px;color:#888">Unauthorised certificates can be issued for this domain</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">security.txt</td>
+              <td style="padding:6px 10px">{status_pill(sec_ok, 'present', 'missing')}</td>
+              <td style="padding:6px 10px;color:#555">{'Published at /.well-known/security.txt' if sec_ok else 'No responsible disclosure policy published'}</td>
+              <td style="padding:6px 10px;color:#888">Security researchers have no formal disclosure channel</td></tr>
+            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">SMTP banner</td>
+              <td style="padding:6px 10px">{status_pill(smtp_ok, 'verified', 'not verified')}</td>
+              <td style="padding:6px 10px;color:#555;font-family:monospace;font-size:11px">{certs.get('smtp_banner') or 'No banner captured'}</td>
+              <td style="padding:6px 10px;color:#888">MX provider identity unconfirmed from DNS alone</td></tr>
+          </tbody>
+        </table>
+
         <h2>Technographics</h2>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0">
         <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:4px">MX provider</div>
-            <div style="font-size:13px;font-weight:500">
-            {t.get('mx_provider_name') or '—'}
-            </div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">MX provider</div>
+            <div style="font-size:13px;font-weight:500">{t.get('mx_provider_name') or '—'}</div>
             <div style="font-size:11px;color:#888;margin-top:2px">
-            {t.get('mx_mbp_category') or '—'} ·
-            nudge {t.get('mx_trust_nudge',0):+.1f} /
-            bias {t.get('mx_risk_bias',0):+.1f}
+            {t.get('mx_mbp_category') or '—'} · nudge {t.get('mx_trust_nudge',0):+.1f} / bias {t.get('mx_risk_bias',0):+.1f}</div>
+        </div>
+        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">ASN / ISP</div>
+            <div style="font-size:13px;font-weight:500">{t.get('isp_name') or '—'} (AS{t.get('asn') or '—'})</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">
+            {t.get('isp_country') or '—'} · risk: {t.get('asn_risk_level') or '—'} · TLD: {t.get('tld_risk_level') or '—'}
+            {'· <strong>Hosting CDN</strong>' if t.get('is_hosting_cdn') else ''}
             </div>
         </div>
         <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:4px">ASN / ISP</div>
-            <div style="font-size:13px;font-weight:500">
-            {t.get('isp_name') or '—'} (AS{t.get('asn') or '—'})
-            </div>
-            <div style="font-size:11px;color:#888;margin-top:2px">
-            {t.get('isp_country') or '—'} ·
-            risk: {t.get('asn_risk_level') or '—'} ·
-            TLD: {t.get('tld_risk_level') or '—'}
-            </div>
-        </div>
-        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:4px">Net trust score</div>
-            <div style="font-size:22px;font-weight:600;
-                        color:{'#3B6D11' if float(t.get('net_trust_score',0))>0 else '#A32D2D'}">
-            {float(t.get('net_trust_score',0)):+.1f}
-            </div>
-            <div style="font-size:11px;color:#888;margin-top:2px">
-            CDN/UGC: {'Yes' if t.get('is_cdn_ugc') else 'No'}
-            </div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Net trust score</div>
+            <div style="font-size:22px;font-weight:600;color:{net_colour}">{net_trust:+.1f}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">CDN/UGC: {'Yes' if t.get('is_cdn_ugc') else 'No'}</div>
         </div>
         </div>
-    
+
         <h2>SaaS stack — {ti.get('total_identified',0)} services identified from TXT records</h2>
         <div style="margin:10px 0 6px">{pills_html}</div>
         {f'<div style="margin-top:10px"><div style="font-size:11px;color:#A32D2D;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Anomalous TXT records</div>{anomalies_html}</div>' if anomalies_html else ''}
-    
-        {'<h2>Unrecognised TXT tokens</h2><div style="font-size:12px;color:#555">' + '<br>'.join(f'<code>{u}</code>' for u in ti.get('unrecognised',[])[:10]) + '</div>' if ti.get('unrecognised') else ''}
-    
+
         <h2>Full DNS records</h2>
-        <table style="width:100%;border-collapse:collapse">
-        <tbody>{dns_rows}</tbody>
-        </table>
-    
+        <table style="width:100%;border-collapse:collapse"><tbody>{dns_rows}</tbody></table>
+
         <h2>Labels</h2>
         <div style="margin:8px 0">{labels_html}</div>
-    
+
         <h2>Certificates</h2>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0">
         <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:5px">HTTPS</div>
-            <div style="font-size:13px">{self.certs.get('https_issuer_org') or '—'}
-            <span style="color:#888;font-size:11px"> ({self.certs.get('https_label') or '—'})</span>
-            </div>
-            <div style="font-size:12px;margin-top:4px;
-                        color:{'#A32D2D' if self.certs.get('https_expiring') else '#3B6D11'}">
-            {self.certs.get('https_days_left') or '—'} days remaining
-            {' — EXPIRING SOON' if self.certs.get('https_expiring') else ''}
-            </div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">HTTPS</div>
+            <div style="font-size:13px">{self.certs.get('https_issuer_org') or '—'} <span style="color:#888;font-size:11px">({self.certs.get('https_label') or '—'})</span></div>
+            <div style="font-size:12px;margin-top:4px;color:{'#A32D2D' if self.certs.get('https_expiring') else '#3B6D11'}">
+            {self.certs.get('https_days_left') or '—'} days remaining{' — EXPIRING SOON' if self.certs.get('https_expiring') else ''}</div>
             <div style="font-size:11px;color:#888;margin-top:3px">
-            {self.certs.get('https_san_count') or '—'} SANs ·
-            Let's Encrypt: {'Yes' if self.certs.get('https_lets_encrypt') else 'No'}
-            </div>
+            {self.certs.get('https_san_count') or '—'} SANs · Let's Encrypt: {'Yes' if self.certs.get('https_lets_encrypt') else 'No'}</div>
         </div>
         <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:5px">SMTP</div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">SMTP</div>
             <div style="font-size:13px">{self.certs.get('smtp_issuer_org') or '—'}</div>
-            <div style="font-size:12px;color:#3B6D11;margin-top:4px">
-            {self.certs.get('smtp_days_left') or '—'} days remaining
-            </div>
-            <div style="font-family:monospace;font-size:11px;color:#555;
-                        margin-top:6px;word-break:break-all">
-            {self.certs.get('smtp_banner') or 'No banner captured'}
-            </div>
-            <div style="font-size:11px;margin-top:4px;
-                        color:{'#3B6D11' if self.certs.get('provider_live') else '#888'}">
-            Provider {'confirmed live via banner' if self.certs.get('provider_live') else 'not banner-verified'}
-            </div>
+            <div style="font-size:12px;color:#3B6D11;margin-top:4px">{self.certs.get('smtp_days_left') or '—'} days remaining</div>
+            <div style="font-family:monospace;font-size:11px;color:#555;margin-top:6px;word-break:break-all">
+            {self.certs.get('smtp_banner') or 'No banner captured'}</div>
+            <div style="font-size:11px;margin-top:4px;color:{'#3B6D11' if self.certs.get('provider_live') else '#888'}">
+            Provider {'confirmed live via banner' if self.certs.get('provider_live') else 'not banner-verified'}</div>
         </div>
         </div>
-    
+
         <h2>Change signals</h2>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">
         {''.join(
-            f'<span style="background:{"#FCEBEB" if v else "#EAF3DE"};'
-            f'color:{"#791F1F" if v else "#27500A"};'
-            f'padding:3px 10px;border-radius:4px;font-size:12px;'
-            f'font-weight:{"600" if v else "400"}">'
+            f'<span style="background:{"#FCEBEB" if v else "#EAF3DE"};color:{"#791F1F" if v else "#27500A"};'
+            f'padding:3px 10px;border-radius:4px;font-size:12px;font-weight:{"600" if v else "400"}">'
             f'{k.replace("_"," ").title()}: {"YES ⚠" if v else "No"}</span>'
             for k, v in self.changes.items() if isinstance(v, bool)
         )}
         </div>"""
-    
-    def _rdap_html(self) -> str:
-        rdap = self.rdap
-        if not rdap.get("rdap_available"):
-            return ""
-        risk_reasons = ", ".join(rdap.get("rdap_risk_reasons", [])) or "none"
-        return f"""
-        <h2>Domain registration</h2>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0">
-        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:4px">Registrar</div>
-            <div style="font-size:13px;font-weight:500">
-            {rdap.get('registrar_name') or '—'}
-            </div>
-            <div style="font-size:11px;color:#888;margin-top:2px">
-            {rdap.get('registrar_label') or ''}
-            </div>
-        </div>
-        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:4px">Domain age</div>
-            <div style="font-size:22px;font-weight:600">
-            {rdap.get('domain_age_days', '—')}
-            </div>
-            <div style="font-size:11px;color:#888;margin-top:2px">
-            days · registered {rdap.get('registered', '—')}
-            </div>
-        </div>
-        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;
-                        letter-spacing:.04em;margin-bottom:4px">Expiry</div>
-            <div style="font-size:13px;font-weight:500">
-            {rdap.get('expires', '—')}
-            </div>
-            <div style="font-size:11px;color:#888;margin-top:2px">
-            {rdap.get('days_to_expiry', '—')} days remaining
-            </div>
-        </div>
-        </div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;
-                    color:#555;margin-top:6px">
-        <span>DNSSEC: <strong>
-            {'enabled' if rdap.get('dnssec_enabled') else 'not enabled'}
-        </strong></span>
-        <span>RDAP risk score: <strong>{rdap.get('rdap_risk_score', 0)}</strong></span>
-        <span>Abuse contact: <strong>
-            {rdap.get('abuse_email') or 'not found'}
-        </strong></span>
-        </div>
-        {f'''<div style="background:#FAEEDA;border-left:3px solid #854F0B;
-                        padding:10px 14px;border-radius:0 6px 6px 0;
-                        font-size:12px;margin:10px 0;color:#412402">
-        <strong>Registration risk signals:</strong> {risk_reasons}
-        </div>''' if risk_reasons != 'none' else ''}"""
 
-
-    def _cert_analysis_html(self) -> str:
-        summary = self.cert_analysis.get("summary", {})
-        if not summary:
-            return ""
-        missed  = self.cert_analysis.get("missed_renewals", [])
-        expired = self.cert_analysis.get("expired", [])
-        churn   = self.cert_analysis.get("cert_churn", [])
-        cross   = self.cert_analysis.get("cross_domain_sans", [])
-        return f"""
-        <h2>Certificate intelligence —
-        {summary.get('total_unique_subdomains', 0)} subdomains</h2>
-        <div class="grid">
-        <div class="card">
-            <div class="num">{summary.get('total_unique_subdomains', 0)}</div>
-            <div class="lbl">Total subdomains</div>
-        </div>
-        <div class="card">
-            <div class="num" style="color:{'#A32D2D' if summary.get('expiring_within_60d',0) > 0 else 'inherit'}">
-            {summary.get('expiring_within_60d', 0)}
-            </div>
-            <div class="lbl">Expiring 60d</div>
-        </div>
-        <div class="card">
-            <div class="num" style="color:{'#A32D2D' if summary.get('expired',0) > 0 else 'inherit'}">
-            {summary.get('expired', 0)}
-            </div>
-            <div class="lbl">Expired</div>
-        </div>
-        <div class="card">
-            <div class="num" style="color:{'#A32D2D' if summary.get('missed_renewals',0) > 0 else 'inherit'}">
-            {summary.get('missed_renewals', 0)}
-            </div>
-            <div class="lbl">Missed renewals</div>
-        </div>
-        <div class="card">
-            <div class="num">{summary.get('wildcard_zones', 0)}</div>
-            <div class="lbl">Wildcard zones</div>
-        </div>
-        <div class="card">
-            <div class="num">{summary.get('cross_domain_sans', 0)}</div>
-            <div class="lbl">Cross-domain SANs</div>
-        </div>
-        </div>
-        {f'''<div style="background:#FCEBEB;border-left:3px solid #A32D2D;
-                        padding:10px 14px;border-radius:0 6px 6px 0;
-                        font-size:12px;margin:8px 0">
-        <strong>Missed renewals:</strong>
-        {", ".join(r["dns_name"] for r in missed[:5])}
-        </div>''' if missed else ''}
-        {f'''<div style="background:#FCEBEB;border-left:3px solid #A32D2D;
-                        padding:10px 14px;border-radius:0 6px 6px 0;
-                        font-size:12px;margin:8px 0">
-        <strong>Expired certs:</strong>
-        {", ".join(r["dns_name"] for r in expired[:5])}
-        </div>''' if expired else ''}
-        {f'''<div style="background:#FAEEDA;border-left:3px solid #854F0B;
-                        padding:10px 14px;border-radius:0 6px 6px 0;
-                        font-size:12px;margin:8px 0">
-        <strong>High cert churn:</strong>
-        {", ".join(r["dns_name"] for r in churn[:5])}
-        </div>''' if churn else ''}
-        {f'''<div style="background:#E6F1FB;border-left:3px solid #185FA5;
-                        padding:10px 14px;border-radius:0 6px 6px 0;
-                        font-size:12px;margin:8px 0">
-        <strong>Cross-domain SANs discovered:</strong>
-        {", ".join(r["dns_name"] for r in cross[:5])}
-        </div>''' if cross else ''}"""
-
-
-    def _subdomains_html(self, limit: int = 30) -> str:
-        if not self.subdomains:
-            return ""
-        rows = ""
-        for s in self.subdomains[:limit]:
-            expired = s.get("is_expired", False)
-            days    = s.get("days_remaining")
-            colour  = (
-                "#A32D2D" if expired else
-                "#854F0B" if days is not None and days < 30 else
-                "#3B6D11"
-            )
-            days_label = "EXPIRED" if expired else f"{days}d" if days is not None else "—"
-            rows += (
-                f"<tr style='border-bottom:1px solid #f5f5f5'>"
-                f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>"
-                f"{s['dns_name']}</td>"
-                f"<td style='padding:5px 10px;font-size:11px;color:#666'>"
-                f"{s.get('issuer_category', '—')}</td>"
-                f"<td style='padding:5px 10px;font-size:11px;font-weight:500;color:{colour}'>"
-                f"{days_label}</td>"
-                f"</tr>"
-            )
-        overflow = (
-            f'<p style="font-size:11px;color:#888;margin:6px 0">'
-            f'+ {len(self.subdomains) - limit} more subdomains</p>'
-            if len(self.subdomains) > limit else ""
-        )
-        return f"""
-        <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
-        <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#f5f5f5">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;
-                    text-transform:uppercase;letter-spacing:.04em">Subdomain</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;
-                    text-transform:uppercase;letter-spacing:.04em">Issuer</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;
-                    text-transform:uppercase;letter-spacing:.04em">Cert expiry</th>
-        </tr></thead>
-        <tbody>{rows}</tbody>
-        </table>{overflow}"""
-    
     def _risk_breakdown_html(self) -> str:
         re = self.risk_engine
         rows = ""
         for r in re.get("rules", []):
-            pts = r["points"]
+            pts    = r["points"]
             colour = "#A32D2D" if pts > 0 else "#3B6D11"
             sign   = f"+{pts}" if pts > 0 else str(pts)
             width  = min(100, abs(pts) * 8)
             rows += (
-                f'<tr>'
-                f'<td style="padding:5px 10px;font-size:12px;color:#444">{r["rule"]}</td>'
+                f'<tr><td style="padding:5px 10px;font-size:12px;color:#444">{r["rule"]}</td>'
                 f'<td style="padding:5px 10px;min-width:120px">'
                 f'<div style="background:#f0f0f0;border-radius:3px;height:6px">'
-                f'<div style="background:{colour};width:{width}%;height:100%;'
-                f'border-radius:3px"></div></div></td>'
-                f'<td style="padding:5px 10px;font-weight:600;color:{colour};'
-                f'text-align:right;font-size:12px">{sign}</td>'
-                f'</tr>'
+                f'<div style="background:{colour};width:{width}%;height:100%;border-radius:3px"></div></div></td>'
+                f'<td style="padding:5px 10px;font-weight:600;color:{colour};text-align:right;font-size:12px">{sign}</td></tr>'
             )
         return f"""
         <h2>Risk score breakdown
           <span style="font-weight:400;font-size:13px;color:#888;margin-left:8px">
-            {re.get('score',0)}/100 · {re.get('bucket','?')} ·
-            config {re.get('config_version','?')}
+            {re.get('score',0)}/100 · {re.get('bucket','?')} · config {re.get('config_version','?')}
           </span>
         </h2>
         <table style="width:100%;border-collapse:collapse">{rows}</table>"""
@@ -1008,58 +741,29 @@ class BaseRenderer:
     def to_dict(self, brand: "BrandConfig" = None) -> dict:
         raise NotImplementedError
 
-
     # --- Shared helpers -----------------------------------------------------
-
-    _SEV_ORDER = {
-    "critical": 0, "high": 1, "elevated": 2,
-    "medium": 3,   "low": 4,  "info": 5,
-    }
 
     def _findings_by_severity(self, max_severity: str = "info") -> list[dict]:
         cutoff = _SEV_ORDER.get(max_severity, 5)
-        return [
-            f for f in self.findings
-            if _SEV_ORDER.get(f.get("severity", "info"), 5) <= cutoff
-        ]
+        return [f for f in self.findings if _SEV_ORDER.get(f.get("severity", "info"), 5) <= cutoff]
 
     def _sorted_findings(self) -> list[dict]:
-        return sorted(
-            self.findings,
-            key=lambda f: _SEV_ORDER.get(f.get("severity", "info"), 5)
-        )
+        return sorted(self.findings, key=lambda f: _SEV_ORDER.get(f.get("severity", "info"), 5))
 
-    def _key_finding(self) -> str:
-        return self.narrative.get("key_finding", "")
+    def _key_finding(self) -> str:       return self.narrative.get("key_finding", "")
+    def _executive_summary(self) -> str: return self.narrative.get("executive_summary", "")
+    def _threat_narrative(self) -> str:  return self.narrative.get("threat_narrative", "")
+    def _positive_signals(self) -> str:  return self.narrative.get("positive_signals", "")
+    def _remediation_priority(self) -> str: return self.narrative.get("remediation_priority", "")
+    def _insurer_signals(self) -> str:   return self.narrative.get("insurer_signals", "")
+    def _saas_stack_analysis(self) -> str: return self.narrative.get("saas_stack_analysis", "")
 
-    def _executive_summary(self) -> str:
-        return self.narrative.get("executive_summary", "")
-
-    def _threat_narrative(self) -> str:
-        return self.narrative.get("threat_narrative", "")
-
-    def _positive_signals(self) -> str:
-        return self.narrative.get("positive_signals", "")
-
-    def _remediation_priority(self) -> str:
-        return self.narrative.get("remediation_priority", "")
-
-    def _insurer_signals(self) -> str:
-        return self.narrative.get("insurer_signals", "")
-
-    def _saas_stack_analysis(self) -> str:
-        return self.narrative.get("saas_stack_analysis", "")
 
 # ---------------------------------------------------------------------------
 # 1. Insurer renderer
 # ---------------------------------------------------------------------------
 
 class InsurerRenderer(BaseRenderer):
-    """
-    Audience: cyber insurance underwriters.
-    Focus: risk scores, exposure aggregates, actuarial language,
-           directly underwritable signals.
-    """
 
     def to_dict(self) -> dict:
         return {
@@ -1094,17 +798,14 @@ class InsurerRenderer(BaseRenderer):
                 "https_days_left":        self.certs["https_days_left"],
                 "smtp_provider_verified": self.certs["provider_live"],
             },
-            "technographics":  self.tech,
+            "technographics":   self.tech,
             "txt_intelligence": self.txt_intel,
-            "labels":          self.labels,
-            "threat_flags":    self.flags,
-            "change_signals":  self.changes,
-            "risk_engine":     self.risk_engine,
-            "narrative":       self.narrative,
-            "critical_findings": [
-                f for f in self.findings
-                if f.get("severity") in ("critical", "high")
-            ],
+            "labels":           self.labels,
+            "threat_flags":     self.flags,
+            "change_signals":   self.changes,
+            "risk_engine":      self.risk_engine,
+            "narrative":        self.narrative,
+            "critical_findings": [f for f in self.findings if f.get("severity") in ("critical", "high")],
         }
 
     def _exposure_summary(self) -> dict:
@@ -1124,8 +825,7 @@ class InsurerRenderer(BaseRenderer):
 
     def _key_signals(self) -> list[dict]:
         signals = []
-        critical = [f for f in self.findings if f.get("severity") in ("critical", "high")]
-        for f in critical:
+        for f in [f for f in self.findings if f.get("severity") in ("critical", "high")]:
             signals.append({
                 "signal":    f.get("finding", ""),
                 "severity":  f.get("severity", "high"),
@@ -1140,9 +840,8 @@ class InsurerRenderer(BaseRenderer):
                 "title":     f"Domain spoofable — {self.ea.get('spoofing_severity','').upper()}",
                 "evidence":  f"SPF: {self.ea['spf']}, DMARC: {self.ea['dmarc_policy'] or 'missing'}",
                 "narrative": (
-                    f"{self.domain} can be impersonated by any actor. "
-                    f"Spoofed email would appear to come from a legitimate address "
-                    f"with no technical barrier to delivery."
+                    f"{self.domain} can be impersonated by any actor. Spoofed email would appear "
+                    f"to come from a legitimate address with no technical barrier to delivery."
                 ),
             })
         return signals
@@ -1152,21 +851,15 @@ class InsurerRenderer(BaseRenderer):
         exp = self._exposure_summary()
         lines = [
             f"# Cyber risk underwriting report — {self.domain}",
-            f"*Generated {self.o['generated_at']}*",
-            "",
+            f"*Generated {self.o['generated_at']}*", "",
         ]
-
         if self._key_finding():
             lines += [f"> **Key finding:** {self._key_finding()}", ""]
-
         lines += [
             f"## Risk score: {self.cs['score']}/100 — {self.cs['risk_band'].upper()}",
             f"Confidence: {self.cs['confidence']} · Primary driver: {self.cs['primary_driver']}",
-            "",
-            "## Exposure summary",
-            "",
-            "| Metric | Value |",
-            "|--------|-------|",
+            "", "## Exposure summary", "",
+            "| Metric | Value |", "|--------|-------|",
             f"| Critical findings | {exp['critical']} |",
             f"| High findings | {exp['high']} |",
             f"| Spoofable | {'YES — ' + exp['spoofing_severity'] if exp['spoofable'] else 'No'} |",
@@ -1175,106 +868,33 @@ class InsurerRenderer(BaseRenderer):
             f"| SPF | {self.ea['spf'] or 'Missing'} |",
             f"| HTTPS cert days left | {self.certs['https_days_left'] or 'Unknown'} |",
             f"| Any change signal | {'Yes' if exp['any_change_signal'] else 'No'} |",
-            "",
-            "## Score breakdown",
-            "",
-            "| Component | Score | Weight |",
-            "|-----------|-------|--------|",
+            "", "## Score breakdown", "",
+            "| Component | Score |", "|-----------|-------|",
         ]
         for k, v in self.cs["components"].items():
-            lines.append(f"| {k.replace('_',' ').title()} | {v} | included |")
-
+            lines.append(f"| {k.replace('_',' ').title()} | {v} |")
         lines += ["", "## Critical and high findings", ""]
         for f in self._findings_by_severity("high"):
             lines += [
                 f"### [{f.get('severity','info').upper()}] {f.get('title','Finding')}",
                 str(f.get("detail") or ""),
                 f"*Evidence:* `{f.get('evidence','n/a')}`",
-                f"*Fix:* {str(f.get('remediation') or 'n/a')}",
-                "",
-    ]
-
-        if self._executive_summary():
-            lines += ["## Executive summary", "", self._executive_summary(), ""]
-
-        if self._threat_narrative():
-            lines += ["## Threat narrative", "", self._threat_narrative(), ""]
-
-        if self._insurer_signals():
-            lines += ["## Underwriting signals", "", self._insurer_signals(), ""]
-
-        if self._positive_signals():
-            lines += ["## Positive signals", "", self._positive_signals(), ""]
-
-        if self._remediation_priority():
-            lines += ["## Remediation priorities", "", self._remediation_priority(), ""]
-
-        if self._saas_stack_analysis():
-            lines += ["## SaaS stack analysis", "", self._saas_stack_analysis(), ""]
-
-        # RDAP section
-        if self.rdap.get("rdap_available"):
-            lines += [
-                "## Domain registration",
-                "",
-                "| Field | Value |",
-                "|-------|-------|",
-                f"| Registrar | {self.rdap.get('registrar_name', '—')} |",
-                f"| Registered | {self.rdap.get('registered', '—')} |",
-                f"| Expires | {self.rdap.get('expires', '—')} |",
-                f"| Age (days) | {self.rdap.get('domain_age_days', '—')} |",
-                f"| DNSSEC | {self.rdap.get('dnssec_enabled', False)} |",
-                f"| RDAP risk score | {self.rdap.get('rdap_risk_score', 0)} |",
-                f"| Risk reasons | {', '.join(self.rdap.get('rdap_risk_reasons', [])) or 'none'} |",
-                "",
+                f"*Fix:* {str(f.get('remediation') or 'n/a')}", "",
             ]
-
-        # Cert analysis section
-        summary = self.cert_analysis.get("summary", {})
-        if summary:
-            lines += [
-                "## Certificate intelligence",
-                "",
-                "| Metric | Value |",
-                "|--------|-------|",
-                f"| Total subdomains | {summary.get('total_unique_subdomains', 0)} |",
-                f"| Wildcard zones | {summary.get('wildcard_zones', 0)} |",
-                f"| Expiring within 60d | {summary.get('expiring_within_60d', 0)} |",
-                f"| Expired | {summary.get('expired', 0)} |",
-                f"| Missed renewals | {summary.get('missed_renewals', 0)} |",
-                f"| Cross-domain SANs | {summary.get('cross_domain_sans', 0)} |",
-                "",
-            ]
-
-        # Subdomains section
-        if self.subdomains:
-            lines += ["## Subdomain corpus", ""]
-            for s in self.subdomains[:20]:
-                expired_flag = " ⚠ EXPIRED" if s.get("is_expired") else ""
-                lines.append(
-                    f"- `{s['dns_name']}` — "
-                    f"{s.get('issuer_category', '—')} · "
-                    f"{s.get('days_remaining', '—')}d remaining{expired_flag}"
-                )
-            if len(self.subdomains) > 20:
-                lines.append(f"- *...and {len(self.subdomains) - 20} more*")
-            lines.append("")
-
-        lines += [
-            "",
-            self._risk_breakdown_md(),
-            "",
-            self._technographics_md(),
-            "",
-            self._certs_md(),
-            "",
-            self._dns_records_md(),
-            "",
-            self._changes_md(),
-            "",
-            self._labels_md(),
-        ]
-
+        for section, content in [
+            ("## Executive summary", self._executive_summary()),
+            ("## Threat narrative", self._threat_narrative()),
+            ("## Underwriting signals", self._insurer_signals()),
+            ("## Positive signals", self._positive_signals()),
+            ("## Remediation priorities", self._remediation_priority()),
+            ("## SaaS stack analysis", self._saas_stack_analysis()),
+        ]:
+            if content:
+                lines += [section, "", content, ""]
+        lines += ["", self._rdap_md(), "", self._cert_analysis_md(), "", self._subdomains_md()]
+        lines += ["", self._risk_breakdown_md(), "", self._technographics_md()]
+        lines += ["", self._certs_md(), "", self._dns_records_md()]
+        lines += ["", self._changes_md(), "", self._labels_md()]
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
@@ -1282,273 +902,95 @@ class InsurerRenderer(BaseRenderer):
         score_colour = RISK_BAND_COLOUR.get(self.cs["risk_band"], "#666")
         exp = self._exposure_summary()
 
-        # --- Key finding banner ---
         key_finding_html = ""
         if self._key_finding():
             key_finding_html = f"""
-            <div style="background:#FAEEDA;border-left:4px solid #854F0B;
-                        padding:12px 16px;border-radius:0 8px 8px 0;
-                        font-size:14px;font-weight:500;color:#412402;
-                        margin-bottom:20px;line-height:1.5">
-              {self._key_finding()}
-            </div>"""
+            <div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:12px 16px;
+                        border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;
+                        margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>"""
 
-        # --- Summary cards grid ---
         grid = f"""
         <div class="grid">
-          <div class="card">
-            <div class="num" style="color:{score_colour}">{self.cs['score']}</div>
-            <div class="lbl">Risk score (0–100)</div>
-          </div>
-          <div class="card">
-            <div class="num" style="color:{RISK_COLOURS['critical']['border']}">{exp['critical']}</div>
-            <div class="lbl">Critical findings</div>
-          </div>
-          <div class="card">
-            <div class="num" style="color:{RISK_COLOURS['high']['border']}">{exp['high']}</div>
-            <div class="lbl">High findings</div>
-          </div>
-          <div class="card">
-            <div class="num" style="color:{'#A32D2D' if exp['spoofable'] else '#3B6D11'}">
-              {'YES' if exp['spoofable'] else 'No'}
-            </div>
-            <div class="lbl">Spoofable</div>
-          </div>
-          <div class="card">
-            <div class="num">{self.infra['mx_provider'] or '—'}</div>
-            <div class="lbl">Email gateway</div>
-          </div>
-          <div class="card">
-            <div class="num">{self.certs['https_days_left'] or '—'}d</div>
-            <div class="lbl">HTTPS cert expiry</div>
-          </div>
-          <div class="card">
-            <div class="num">{'Yes' if self.infra['dual_stack'] else 'No'}</div>
-            <div class="lbl">IPv6 dual-stack</div>
-          </div>
-          <div class="card">
-            <div class="num" style="color:{'#A32D2D' if not self.flags.get('has_caa') else '#3B6D11'}">
-              {'None' if not self.flags.get('has_caa') else 'Present'}
-            </div>
-            <div class="lbl">CAA records</div>
-          </div>
+          <div class="card"><div class="num" style="color:{score_colour}">{self.cs['score']}</div><div class="lbl">Risk score (0–100)</div></div>
+          <div class="card"><div class="num" style="color:{RISK_COLOURS['critical']['border']}">{exp['critical']}</div><div class="lbl">Critical findings</div></div>
+          <div class="card"><div class="num" style="color:{RISK_COLOURS['high']['border']}">{exp['high']}</div><div class="lbl">High findings</div></div>
+          <div class="card"><div class="num" style="color:{'#A32D2D' if exp['spoofable'] else '#3B6D11'}">{'YES' if exp['spoofable'] else 'No'}</div><div class="lbl">Spoofable</div></div>
+          <div class="card"><div class="num">{self.infra['mx_provider'] or '—'}</div><div class="lbl">Email gateway</div></div>
+          <div class="card"><div class="num">{self.certs['https_days_left'] or '—'}d</div><div class="lbl">HTTPS cert expiry</div></div>
+          <div class="card"><div class="num">{'Yes' if self.infra['dual_stack'] else 'No'}</div><div class="lbl">IPv6 dual-stack</div></div>
+          <div class="card"><div class="num" style="color:{'#A32D2D' if not self.flags.get('has_caa') else '#3B6D11'}">{'None' if not self.flags.get('has_caa') else 'Present'}</div><div class="lbl">CAA records</div></div>
         </div>"""
 
-        # --- Executive summary ---
         executive_html = ""
         if self._executive_summary():
-            executive_html = f"""
-            <h2>Executive summary</h2>
-            <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
-                        font-size:13px;line-height:1.8;color:#333">
-              {self._executive_summary()}
-            </div>"""
+            executive_html = f'<h2>Executive summary</h2><div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;font-size:13px;line-height:1.8;color:#333">{self._executive_summary()}</div>'
 
-        # --- Underwriting signals ---
         insurer_html = ""
         if self._insurer_signals():
-            insurer_html = f"""
-            <h2>Underwriting signals</h2>
-            <div style="background:#f0f4ff;border-left:3px solid #185FA5;
-                        padding:12px 16px;border-radius:0 8px 8px 0;
-                        font-size:13px;line-height:1.8;color:#0c2d5e">
-              {self._insurer_signals()}
-            </div>"""
+            insurer_html = f'<h2>Underwriting signals</h2><div style="background:#f0f4ff;border-left:3px solid #185FA5;padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;line-height:1.8;color:#0c2d5e">{self._insurer_signals()}</div>'
 
-        # --- Threat narrative ---
         narrative_html = ""
         if self._threat_narrative():
-            narrative_html = f"""
-            <h2>Threat narrative</h2>
-            <p style="font-size:13px;line-height:1.8;color:#333">
-              {self._threat_narrative()}
-            </p>"""
+            narrative_html = f'<h2>Threat narrative</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._threat_narrative()}</p>'
 
-        # --- Positive signals ---
         positive_html = ""
         if self._positive_signals():
-            positive_html = f"""
-            <div style="background:#EAF3DE;border-left:3px solid #3B6D11;
-                        padding:12px 16px;border-radius:0 8px 8px 0;
-                        font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6">
-              <strong>Positive signals:</strong> {self._positive_signals()}
-            </div>"""
+            positive_html = f'<div style="background:#EAF3DE;border-left:3px solid #3B6D11;padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6"><strong>Positive signals:</strong> {self._positive_signals()}</div>'
 
-        # --- Remediation priorities ---
         remediation_html = ""
         if self._remediation_priority():
-            remediation_html = f"""
-            <h2>Remediation priorities</h2>
-            <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
-                        font-size:13px;line-height:1.9;color:#333;white-space:pre-line">
-              {self._remediation_priority()}
-            </div>"""
+            remediation_html = f'<h2>Remediation priorities</h2><div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;font-size:13px;line-height:1.9;color:#333;white-space:pre-line">{self._remediation_priority()}</div>'
 
-        # RDAP block
-        rdap_html = ""
-        if self.rdap.get("rdap_available"):
-            risk_reasons = ", ".join(self.rdap.get("rdap_risk_reasons", [])) or "none"
-            rdap_html = f"""
-            <h2>Domain registration</h2>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0">
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Registrar</div>
-                <div style="font-size:13px;font-weight:500">{self.rdap.get('registrar_name', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('registrar_label', '')}</div>
-            </div>
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Domain age</div>
-                <div style="font-size:22px;font-weight:600">{self.rdap.get('domain_age_days', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">days · registered {self.rdap.get('registered', '—')}</div>
-            </div>
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Expiry</div>
-                <div style="font-size:13px;font-weight:500">{self.rdap.get('expires', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('days_to_expiry', '—')} days remaining</div>
-            </div>
-            </div>
-            <div style="font-size:12px;color:#555;margin-top:6px">
-            DNSSEC: {'enabled' if self.rdap.get('dnssec_enabled') else 'not enabled'} ·
-            RDAP risk score: {self.rdap.get('rdap_risk_score', 0)} ·
-            {f'Risk signals: {risk_reasons}' if risk_reasons != 'none' else 'No registration risk signals'}
-            </div>"""
-
-        # Cert analysis block
-        cert_html = ""
-        summary = self.cert_analysis.get("summary", {})
-        if summary:
-            missed = self.cert_analysis.get("missed_renewals", [])
-            expired = self.cert_analysis.get("expired", [])
-            churn   = self.cert_analysis.get("cert_churn", [])
-            cert_html = f"""
-            <h2>Certificate intelligence — {summary.get('total_unique_subdomains', 0)} subdomains</h2>
-            <div class="grid">
-            <div class="card">
-                <div class="num">{summary.get('total_unique_subdomains', 0)}</div>
-                <div class="lbl">Total subdomains</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('expiring_within_60d',0) > 0 else 'inherit'}">{summary.get('expiring_within_60d', 0)}</div>
-                <div class="lbl">Expiring 60d</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('expired',0) > 0 else 'inherit'}">{summary.get('expired', 0)}</div>
-                <div class="lbl">Expired</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('missed_renewals',0) > 0 else 'inherit'}">{summary.get('missed_renewals', 0)}</div>
-                <div class="lbl">Missed renewals</div>
-            </div>
-            <div class="card">
-                <div class="num">{summary.get('wildcard_zones', 0)}</div>
-                <div class="lbl">Wildcard zones</div>
-            </div>
-            <div class="card">
-                <div class="num">{summary.get('cross_domain_sans', 0)}</div>
-                <div class="lbl">Cross-domain SANs</div>
-            </div>
-            </div>
-            {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Missed renewals:</strong> {", ".join(r["dns_name"] for r in missed[:5])}</div>' if missed else ''}
-            {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Expired certs:</strong> {", ".join(r["dns_name"] for r in expired[:5])}</div>' if expired else ''}
-            {f'<div style="background:#FAEEDA;border-left:3px solid #854F0B;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>High cert churn:</strong> {", ".join(r["dns_name"] for r in churn[:5])}</div>' if churn else ''}"""
-
-        # Subdomain table
-        sub_html = ""
-        if self.subdomains:
-            rows = ""
-            for s in self.subdomains[:30]:
-                expired = s.get("is_expired", False)
-                days    = s.get("days_remaining")
-                colour  = "#A32D2D" if expired else "#854F0B" if days and days < 30 else "#3B6D11"
-                rows += (
-                    f"<tr>"
-                    f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>{s['dns_name']}</td>"
-                    f"<td style='padding:5px 10px;font-size:11px'>{s.get('issuer_category','—')}</td>"
-                    f"<td style='padding:5px 10px;font-size:11px;color:{colour}'>"
-                    f"{'EXPIRED' if expired else f'{days}d' if days is not None else '—'}</td>"
-                    f"</tr>"
-                )
-            overflow = f"<p style='font-size:11px;color:#888;margin:6px 0'>+ {len(self.subdomains)-30} more subdomains</p>" if len(self.subdomains) > 30 else ""
-            sub_html = f"""
-            <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
-            <table style="width:100%;border-collapse:collapse">
-            <thead><tr style="background:#f5f5f5">
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Issuer</th>
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Cert expiry</th>
-            </tr></thead>
-            <tbody>{rows}</tbody>
-            </table>{overflow}"""
-
-        # Add to body assembly
-        body += rdap_html
-        body += cert_html
-        body += sub_html
-
-        # --- SaaS stack analysis ---
         saas_html = ""
         if self._saas_stack_analysis():
-            saas_html = f"""
-            <h2>SaaS stack analysis</h2>
-            <p style="font-size:13px;line-height:1.8;color:#333">
-              {self._saas_stack_analysis()}
-            </p>"""
+            saas_html = f'<h2>SaaS stack analysis</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._saas_stack_analysis()}</p>'
 
-        # --- Key risk signals ---
         signals_html = ""
         for sig in self._key_signals():
             c  = RISK_BAND_COLOUR.get(sig["severity"], "#666")
             bg = RISK_COLOURS.get(sig["severity"], RISK_COLOURS["high"])
             signals_html += (
-                f'<div class="signal" style="border-color:{c};'
-                f'background:{bg["bg"]};color:{bg["text"]}">'
+                f'<div class="signal" style="border-color:{c};background:{bg["bg"]};color:{bg["text"]}">'
                 f'<strong>{sig["title"]}</strong><br>'
                 f'<span style="opacity:.85">{sig["narrative"]}</span><br>'
-                f'<code style="font-size:11px;opacity:.7">{sig.get("evidence","")[:100]}</code>'
-                f'</div>'
+                f'<code style="font-size:11px;opacity:.7">{sig.get("evidence","")[:100]}</code></div>'
             )
 
-        # --- Critical / high findings table ---
         table = _findings_table(
             self._findings_by_severity("high"),
             [
-                ("Asset / Finding", lambda f: f["title"]),
+                ("Asset / Finding", lambda f: f.get("title", "Finding")),
                 ("Severity",        lambda f: _badge(f.get("severity","info"))),
                 ("Evidence",        lambda f: f'<code>{f.get("evidence","")[:60]}</code>'),
-                ("Fix",             lambda f: f.get("remediation","—")[:80]),
+                ("Fix",             lambda f: str(f.get("remediation","—"))[:80]),
             ],
         )
 
-        # --- Assemble body ---
+        # FIX 1: body is defined ONCE here, then appended to below
         body = f"""
         {key_finding_html}
-
         <h2>Risk overview</h2>
         {grid}
-
         {executive_html}
         {insurer_html}
         {narrative_html}
         {positive_html}
-
         <h2>Key risk signals</h2>
         {signals_html if signals_html else '<p style="color:#888;font-size:13px">No critical signals detected.</p>'}
-
         <h2>Critical and high findings</h2>
         {table}
-
         {remediation_html}
         {saas_html}
-
         {self._risk_breakdown_html()}
         {self._technographics_html()}
         """
 
-        return self._html_shell_branded(      # ← replaces _html_shell()
-            brand=brand,
-            report_type="Cyber Risk Underwriting Report",
-            body=body,
-        )
+        # Append RDAP, cert analysis, subdomains AFTER body is defined
+        body += self._rdap_html()
+        body += self._cert_analysis_html()
+        body += self._subdomains_html()
+
+        return self._html_shell_branded(brand=brand, report_type="Cyber Risk Underwriting Report", body=body)
 
 
 # ---------------------------------------------------------------------------
@@ -1556,15 +998,10 @@ class InsurerRenderer(BaseRenderer):
 # ---------------------------------------------------------------------------
 
 class ConsultantRenderer(BaseRenderer):
-    """
-    Audience: security consultants preparing client briefings.
-    Focus: technical evidence, full finding detail, remediation steps.
-    """
 
     REMEDIATION_GUIDES = {
         "no_mta_sts": (
-            "1. Create DNS TXT record: `_mta-sts.{domain}` → "
-            "`v=STSv1; id=<timestamp>`\n"
+            "1. Create DNS TXT record: `_mta-sts.{domain}` → `v=STSv1; id=<timestamp>`\n"
             "2. Serve policy at `https://mta-sts.{domain}/.well-known/mta-sts.txt`\n"
             "   Content: `version: STSv1\\nmode: enforce\\nmx: *.yourmx.com\\nmax_age: 86400`"
         ),
@@ -1575,32 +1012,28 @@ class ConsultantRenderer(BaseRenderer):
         ),
         "dmarc_quarantine_strict_alignment": (
             "Change `p=quarantine` to `p=reject` in your DMARC record.\n"
-            "Run at pct=10 first to verify no legitimate mail is rejected,\n"
-            "then increase to pct=100."
+            "Run at pct=10 first to verify no legitimate mail is rejected, then increase to pct=100."
         ),
     }
 
     def to_dict(self) -> dict:
         return {
-            "report_type":   "technical_security_assessment",
-            "domain":        self.domain,
-            "subdomains":    self.subdomains,
-        "cert_analysis": self.cert_analysis,
-        "rdap":          self.rdap,
-            "generated_at":  self.o["generated_at"],
-            "score":         self.cs["score"],
-            "risk_band":     self.cs["risk_band"],
-            "email_auth":    self.ea,
+            "report_type":    "technical_security_assessment",
+            "domain":         self.domain,
+            "subdomains":     self.subdomains,
+            "cert_analysis":  self.cert_analysis,
+            "rdap":           self.rdap,
+            "generated_at":   self.o["generated_at"],
+            "score":          self.cs["score"],
+            "risk_band":      self.cs["risk_band"],
+            "email_auth":     self.ea,
             "infrastructure": self.infra,
             "certificates":   self.certs,
             "change_signals": self.changes,
-            "findings": [
-                {**f, "remediation_detail": self._remediation_detail(f)}
-                for f in self._sorted_findings()
-            ],
-            "missing_layers":    self.ea["missing_layers"],
-            "score_breakdown":   self.score_breakdown,
-            "narrative":         self.narrative,
+            "findings": [{**f, "remediation_detail": self._remediation_detail(f)} for f in self._sorted_findings()],
+            "missing_layers": self.ea["missing_layers"],
+            "score_breakdown": self.score_breakdown,
+            "narrative":      self.narrative,
         }
 
     def _remediation_detail(self, finding: dict) -> str:
@@ -1613,117 +1046,52 @@ class ConsultantRenderer(BaseRenderer):
         brand = brand or BrandConfig.default()
         lines = [
             f"# Technical security assessment — {self.domain}",
-            f"*{self.o['generated_at']}*",
-            "",
-            f"Score: **{self.cs['score']}/100** ({self.cs['risk_band']}) · "
-            f"Primary driver: {self.cs['primary_driver']}",
-            "",
-            "## Email authentication",
-            "",
-            f"| Layer | Status | Detail |",
-            f"|-------|--------|--------|",
-            f"| SPF | {self.ea['spf'] or 'MISSING'} | "
-            f"{'Hard fail' if self.ea['spf'] == '-all' else 'Soft fail' if self.ea['spf'] == '~all' else 'Not configured'} |",
-            f"| DMARC | {'p=' + self.ea['dmarc_policy'] if self.ea['dmarc_policy'] else 'MISSING'} | "
-            f"pct={self.ea['dmarc_pct']}, aspf={self.ea.get('aspf','?')}, adkim={self.ea.get('adkim','?')} |",
+            f"*{self.o['generated_at']}*", "",
+            f"Score: **{self.cs['score']}/100** ({self.cs['risk_band']}) · Primary driver: {self.cs['primary_driver']}",
+            "", "## Email authentication", "",
+            "| Layer | Status | Detail |", "|-------|--------|--------|",
+            f"| SPF | {self.ea['spf'] or 'MISSING'} | {'Hard fail' if self.ea['spf'] == '-all' else 'Soft fail' if self.ea['spf'] == '~all' else 'Not configured'} |",
+            f"| DMARC | {'p=' + self.ea['dmarc_policy'] if self.ea['dmarc_policy'] else 'MISSING'} | pct={self.ea['dmarc_pct']}, aspf={self.ea.get('aspf','?')}, adkim={self.ea.get('adkim','?')} |",
             f"| MTA-STS | {self.ea['mta_sts']} | — |",
             f"| TLS-RPT | {self.ea['tls_rpt']} | — |",
             f"| BIMI | {self.ea['bimi']} | — |",
-            "",
-            "## Findings",
-            "",]
-        # RDAP section
-        if self.rdap.get("rdap_available"):
-            lines += [
-                "## Domain registration",
-                "",
-                "| Field | Value |",
-                "|-------|-------|",
-                f"| Registrar | {self.rdap.get('registrar_name', '—')} |",
-                f"| Registered | {self.rdap.get('registered', '—')} |",
-                f"| Expires | {self.rdap.get('expires', '—')} |",
-                f"| Age (days) | {self.rdap.get('domain_age_days', '—')} |",
-                f"| DNSSEC | {self.rdap.get('dnssec_enabled', False)} |",
-                f"| RDAP risk score | {self.rdap.get('rdap_risk_score', 0)} |",
-                f"| Risk reasons | {', '.join(self.rdap.get('rdap_risk_reasons', [])) or 'none'} |",
-                "",
-            ]
-
-        # Cert analysis section
-        summary = self.cert_analysis.get("summary", {})
-        if summary:
-            lines += [
-                "## Certificate intelligence",
-                "",
-                "| Metric | Value |",
-                "|--------|-------|",
-                f"| Total subdomains | {summary.get('total_unique_subdomains', 0)} |",
-                f"| Wildcard zones | {summary.get('wildcard_zones', 0)} |",
-                f"| Expiring within 60d | {summary.get('expiring_within_60d', 0)} |",
-                f"| Expired | {summary.get('expired', 0)} |",
-                f"| Missed renewals | {summary.get('missed_renewals', 0)} |",
-                f"| Cross-domain SANs | {summary.get('cross_domain_sans', 0)} |",
-                "",
-            ]
-
-        # Subdomains section
-        if self.subdomains:
-            lines += ["## Subdomain corpus", ""]
-            for s in self.subdomains[:20]:
-                expired_flag = " ⚠ EXPIRED" if s.get("is_expired") else ""
-                lines.append(
-                    f"- `{s['dns_name']}` — "
-                    f"{s.get('issuer_category', '—')} · "
-                    f"{s.get('days_remaining', '—')}d remaining{expired_flag}"
-                )
-            if len(self.subdomains) > 20:
-                lines.append(f"- *...and {len(self.subdomains) - 20} more*")
-                lines.append("")
-            
+            "", "## Findings", "",
+        ]
         for f in self._sorted_findings():
             lines += [
-                f"### [{f['severity'].upper()}] {f['title']}",
-                "",
-                f.get("detail", ""),
-                "",
-                f"**Evidence:** `{f.get('evidence','n/a')}`",
-                "",
-                f"**Remediation:** {self._remediation_detail(f)}",
-                "",
-                ]
-
+                f"### [{f['severity'].upper()}] {f['title']}", "",
+                str(f.get("detail", "") or ""), "",
+                f"**Evidence:** `{f.get('evidence','n/a')}`", "",
+                f"**Remediation:** {self._remediation_detail(f)}", "",
+            ]
         if self.score_breakdown:
-            lines += ["## Risk score rule breakdown", ""]
-            lines += ["| Rule | Points |", "|------|--------|"]
+            lines += ["## Risk score rule breakdown", "", "| Rule | Points |", "|------|--------|"]
             for r in self.score_breakdown:
                 sign = f"+{r['points']}" if r["points"] > 0 else str(r["points"])
                 lines.append(f"| {r['rule']} | {sign} |")
-
+        lines += ["", self._rdap_md(), "", self._cert_analysis_md(), "", self._subdomains_md()]
+        lines += ["", self._risk_breakdown_md(), "", self._technographics_md()]
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
-        # Email auth layers table
         auth_rows = ""
         for layer, status, detail in [
-            ("SPF",      self.ea["spf"] or "MISSING",
-             "Hard fail (-all)" if self.ea["spf"] == "-all"
-             else "Soft fail (~all)" if self.ea["spf"] == "~all"
-             else "Not configured"),
-            ("DMARC",    ("p=" + self.ea["dmarc_policy"]) if self.ea["dmarc_policy"] else "MISSING",
+            ("SPF",     self.ea["spf"] or "MISSING",
+             "Hard fail (-all)" if self.ea["spf"] == "-all" else "Soft fail (~all)" if self.ea["spf"] == "~all" else "Not configured"),
+            ("DMARC",   ("p=" + self.ea["dmarc_policy"]) if self.ea["dmarc_policy"] else "MISSING",
              f"pct={self.ea['dmarc_pct']} · aspf={self.ea.get('aspf','?')} · adkim={self.ea.get('adkim','?')}"),
-            ("MTA-STS",  self.ea["mta_sts"], "Inbound TLS enforcement"),
-            ("TLS-RPT",  self.ea["tls_rpt"], "SMTP delivery failure reporting"),
-            ("BIMI",     self.ea["bimi"],     "Brand logo in email clients"),
-            ("CAA",      "Present" if not any(f["finding"]=="no_caa" for f in self.findings)
-             else "MISSING", "Certificate authority restriction"),
+            ("MTA-STS", self.ea["mta_sts"],  "Inbound TLS enforcement"),
+            ("TLS-RPT", self.ea["tls_rpt"],  "SMTP delivery failure reporting"),
+            ("BIMI",    self.ea["bimi"],      "Brand logo in email clients"),
+            ("CAA",     "Present" if not any(f.get("finding") == "no_caa" for f in self.findings) else "MISSING",
+             "Certificate authority restriction"),
         ]:
             ok = status not in ("MISSING", "NXDOMAIN", "NOT_FOUND")
             colour = "#3B6D11" if ok else "#A32D2D"
             auth_rows += (
                 f"<tr><td style='padding:6px 10px;font-size:12px'>{layer}</td>"
-                f"<td style='padding:6px 10px'>"
-                f"<code style='color:{colour};font-size:11px'>{status}</code></td>"
+                f"<td style='padding:6px 10px'><code style='color:{colour};font-size:11px'>{status}</code></td>"
                 f"<td style='padding:6px 10px;font-size:12px;color:#666'>{detail}</td></tr>"
             )
 
@@ -1731,27 +1099,19 @@ class ConsultantRenderer(BaseRenderer):
         for f in self._sorted_findings():
             c = RISK_COLOURS.get(f.get("severity","info"), RISK_COLOURS["info"])
             findings_html += (
-                f'<div style="border:1px solid {c["border"]};'
-                f'border-left:3px solid {c["border"]};'
-                f'border-radius:0 6px 6px 0;padding:12px 16px;'
-                f'margin:8px 0;background:{c["bg"]}">'
-                f'<div style="display:flex;justify-content:space-between;'
-                f'align-items:flex-start;margin-bottom:6px">'
-                f'<strong style="font-size:13px;color:{c["text"]}">'
-                f'{f["title"]}</strong>'
+                f'<div style="border:1px solid {c["border"]};border-left:3px solid {c["border"]};'
+                f'border-radius:0 6px 6px 0;padding:12px 16px;margin:8px 0;background:{c["bg"]}">'
+                f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
+                f'<strong style="font-size:13px;color:{c["text"]}">{f.get("title","Finding")}</strong>'
                 f'{_badge(f.get("severity","info"))}</div>'
-                f'<div style="font-size:12px;color:#333;margin-bottom:6px;'
-                f'line-height:1.6">{f.get("detail","")}</div>'
-                f'<code style="font-size:11px;background:rgba(0,0,0,.05);'
-                f'padding:2px 6px;border-radius:3px;display:block;margin:4px 0">'
+                f'<div style="font-size:12px;color:#333;margin-bottom:6px;line-height:1.6">{f.get("detail","")}</div>'
+                f'<code style="font-size:11px;background:rgba(0,0,0,.05);padding:2px 6px;border-radius:3px;display:block;margin:4px 0">'
                 f'{f.get("evidence","")[:100]}</code>'
                 f'<div style="font-size:11px;color:#555;margin-top:6px;font-style:italic">'
-                f'Fix: {(self._remediation_detail(f) or "")[:120]}</div>'
-                f'</div>'
+                f'Fix: {(self._remediation_detail(f) or "")[:120]}</div></div>'
             )
 
-
-
+        # FIX 2: body built by appending, no misplaced blocks at module level
         body = f"""
         <div style="background:#f8f8f8;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.7">
           Score: <strong>{self.cs['score']}/100</strong> ({self.cs['risk_band']}) ·
@@ -1760,220 +1120,41 @@ class ConsultantRenderer(BaseRenderer):
           Primary driver: {self.cs['primary_driver']}
         </div>"""
 
-        # Key finding banner
         if self._key_finding():
-            body += f"""
-            <div style="background:#FAEEDA;border-left:4px solid #854F0B;
-                        padding:12px 16px;border-radius:0 8px 8px 0;
-                        font-size:14px;font-weight:500;color:#412402;
-                        margin-bottom:20px;line-height:1.5">
-            {self._key_finding()}
-            </div>"""
-
-        # Executive summary
+            body += f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>'
         if self._executive_summary():
-            body += f"""
-            <h2>Executive summary</h2>
-            <p style="font-size:13px;line-height:1.8;color:#333">
-            {self._executive_summary()}
-            </p>"""
-
-        # Threat narrative
+            body += f'<h2>Executive summary</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._executive_summary()}</p>'
         if self._threat_narrative():
-            body += f"""
-            <h2>Threat analysis</h2>
-            <p style="font-size:13px;line-height:1.8;color:#333">
-            {self._threat_narrative()}
-            </p>"""
-
-        # Positive signals
+            body += f'<h2>Threat analysis</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._threat_narrative()}</p>'
         if self._positive_signals():
-            body += f"""
-            <div style="background:#EAF3DE;border-left:3px solid #3B6D11;
-                        padding:12px 16px;border-radius:0 8px 8px 0;
-                        font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6">
-            <strong>Positive signals:</strong> {self._positive_signals()}
-            </div>"""
+            body += f'<div style="background:#EAF3DE;border-left:3px solid #3B6D11;padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6"><strong>Positive signals:</strong> {self._positive_signals()}</div>'
 
-        # Email auth table
         body += f"""
-            <h2>Email authentication layers</h2>
-            <table style="width:100%;border-collapse:collapse;background:#fafafa;
-                        border-radius:8px;overflow:hidden">
-            <thead><tr style="background:#f0f0f0">
-                <th style="padding:8px 10px;text-align:left;font-size:11px;
-                        text-transform:uppercase;letter-spacing:.04em">Layer</th>
-                <th style="padding:8px 10px;text-align:left;font-size:11px;
-                        text-transform:uppercase;letter-spacing:.04em">Status</th>
-                <th style="padding:8px 10px;text-align:left;font-size:11px;
-                        text-transform:uppercase;letter-spacing:.04em">Detail</th>
-            </tr></thead>
-            <tbody>{auth_rows}</tbody>
-            </table>"""
+        <h2>Email authentication layers</h2>
+        <table style="width:100%;border-collapse:collapse;background:#fafafa;border-radius:8px;overflow:hidden">
+        <thead><tr style="background:#f0f0f0">
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Layer</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Status</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Detail</th>
+        </tr></thead>
+        <tbody>{auth_rows}</tbody>
+        </table>"""
 
-        # Remediation priority list
         if self._remediation_priority():
-            body += f"""
-            <h2>Remediation priorities</h2>
-            <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
-                        font-size:13px;line-height:1.9;color:#333;
-                        white-space:pre-line">
-            {self._remediation_priority()}
-            </div>"""
+            body += f'<h2>Remediation priorities</h2><div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;font-size:13px;line-height:1.9;color:#333;white-space:pre-line">{self._remediation_priority()}</div>'
 
-        # All findings
         body += f"<h2>All findings</h2>{findings_html}"
 
-# ---------- Infrastructure & Risk Intelligence (DuckLake) ----------
-if self.o.get("infrastructure_intelligence"):
-    duck_data = self.o["infrastructure_intelligence"]
-    if duck_data.get("score") is not None:
-        duck_html = f"""
-        <h2>Infrastructure risk</h2>
-        <div style="background:#ffebee;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0">
-            <strong>DuckLake score:</strong> {duck_data['score']}/100
-        </div>
-        """
-        if duck_data.get("reason_codes"):
-            reasons = duck_data["reason_codes"]
-            for r in reasons[:5]:  # Show top 5
-                duck_html += (
-                    f'<div style="font-size:11px;color:#666;margin-left:12px">'+
-                    f'{r}</div>'
-                )
-        body += duck_html
-
-
-# ---------- Certstream IP anomalies ----------
-if self.o.get("certstream_anomalies"):
-    cs_anomalies = self.o["certstream_anomalies"]
-    cs_html = f"""
-    <h2>Certstream intelligence</h2>
-    <div style="background:#fff3e0;border-left:3px solid #E65100;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0">
-        <strong>CertStream IPs detected:</strong> {cs_anomalies} ({self.o.get('certstream_anomalies_total_hits',0)} hits)
-    </div>
-    """
-    for sig in self._key_signals():
-        if sig.get("title") and "Certstream" in sig["title"]:
-            cs_html += (
-                f'<div style="font-size:11px;color:#666;margin-left:12px">'+
-                f'{sig["narrative"]}</div>'
-            )
-        body += cs_html
-
-    # RDAP block
-    rdap_html = ""
-    if self.rdap.get("rdap_available"):
-        risk_reasons = ", ".join(self.rdap.get("rdap_risk_reasons", [])) or "none"
-        rdap_html = f"""
-        <h2>Domain registration</h2>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0">
-        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Registrar</div>
-            <div style="font-size:13px;font-weight:500">{self.rdap.get('registrar_name', '—')}</div>
-            <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('registrar_label', '')}</div>
-        </div>
-        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Domain age</div>
-            <div style="font-size:22px;font-weight:600">{self.rdap.get('domain_age_days', '—')}</div>
-            <div style="font-size:11px;color:#888;margin-top:2px">days · registered {self.rdap.get('registered', '—')}</div>
-        </div>
-        <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Expiry</div>
-            <div style="font-size:13px;font-weight:500">{self.rdap.get('expires', '—')}</div>
-            <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('days_to_expiry', '—')} days remaining</div>
-        </div>
-        </div>
-        <div style="font-size:12px;color:#555;margin-top:6px">
-        DNSSEC: {'enabled' if self.rdap.get('dnssec_enabled') else 'not enabled'} ·
-        RDAP risk score: {self.rdap.get('rdap_risk_score', 0)} ·
-        {f'Risk signals: {risk_reasons}' if risk_reasons != 'none' else 'No registration risk signals'}
-        </div>"""
-
-    # Cert analysis block
-    cert_html = ""
-    summary = self.cert_analysis.get("summary", {})
-    if summary:
-        missed = self.cert_analysis.get("missed_renewals", [])
-        expired = self.cert_analysis.get("expired", [])
-        churn   = self.cert_analysis.get("cert_churn", [])
-        cert_html = f"""
-        <h2>Certificate intelligence — {summary.get('total_unique_subdomains', 0)} subdomains</h2>
-        <div class="grid">
-        <div class="card">
-            <div class="num">{summary.get('total_unique_subdomains', 0)}</div>
-            <div class="lbl">Total subdomains</div>
-        </div>
-        <div class="card">
-            <div class="num" style="color:{'#A32D2D' if summary.get('expiring_within_60d',0) > 0 else 'inherit'}">{summary.get('expiring_within_60d', 0)}</div>
-            <div class="lbl">Expiring 60d</div>
-        </div>
-        <div class="card">
-            <div class="num" style="color:{'#A32D2D' if summary.get('expired',0) > 0 else 'inherit'}">{summary.get('expired', 0)}</div>
-            <div class="lbl">Expired</div>
-        </div>
-        <div class="card">
-            <div class="num" style="color:{'#A32D2D' if summary.get('missed_renewals',0) > 0 else 'inherit'}">{summary.get('missed_renewals', 0)}</div>
-            <div class="lbl">Missed renewals</div>
-        </div>
-        <div class="card">
-            <div class="num">{summary.get('wildcard_zones', 0)}</div>
-            <div class="lbl">Wildcard zones</div>
-        </div>
-        <div class="card">
-            <div class="num">{summary.get('cross_domain_sans', 0)}</div>
-            <div class="lbl">Cross-domain SANs</div>
-        </div>
-        </div>
-        {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Missed renewals:</strong> {", ".join(r["dns_name"] for r in missed[:5])}</div>' if missed else ''}
-        {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Expired certs:</strong> {", ".join(r["dns_name"] for r in expired[:5])}</div>' if expired else ''}
-        {f'<div style="background:#FAEEDA;border-left:3px solid #854F0B;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>High cert churn:</strong> {", ".join(r["dns_name"] for r in churn[:5])}</div>' if churn else ''}"""
-
-    # Subdomain table
-    sub_html = ""
-    if self.subdomains:
-        rows = ""
-        for s in self.subdomains[:30]:
-            expired = s.get("is_expired", False)
-            days    = s.get("days_remaining")
-            colour  = "#A32D2D" if expired else "#854F0B" if days and days < 30 else "#3B6D11"
-            rows += (
-                f"<tr>"
-                f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>{s['dns_name']}</td>"
-                f"<td style='padding:5px 10px;font-size:11px'>{s.get('issuer_category','—')}</td>"
-                f"<td style='padding:5px 10px;font-size:11px;color:{colour}'>"
-                f"{'EXPIRED' if expired else f'{days}d' if days is not None else '—'}</td>"
-                f"</tr>"
-            )
-        overflow = f"<p style='font-size:11px;color:#888;margin:6px 0'>+ {len(self.subdomains)-30} more subdomains</p>" if len(self.subdomains) > 30 else ""
-        sub_html = f"""
-        <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
-        <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#f5f5f5">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Issuer</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Cert expiry</th>
-        </tr></thead>
-        <tbody>{rows}</tbody>
-        </table>{overflow}"""
-
-        # Add to body assembly
-        body += rdap_html
-        body += cert_html
-        body += sub_html
-
-        # SaaS stack analysis
         if self._saas_stack_analysis():
-            body += f"""
-            <h2>SaaS stack analysis</h2>
-            <p style="font-size:13px;line-height:1.8;color:#333">
-            {self._saas_stack_analysis()}
-            </p>"""        
+            body += f'<h2>SaaS stack analysis</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._saas_stack_analysis()}</p>'
 
         body += self._risk_breakdown_html()
         body += self._technographics_html()
+        body += self._rdap_html()
+        body += self._cert_analysis_html()
+        body += self._subdomains_html()
 
-    return self._html_shell_branded(brand, "Technical Security Assessment", body)
+        return self._html_shell_branded(brand, "Technical Security Assessment", body)
 
 
 # ---------------------------------------------------------------------------
@@ -1981,11 +1162,6 @@ if self.o.get("certstream_anomalies"):
 # ---------------------------------------------------------------------------
 
 class ITRenderer(BaseRenderer):
-    """
-    Audience: IT / security operations teams.
-    Focus: actionable task list, clear ownership, specific commands,
-           full technical context so engineers can act without follow-up.
-    """
 
     PRIORITY = {
         "critical": ("Fix immediately",  "#A32D2D"),
@@ -2012,10 +1188,7 @@ class ITRenderer(BaseRenderer):
     }
 
     def _owner(self, finding: dict) -> str:
-        return self.OWNER_MAP.get(
-            finding.get("finding", ""),
-            "Infrastructure team"
-        )
+        return self.OWNER_MAP.get(finding.get("finding", ""), "Infrastructure team")
 
     def _action(self, finding: dict) -> str:
         remediation = finding.get("remediation", "")
@@ -2025,66 +1198,55 @@ class ITRenderer(BaseRenderer):
         return {
             "report_type":    "it_action_list",
             "domain":         self.domain,
-            "subdomains":    self.subdomains,
-            "cert_analysis": self.cert_analysis,
-            "rdap":          self.rdap,
+            "subdomains":     self.subdomains,
+            "cert_analysis":  self.cert_analysis,
+            "rdap":           self.rdap,
             "generated_at":   self.o["generated_at"],
             "risk_score":     self.cs["score"],
             "risk_band":      self.cs["risk_band"],
             "primary_driver": self.cs["primary_driver"],
             "action_items": [
                 {
-                    "priority":  self.PRIORITY[f.get("severity","info")][0],
-                    "severity":  f.get("severity","info"),
-                    "title":     f["title"],
-                    "owner":     self._owner(f),
-                    "action":    self._action(f),
-                    "evidence":  f.get("evidence",""),
-                    "detail":    f.get("detail",""),
+                    "priority": self.PRIORITY[f.get("severity","info")][0],
+                    "severity": f.get("severity","info"),
+                    "title":    f["title"],
+                    "owner":    self._owner(f),
+                    "action":   self._action(f),
+                    "evidence": f.get("evidence",""),
+                    "detail":   f.get("detail",""),
                 }
                 for f in self._sorted_findings()
                 if f.get("severity") != "info"
             ],
             "backlog": [
-                {
-                    "title":  f["title"],
-                    "owner":  self._owner(f),
-                    "action": self._action(f),
-                }
-                for f in self.findings
-                if f.get("severity") == "info"
+                {"title": f["title"], "owner": self._owner(f), "action": self._action(f)}
+                for f in self.findings if f.get("severity") == "info"
             ],
-            "email_auth":      self.ea,
-            "infrastructure":  self.infra,
-            "technographics":  self.tech,
-            "certificates":    self.certs,
-            "dns_records":     self.dns,
-            "labels":          self.labels,
-            "change_signals":  self.changes,
-            "risk_engine":     self.risk_engine,
-            "narrative":       self.narrative,
+            "email_auth":     self.ea,
+            "infrastructure": self.infra,
+            "technographics": self.tech,
+            "certificates":   self.certs,
+            "dns_records":    self.dns,
+            "labels":         self.labels,
+            "change_signals": self.changes,
+            "risk_engine":    self.risk_engine,
+            "narrative":      self.narrative,
         }
 
     def to_markdown(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
         lines = [
             f"# IT action list — {self.domain}",
-            f"*{self.o['generated_at']}*",
-            "",
-            f"Score: {self.cs['score']}/100 ({self.cs['risk_band']}) · "
-            f"Primary driver: {self.cs['primary_driver']}",
+            f"*{self.o['generated_at']}*", "",
+            f"Score: {self.cs['score']}/100 ({self.cs['risk_band']}) · Primary driver: {self.cs['primary_driver']}",
             "",
         ]
-
         if self._key_finding():
             lines += [f"> {self._key_finding()}", ""]
-
         if self._threat_narrative():
             lines += ["## Context", "", self._threat_narrative(), ""]
-
         if self._remediation_priority():
             lines += ["## Remediation priorities", "", self._remediation_priority(), ""]
-
         for sev in ["critical", "high", "medium"]:
             label, _ = self.PRIORITY[sev]
             items = [f for f in self.findings if f.get("severity") == sev]
@@ -2100,416 +1262,137 @@ class ITRenderer(BaseRenderer):
                     f"  - Detail: {f.get('detail','')[:120]}",
                     "",
                 ]
-
         if self._positive_signals():
             lines += ["## What is configured correctly", "", self._positive_signals(), ""]
-        
-        # RDAP section
-        if self.rdap.get("rdap_available"):
-            lines += [
-                "## Domain registration",
-                "",
-                "| Field | Value |",
-                "|-------|-------|",
-                f"| Registrar | {self.rdap.get('registrar_name', '—')} |",
-                f"| Registered | {self.rdap.get('registered', '—')} |",
-                f"| Expires | {self.rdap.get('expires', '—')} |",
-                f"| Age (days) | {self.rdap.get('domain_age_days', '—')} |",
-                f"| DNSSEC | {self.rdap.get('dnssec_enabled', False)} |",
-                f"| RDAP risk score | {self.rdap.get('rdap_risk_score', 0)} |",
-                f"| Risk reasons | {', '.join(self.rdap.get('rdap_risk_reasons', [])) or 'none'} |",
-                "",
-            ]
-
-        # Cert analysis section
-        summary = self.cert_analysis.get("summary", {})
-        if summary:
-            lines += [
-                "## Certificate intelligence",
-                "",
-                "| Metric | Value |",
-                "|--------|-------|",
-                f"| Total subdomains | {summary.get('total_unique_subdomains', 0)} |",
-                f"| Wildcard zones | {summary.get('wildcard_zones', 0)} |",
-                f"| Expiring within 60d | {summary.get('expiring_within_60d', 0)} |",
-                f"| Expired | {summary.get('expired', 0)} |",
-                f"| Missed renewals | {summary.get('missed_renewals', 0)} |",
-                f"| Cross-domain SANs | {summary.get('cross_domain_sans', 0)} |",
-                "",
-            ]
-
-        # Subdomains section
-        if self.subdomains:
-            lines += ["## Subdomain corpus", ""]
-            for s in self.subdomains[:20]:
-                expired_flag = " ⚠ EXPIRED" if s.get("is_expired") else ""
-                lines.append(
-                    f"- `{s['dns_name']}` — "
-                    f"{s.get('issuer_category', '—')} · "
-                    f"{s.get('days_remaining', '—')}d remaining{expired_flag}"
-                )
-            if len(self.subdomains) > 20:
-                lines.append(f"- *...and {len(self.subdomains) - 20} more*")
-            lines.append("")
-
-        lines += [
-            "",
-            self._risk_breakdown_md(),
-            "",
-            self._technographics_md(),
-            "",
-            self._certs_md(),
-            "",
-            self._dns_records_md(),
-            "",
-            self._changes_md(),
-            "",
-            self._labels_md(),
-        ]
-
+        lines += ["", self._rdap_md(), "", self._cert_analysis_md(), "", self._subdomains_md()]
+        lines += ["", self._risk_breakdown_md(), "", self._technographics_md()]
+        lines += ["", self._certs_md(), "", self._dns_records_md()]
+        lines += ["", self._changes_md(), "", self._labels_md()]
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
-        counts = {
-            sev: sum(1 for f in self.findings if f.get("severity") == sev)
-            for sev in ["critical", "high", "medium", "info"]
-        }
+        counts = {sev: sum(1 for f in self.findings if f.get("severity") == sev) for sev in ["critical","high","medium","info"]}
 
-        # --- Key finding banner ---
         key_finding_html = ""
         if self._key_finding():
-            key_finding_html = f"""
-            <div style="background:#FAEEDA;border-left:4px solid #854F0B;
-                        padding:12px 16px;border-radius:0 8px 8px 0;
-                        font-size:14px;font-weight:500;color:#412402;
-                        margin-bottom:20px;line-height:1.5">
-              {self._key_finding()}
-            </div>"""
+            key_finding_html = f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>'
 
-        # --- Summary cards ---
         grid = f"""
         <div class="grid">
-          <div class="card" style="border-left:3px solid #A32D2D">
-            <div class="num" style="color:#A32D2D">{counts['critical']}</div>
-            <div class="lbl">Fix immediately</div>
-          </div>
-          <div class="card" style="border-left:3px solid #854F0B">
-            <div class="num" style="color:#854F0B">{counts['high']}</div>
-            <div class="lbl">Fix this sprint</div>
-          </div>
-          <div class="card" style="border-left:3px solid #185FA5">
-            <div class="num" style="color:#185FA5">{counts['medium']}</div>
-            <div class="lbl">Fix this quarter</div>
-          </div>
-          <div class="card">
-            <div class="num">{counts['info']}</div>
-            <div class="lbl">Backlog</div>
-          </div>
+          <div class="card" style="border-left:3px solid #A32D2D"><div class="num" style="color:#A32D2D">{counts['critical']}</div><div class="lbl">Fix immediately</div></div>
+          <div class="card" style="border-left:3px solid #854F0B"><div class="num" style="color:#854F0B">{counts['high']}</div><div class="lbl">Fix this sprint</div></div>
+          <div class="card" style="border-left:3px solid #185FA5"><div class="num" style="color:#185FA5">{counts['medium']}</div><div class="lbl">Fix this quarter</div></div>
+          <div class="card"><div class="num">{counts['info']}</div><div class="lbl">Backlog</div></div>
         </div>"""
 
-        # RDAP block
-        rdap_html = ""
-        if self.rdap.get("rdap_available"):
-            risk_reasons = ", ".join(self.rdap.get("rdap_risk_reasons", [])) or "none"
-            rdap_html = f"""
-            <h2>Domain registration</h2>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0">
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Registrar</div>
-                <div style="font-size:13px;font-weight:500">{self.rdap.get('registrar_name', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('registrar_label', '')}</div>
-            </div>
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Domain age</div>
-                <div style="font-size:22px;font-weight:600">{self.rdap.get('domain_age_days', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">days · registered {self.rdap.get('registered', '—')}</div>
-            </div>
-            <div style="background:#f7f7f7;border-radius:7px;padding:11px 13px">
-                <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Expiry</div>
-                <div style="font-size:13px;font-weight:500">{self.rdap.get('expires', '—')}</div>
-                <div style="font-size:11px;color:#888;margin-top:2px">{self.rdap.get('days_to_expiry', '—')} days remaining</div>
-            </div>
-            </div>
-            <div style="font-size:12px;color:#555;margin-top:6px">
-            DNSSEC: {'enabled' if self.rdap.get('dnssec_enabled') else 'not enabled'} ·
-            RDAP risk score: {self.rdap.get('rdap_risk_score', 0)} ·
-            {f'Risk signals: {risk_reasons}' if risk_reasons != 'none' else 'No registration risk signals'}
-            </div>"""
-
-        # Cert analysis block
-        cert_html = ""
-        summary = self.cert_analysis.get("summary", {})
-        if summary:
-            missed = self.cert_analysis.get("missed_renewals", [])
-            expired = self.cert_analysis.get("expired", [])
-            churn   = self.cert_analysis.get("cert_churn", [])
-            cert_html = f"""
-            <h2>Certificate intelligence — {summary.get('total_unique_subdomains', 0)} subdomains</h2>
-            <div class="grid">
-            <div class="card">
-                <div class="num">{summary.get('total_unique_subdomains', 0)}</div>
-                <div class="lbl">Total subdomains</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('expiring_within_60d',0) > 0 else 'inherit'}">{summary.get('expiring_within_60d', 0)}</div>
-                <div class="lbl">Expiring 60d</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('expired',0) > 0 else 'inherit'}">{summary.get('expired', 0)}</div>
-                <div class="lbl">Expired</div>
-            </div>
-            <div class="card">
-                <div class="num" style="color:{'#A32D2D' if summary.get('missed_renewals',0) > 0 else 'inherit'}">{summary.get('missed_renewals', 0)}</div>
-                <div class="lbl">Missed renewals</div>
-            </div>
-            <div class="card">
-                <div class="num">{summary.get('wildcard_zones', 0)}</div>
-                <div class="lbl">Wildcard zones</div>
-            </div>
-            <div class="card">
-                <div class="num">{summary.get('cross_domain_sans', 0)}</div>
-                <div class="lbl">Cross-domain SANs</div>
-            </div>
-            </div>
-            {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Missed renewals:</strong> {", ".join(r["dns_name"] for r in missed[:5])}</div>' if missed else ''}
-            {f'<div style="background:#FCEBEB;border-left:3px solid #A32D2D;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>Expired certs:</strong> {", ".join(r["dns_name"] for r in expired[:5])}</div>' if expired else ''}
-            {f'<div style="background:#FAEEDA;border-left:3px solid #854F0B;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;margin:8px 0"><strong>High cert churn:</strong> {", ".join(r["dns_name"] for r in churn[:5])}</div>' if churn else ''}"""
-
-        # Subdomain table
-        sub_html = ""
-        if self.subdomains:
-            rows = ""
-            for s in self.subdomains[:30]:
-                expired = s.get("is_expired", False)
-                days    = s.get("days_remaining")
-                colour  = "#A32D2D" if expired else "#854F0B" if days and days < 30 else "#3B6D11"
-                rows += (
-                    f"<tr>"
-                    f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>{s['dns_name']}</td>"
-                    f"<td style='padding:5px 10px;font-size:11px'>{s.get('issuer_category','—')}</td>"
-                    f"<td style='padding:5px 10px;font-size:11px;color:{colour}'>"
-                    f"{'EXPIRED' if expired else f'{days}d' if days is not None else '—'}</td>"
-                    f"</tr>"
-                )
-            overflow = f"<p style='font-size:11px;color:#888;margin:6px 0'>+ {len(self.subdomains)-30} more subdomains</p>" if len(self.subdomains) > 30 else ""
-            sub_html = f"""
-            <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
-            <table style="width:100%;border-collapse:collapse">
-            <thead><tr style="background:#f5f5f5">
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Issuer</th>
-                <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Cert expiry</th>
-            </tr></thead>
-            <tbody>{rows}</tbody>
-            </table>{overflow}"""
-
-        # Add to body assembly
-        body += rdap_html
-        body += cert_html
-        body += sub_html
-
-        # --- Context narrative ---
-        context_html = ""
-        if self._threat_narrative():
-            context_html = f"""
-            <h2>Context</h2>
-            <p style="font-size:13px;line-height:1.8;color:#333">
-              {self._threat_narrative()}
-            </p>"""
-
-        # --- Remediation priorities ---
-        remediation_html = ""
-        if self._remediation_priority():
-            remediation_html = f"""
-            <h2>Remediation priorities</h2>
-            <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
-                        font-size:13px;line-height:1.9;color:#333;white-space:pre-line">
-              {self._remediation_priority()}
-            </div>"""
-
-        # --- Positive signals ---
-        positive_html = ""
-        if self._positive_signals():
-            positive_html = f"""
-            <div style="background:#EAF3DE;border-left:3px solid #3B6D11;
-                        padding:12px 16px;border-radius:0 8px 8px 0;
-                        font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6">
-              <strong>What is configured correctly:</strong> {self._positive_signals()}
-            </div>"""
-
-        # --- Action list table ---
         rows = ""
         for f in self._sorted_findings():
-            label, colour = self.PRIORITY.get(
-                f.get("severity", "info"),
-                ("Review", "#666")
-            )
+            label, colour = self.PRIORITY.get(f.get("severity", "info"), ("Review", "#666"))
             rows += (
                 f"<tr>"
-                f"<td style='padding:8px 10px;white-space:nowrap'>"
-                f"<span style='color:{colour};font-weight:600;font-size:11px;"
-                f"text-transform:uppercase'>{label}</span></td>"
-                f"<td style='padding:8px 10px;font-size:12px'>"
-                f"<strong>{f['title']}</strong>"
-                f"<div style='color:#666;font-size:11px;margin-top:2px'>"
-                f"{f.get('detail','')[:100]}</div></td>"
-                f"<td style='padding:8px 10px;font-size:12px;color:#555;white-space:nowrap'>"
-                f"{self._owner(f)}</td>"
-                f"<td style='padding:8px 10px;font-size:12px'>"
-                f"{self._action(f)[:100]}</td>"
-                f"<td style='padding:8px 10px;font-family:monospace;font-size:11px;"
-                f"color:#666;max-width:180px;word-break:break-all'>"
-                f"{f.get('evidence','')[:60]}</td>"
+                f"<td style='padding:8px 10px;white-space:nowrap'><span style='color:{colour};font-weight:600;font-size:11px;text-transform:uppercase'>{label}</span></td>"
+                f"<td style='padding:8px 10px;font-size:12px'><strong>{f.get('title','')}</strong>"
+                f"<div style='color:#666;font-size:11px;margin-top:2px'>{f.get('detail','')[:100]}</div></td>"
+                f"<td style='padding:8px 10px;font-size:12px;color:#555;white-space:nowrap'>{self._owner(f)}</td>"
+                f"<td style='padding:8px 10px;font-size:12px'>{self._action(f)[:100]}</td>"
+                f"<td style='padding:8px 10px;font-family:monospace;font-size:11px;color:#666;max-width:180px;word-break:break-all'>{f.get('evidence','')[:60]}</td>"
                 f"</tr>"
             )
 
         action_table = f"""
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:#f5f5f5">
-            <th style="padding:8px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em;
-                       white-space:nowrap">Priority</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Finding</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Owner</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Action</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;
-                       text-transform:uppercase;letter-spacing:.04em">Evidence</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap">Priority</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Finding</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Owner</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Action</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Evidence</th>
           </tr></thead>
           <tbody>{rows}</tbody>
         </table>"""
 
+        context_html = ""
+        if self._threat_narrative():
+            context_html = f'<h2>Context</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._threat_narrative()}</p>'
+
+        remediation_html = ""
+        if self._remediation_priority():
+            remediation_html = f'<h2>Remediation priorities</h2><div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;font-size:13px;line-height:1.9;color:#333;white-space:pre-line">{self._remediation_priority()}</div>'
+
+        positive_html = ""
+        if self._positive_signals():
+            positive_html = f'<div style="background:#EAF3DE;border-left:3px solid #3B6D11;padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6"><strong>What is configured correctly:</strong> {self._positive_signals()}</div>'
+
+        # FIX 3: body defined once, then appended to
         body = f"""
         {key_finding_html}
-
         <h2>Action summary</h2>
         {grid}
-
         {context_html}
         {remediation_html}
-
         <h2>Full action list</h2>
         {action_table}
-
         {positive_html}
-
         {self._risk_breakdown_html()}
         {self._technographics_html()}
         """
 
+        body += self._rdap_html()
+        body += self._cert_analysis_html()
+        body += self._subdomains_html()
+
         return self._html_shell_branded(brand, "IT Security Action List", body)
+
 
 # ---------------------------------------------------------------------------
 # 4. Sales renderer
-# 
+# ---------------------------------------------------------------------------
 
 class SalesRenderer(BaseRenderer):
-    """
-    Audience: sales teams preparing prospect outreach.
-    Focus: business impact language, talking points, hook findings.
-    No raw DNS tables or rule engine details — too technical for this audience.
-    Designed to be sent as a cold outreach attachment.
-    """
 
     def _hook(self) -> str:
         parts = []
         critical = [f for f in self.findings if f.get("severity") == "critical"]
         if critical:
-            parts.append(
-                f"We found {len(critical)} critical "
-                f"issue{'s' if len(critical) > 1 else ''} "
-                f"in {self.domain}'s infrastructure that an attacker could exploit today."
-            )
+            parts.append(f"We found {len(critical)} critical issue{'s' if len(critical) > 1 else ''} in {self.domain}'s infrastructure that an attacker could exploit today.")
         if self.ea["is_spoofable"]:
-            parts.append(
-                f"Anyone can currently send email that appears to come from "
-                f"@{self.domain} — with no technical access to your systems required."
-            )
+            parts.append(f"Anyone can currently send email that appears to come from @{self.domain} — with no technical access to your systems required.")
         high = [f for f in self.findings if f.get("severity") == "high"]
         if high and not parts:
-            parts.append(
-                f"We identified {len(high)} high-priority security gaps in "
-                f"{self.domain}'s public infrastructure."
-            )
-        return " ".join(parts) or \
-               f"We have a security brief prepared for {self.domain}."
+            parts.append(f"We identified {len(high)} high-priority security gaps in {self.domain}'s public infrastructure.")
+        return " ".join(parts) or f"We have a security brief prepared for {self.domain}."
 
     def _plain_english(self, finding: dict) -> str:
         mapping = {
-            "no_mta_sts":
-                "Email in transit can be intercepted — no TLS enforcement on inbound mail",
-            "no_caa":
-                "Any certificate authority could issue a fake TLS certificate for your domain",
-            "dmarc_quarantine_strict_alignment":
-                "Spoofed emails go to spam instead of being blocked — one config change away from full protection",
-            "no_security_txt":
-                "No public contact point for security researchers to report vulnerabilities",
-            "spoofable_domain":
-                "Your domain can be impersonated in email — no technical barrier for attackers",
-            "cert_expiring_soon":
-                f"HTTPS certificate expires in {self.certs.get('https_days_left','?')} days "
-                f"— site will show security warnings if not renewed",
-            "mixed_cert_authorities":
-                "Two different certificate authorities in use — increases cert management risk",
-            "fast_flux_ttl_penalty":
-                "DNS configuration pattern associated with unstable or rapidly-changing infrastructure",
-            "network_risk":
-                "Hosting network has elevated risk classification",
-            "mx_provider_banner_confirmed":
-                "Email security gateway confirmed live and operational",
+            "no_mta_sts":                        "Email in transit can be intercepted — no TLS enforcement on inbound mail",
+            "no_caa":                            "Any certificate authority could issue a fake TLS certificate for your domain",
+            "dmarc_quarantine_strict_alignment": "Spoofed emails go to spam instead of being blocked — one config change away from full protection",
+            "no_security_txt":                   "No public contact point for security researchers to report vulnerabilities",
+            "spoofable_domain":                  "Your domain can be impersonated in email — no technical barrier for attackers",
+            "cert_expiring_soon":                f"HTTPS certificate expires in {self.certs.get('https_days_left','?')} days — site will show security warnings if not renewed",
+            "mixed_cert_authorities":            "Two different certificate authorities in use — increases cert management risk",
+            "fast_flux_ttl_penalty":             "DNS configuration pattern associated with unstable or rapidly-changing infrastructure",
+            "network_risk":                      "Hosting network has elevated risk classification",
+            "mx_provider_banner_confirmed":      "Email security gateway confirmed live and operational",
         }
-        return mapping.get(
-            finding.get("finding", ""),
-            finding.get("detail", "")[:120]
-        )
+        return mapping.get(finding.get("finding", ""), finding.get("detail", "")[:120])
 
     def _talking_points(self) -> list[str]:
         points = []
         if self.ea["is_spoofable"]:
-            points.append(
-                f"The most immediate risk is email impersonation. Right now, anyone can "
-                f"send email that looks like it's from {self.domain}. That's a phishing "
-                f"platform you're unintentionally providing — and it takes three DNS "
-                f"records to close."
-            )
+            points.append(f"The most immediate risk is email impersonation. Right now, anyone can send email that looks like it's from {self.domain}. That's a phishing platform you're unintentionally providing — and it takes three DNS records to close.")
         missing = self.ea.get("missing_layers", [])
         if len(missing) >= 3:
-            points.append(
-                f"There are {len(missing)} missing security layers: "
-                f"{', '.join(missing[:3])}"
-                f"{'...' if len(missing) > 3 else ''}. "
-                f"Each one is a gap that attackers actively probe for."
-            )
+            points.append(f"There are {len(missing)} missing security layers: {', '.join(missing[:3])}{'...' if len(missing) > 3 else ''}. Each one is a gap that attackers actively probe for.")
         if self.certs.get("https_expiring"):
-            points.append(
-                f"Your HTTPS certificate expires in "
-                f"{self.certs.get('https_days_left')} days. "
-                f"After that, every visitor to your site sees a security warning."
-            )
+            points.append(f"Your HTTPS certificate expires in {self.certs.get('https_days_left')} days. After that, every visitor to your site sees a security warning.")
         if self.changes.get("any_change_signal"):
-            points.append(
-                "We detected recent infrastructure changes — NS, IP, or country records "
-                "have changed. These are worth investigating in the context of "
-                "recent threat activity."
-            )
-        if self.txt_intel.get("high_risk_saas") or any(
-            k in str(self.txt_intel.get("all_identified", [])).lower()
-            for k in ("lastpass", "okta", "twilio")
-        ):
-            points.append(
-                "We identified SaaS services in your stack with confirmed breach "
-                "history. Credentials stored in these services may have been "
-                "exposed and should be treated as a priority rotation."
-            )
+            points.append("We detected recent infrastructure changes — NS, IP, or country records have changed. These are worth investigating in the context of recent threat activity.")
+        if self.txt_intel.get("high_risk_saas") or any(k in str(self.txt_intel.get("all_identified", [])).lower() for k in ("lastpass", "okta", "twilio")):
+            points.append("We identified SaaS services in your stack with confirmed breach history. Credentials stored in these services may have been exposed and should be treated as a priority rotation.")
         if not points:
-            points.append(
-                f"Your overall risk score is {self.cs['score']}/100 "
-                f"({self.cs['risk_band']}). "
-                f"We can walk through specific recommendations to bring that down."
-            )
+            points.append(f"Your overall risk score is {self.cs['score']}/100 ({self.cs['risk_band']}). We can walk through specific recommendations to bring that down.")
         return points
 
     def to_dict(self) -> dict:
@@ -2519,196 +1402,112 @@ class SalesRenderer(BaseRenderer):
             "generated_at": self.o["generated_at"],
             "hook":         self._hook(),
             "headline_numbers": {
-                "total_findings":  len(self.findings),
-                "critical":        sum(1 for f in self.findings if f.get("severity") == "critical"),
-                "high":            sum(1 for f in self.findings if f.get("severity") == "high"),
-                "spoofable":       self.ea["is_spoofable"],
-                "missing_layers":  len(self.ea.get("missing_layers", [])),
-                "saas_count":      self.txt_intel.get("total_identified", 0),
+                "total_findings": len(self.findings),
+                "critical":       sum(1 for f in self.findings if f.get("severity") == "critical"),
+                "high":           sum(1 for f in self.findings if f.get("severity") == "high"),
+                "spoofable":      self.ea["is_spoofable"],
+                "missing_layers": len(self.ea.get("missing_layers", [])),
+                "saas_count":     self.txt_intel.get("total_identified", 0),
             },
             "talking_points": self._talking_points(),
             "top_findings": [
-                {
-                    "title":         f["title"],
-                    "plain_english": self._plain_english(f),
-                    "severity":      f.get("severity"),
-                }
+                {"title": f["title"], "plain_english": self._plain_english(f), "severity": f.get("severity")}
                 for f in self._sorted_findings()[:5]
             ],
-            "saas_stack":  self.txt_intel.get("all_identified", []),
-            "narrative":   self.narrative,
+            "saas_stack": self.txt_intel.get("all_identified", []),
+            "narrative":  self.narrative,
         }
 
     def to_markdown(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
         lines = [
             f"# Infrastructure brief — {self.domain}",
-            f"*Prepared {self.o['generated_at']}*",
-            "",
-            "## What we found",
-            "",
-            self._hook(),
-            "",
+            f"*Prepared {self.o['generated_at']}*", "",
+            "## What we found", "", self._hook(), "",
         ]
-
         if self._key_finding():
             lines += [f"> {self._key_finding()}", ""]
-
         lines += [
-            "## The numbers",
-            "",
+            "## The numbers", "",
             f"- **{len(self.findings)}** security issues identified",
-            f"- **{sum(1 for f in self.findings if f.get('severity') in ('critical','high'))}**"
-            f" require priority attention",
+            f"- **{sum(1 for f in self.findings if f.get('severity') in ('critical','high'))}** require priority attention",
             f"- Spoofable: **{'Yes' if self.ea['is_spoofable'] else 'No'}**",
             f"- Missing auth layers: **{', '.join(self.ea.get('missing_layers',[]) or ['None'])}**",
             f"- SaaS platforms identified: **{self.txt_intel.get('total_identified',0)}**",
-            "",
-            "## Talking points",
-            "",
+            "", "## Talking points", "",
         ]
         for p in self._talking_points():
             lines += [f"- {p}", ""]
-
         lines += ["## Top findings", ""]
         for f in self._sorted_findings()[:5]:
             lines.append(f"- **{f['title']}** — {self._plain_english(f)}")
-
         if self._threat_narrative():
             lines += ["", "## Context", "", self._threat_narrative()]
-
         if self._saas_stack_analysis():
             lines += ["", "## SaaS stack", "", self._saas_stack_analysis()]
-
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
         nums = self.to_dict()["headline_numbers"]
 
-        # --- Hook banner ---
-        hook_html = f"""
-        <div style="background:#FAEEDA;border-left:4px solid #854F0B;
-                    padding:14px 18px;border-radius:0 8px 8px 0;
-                    margin-bottom:24px;font-size:14px;color:#412402;line-height:1.6">
-          {self._hook()}
-        </div>"""
+        hook_html = f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px;font-size:14px;color:#412402;line-height:1.6">{self._hook()}</div>'
 
-        # --- Key finding ---
         key_finding_html = ""
         if self._key_finding():
-            key_finding_html = f"""
-            <div style="font-size:14px;font-weight:500;color:#111;
-                        margin-bottom:20px;line-height:1.5;
-                        padding:12px 16px;background:#f9f9f9;
-                        border-radius:8px">
-              {self._key_finding()}
-            </div>"""
+            key_finding_html = f'<div style="font-size:14px;font-weight:500;color:#111;margin-bottom:20px;line-height:1.5;padding:12px 16px;background:#f9f9f9;border-radius:8px">{self._key_finding()}</div>'
 
-        # --- Headline numbers ---
         grid = f"""
         <div class="grid">
-          <div class="card">
-            <div class="num">{nums['total_findings']}</div>
-            <div class="lbl">Issues found</div>
-          </div>
-          <div class="card">
-            <div class="num" style="color:#A32D2D">
-              {nums['critical'] + nums['high']}
-            </div>
-            <div class="lbl">Priority issues</div>
-          </div>
-          <div class="card">
-            <div class="num" style="color:{'#A32D2D' if nums['spoofable'] else '#3B6D11'}">
-              {'Yes' if nums['spoofable'] else 'No'}
-            </div>
-            <div class="lbl">Spoofable now</div>
-          </div>
-          <div class="card">
-            <div class="num">{nums['missing_layers']}</div>
-            <div class="lbl">Missing auth layers</div>
-          </div>
-          <div class="card">
-            <div class="num">{nums['saas_count']}</div>
-            <div class="lbl">SaaS platforms</div>
-          </div>
+          <div class="card"><div class="num">{nums['total_findings']}</div><div class="lbl">Issues found</div></div>
+          <div class="card"><div class="num" style="color:#A32D2D">{nums['critical'] + nums['high']}</div><div class="lbl">Priority issues</div></div>
+          <div class="card"><div class="num" style="color:{'#A32D2D' if nums['spoofable'] else '#3B6D11'}">{'Yes' if nums['spoofable'] else 'No'}</div><div class="lbl">Spoofable now</div></div>
+          <div class="card"><div class="num">{nums['missing_layers']}</div><div class="lbl">Missing auth layers</div></div>
+          <div class="card"><div class="num">{nums['saas_count']}</div><div class="lbl">SaaS platforms</div></div>
         </div>"""
 
-        # --- Talking points ---
-        talking_html = "".join(
-            f'<li style="margin-bottom:10px;line-height:1.6">{p}</li>'
-            for p in self._talking_points()
-        )
+        talking_html = "".join(f'<li style="margin-bottom:10px;line-height:1.6">{p}</li>' for p in self._talking_points())
 
-        # --- Top findings ---
         top5_html = "".join(
             f'<div style="padding:10px 0;border-bottom:1px solid #f0f0f0">'
-            f'{_badge(f.get("severity","info"))} '
-            f'<strong style="font-size:13px;margin-left:6px">{f["title"]}</strong>'
-            f'<div style="font-size:12px;color:#555;margin-top:4px;padding-left:2px">'
-            f'{self._plain_english(f)}</div></div>'
+            f'{_badge(f.get("severity","info"))} <strong style="font-size:13px;margin-left:6px">{f.get("title","")}</strong>'
+            f'<div style="font-size:12px;color:#555;margin-top:4px;padding-left:2px">{self._plain_english(f)}</div></div>'
             for f in self._sorted_findings()[:5]
         )
 
-        # --- Threat narrative ---
         narrative_html = ""
         if self._threat_narrative():
-            narrative_html = f"""
-            <h2>Context</h2>
-            <p style="font-size:13px;line-height:1.8;color:#444">
-              {self._threat_narrative()}
-            </p>"""
+            narrative_html = f'<h2>Context</h2><p style="font-size:13px;line-height:1.8;color:#444">{self._threat_narrative()}</p>'
 
-        # --- SaaS stack analysis ---
         saas_analysis_html = ""
         if self._saas_stack_analysis():
-            saas_analysis_html = f"""
-            <h2>SaaS stack</h2>
-            <p style="font-size:13px;line-height:1.8;color:#444">
-              {self._saas_stack_analysis()}
-            </p>"""
+            saas_analysis_html = f'<h2>SaaS stack</h2><p style="font-size:13px;line-height:1.8;color:#444">{self._saas_stack_analysis()}</p>'
 
-        # --- SaaS pills ---
         saas_pills = ""
         for svc in self.txt_intel.get("all_identified", []):
-            is_risky = any(
-                k in svc.lower()
-                for k in ("lastpass","okta","twilio","mailchimp","circleci")
-            )
-            style = (
-                "background:#FCEBEB;color:#791F1F"
-                if is_risky else
-                "background:#EEEDFE;color:#3C3489"
-            )
-            saas_pills += (
-                f'<span style="{style};padding:2px 8px;border-radius:4px;'
-                f'font-size:11px;font-weight:500;display:inline-block;'
-                f'margin:2px 3px 2px 0">{svc}</span>'
-            )
+            is_risky = any(k in svc.lower() for k in ("lastpass","okta","twilio","mailchimp","circleci"))
+            style = "background:#FCEBEB;color:#791F1F" if is_risky else "background:#EEEDFE;color:#3C3489"
+            saas_pills += f'<span style="{style};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;display:inline-block;margin:2px 3px 2px 0">{svc}</span>'
 
         body = f"""
         {hook_html}
         {key_finding_html}
-
         <h2>Headline numbers</h2>
         {grid}
-
         <h2>Talking points</h2>
         <ul style="padding-left:18px;font-size:13px">{talking_html}</ul>
-
         <h2>Top findings</h2>
         {top5_html}
-
         {narrative_html}
         {saas_analysis_html}
-
         {f'<h2>Identified SaaS platforms ({self.txt_intel.get("total_identified",0)})</h2><div style="margin:10px 0">{saas_pills}</div>' if saas_pills else ''}
         """
 
         return self._html_shell_branded(brand, "Infrastructure Intelligence Brief", body)
 
+
 # ---------------------------------------------------------------------------
-# Factory — renders all four from one output dict
+# Factory
 # ---------------------------------------------------------------------------
 
 RENDERERS = {
@@ -2726,7 +1525,6 @@ def render_all(
     brand: "BrandConfig" = None,
 ) -> dict[str, dict[str, str]]:
     brand = brand or BrandConfig.load()
-
     return {
         audience: {
             fmt: RENDERERS[audience](output).render(fmt, brand=brand)
