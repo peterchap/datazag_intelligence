@@ -1679,7 +1679,7 @@ class ConsultantRenderer(BaseRenderer):
             if len(self.subdomains) > 20:
                 lines.append(f"- *...and {len(self.subdomains) - 20} more*")
             lines.append("")
-                ]
+            
                 for f in self._sorted_findings():
                     lines += [
                         f"### [{f['severity'].upper()}] {f['title']}",
