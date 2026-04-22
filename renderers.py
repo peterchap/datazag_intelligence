@@ -952,11 +952,11 @@ class InsurerRenderer(BaseRenderer):
         critical = [f for f in self.findings if f.get("severity") in ("critical", "high")]
         for f in critical:
             signals.append({
-                "signal":    f["finding", ""],
-                "severity":  "critical",
-                "title":     f["title"],
+                "signal":    f.get("finding", ""),
+                "severity":  f.get("severity", "high"),
+                "title":     f.get("title") or f.get("label", "Finding"),
                 "evidence":  f.get("evidence", ""),
-                "narrative": f.get("detail", ""),
+                "narrative": f.get("detail") or f.get("description", ""),
             })
         if self.ea["is_spoofable"]:
             signals.append({
