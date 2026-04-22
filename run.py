@@ -257,10 +257,10 @@ async def run(
         raw = await compile_pure_dns_report(domain)
         raw.setdefault("domain", domain)
 
-# DEBUG — remove once working
-print(f"  DEBUG raw subdomains: {len(raw.get('subdomains', []))}", flush=True)
-print(f"  DEBUG raw rdap available: {raw.get('rdap', {}).get('rdap_available')}", flush=True)
-print(f"  DEBUG raw rdap registrar: {raw.get('rdap', {}).get('registrar_name')}", flush=True)
+        # DEBUG — remove once working
+        print(f"  DEBUG raw subdomains: {len(raw.get('subdomains', []))}", flush=True)
+        print(f"  DEBUG raw rdap available: {raw.get('rdap', {}).get('rdap_available')}", flush=True)
+        print(f"  DEBUG raw rdap registrar: {raw.get('rdap', {}).get('registrar_name')}", flush=True)
     print(f"\n  Analysing {domain}...")
 
     # 2. Parse canonical record
@@ -523,6 +523,11 @@ print(f"  DEBUG raw rdap registrar: {raw.get('rdap', {}).get('registrar_name')}"
         "findings":  findings,
         "narrative": {},        # Populated below after API call
     }
+
+    # DEBUG — remove once working
+print(f"  DEBUG raw subdomains: {len(raw.get('subdomains', []))}", flush=True)
+print(f"  DEBUG raw rdap available: {raw.get('rdap', {}).get('rdap_available')}", flush=True)
+print(f"  DEBUG raw rdap registrar: {raw.get('rdap', {}).get('registrar_name')}", flush=True)
 
     # 6. Narrative enrichment — called with the FULL output dict
     if not skip_narrative and os.environ.get("ANTHROPIC_API_KEY"):
