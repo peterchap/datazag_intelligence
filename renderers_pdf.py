@@ -114,78 +114,51 @@ class BaseRenderer:
     # --- Branding -----------------------------------------------------------
 
     def _html_header(self, brand: "BrandConfig", report_type: str) -> str:
+        # User requested Datazag branding with an option to include customer's logo.
+        datazag_logo = """<svg height="36" viewBox="0 0 160 36" xmlns="http://www.w3.org/2000/svg">
+          <text x="0" y="26" font-family="'Inter', sans-serif" font-size="24" font-weight="800" letter-spacing="-1" fill="#FFFFFF">DATAZAG</text>
+        </svg>"""
+        customer_logo = brand.wordmark_svg(height=28) if (brand.brand_name != "Datazag" or brand.logo_svg) else ""
         return f"""
-        <div style="background:{brand.primary_colour};margin:-32px -40px 32px;
-                    padding:24px 40px;display:flex;justify-content:space-between;align-items:flex-start">
-        <div style="display:flex;align-items:center;gap:16px">
-            {brand.wordmark_svg(height=36)}
-            <div style="border-left:1px solid rgba(255,255,255,.2);padding-left:16px;margin-left:4px">
-            <div style="color:rgba(255,255,255,.6);font-size:11px;text-transform:uppercase;
-                        letter-spacing:.08em;margin-bottom:2px">{brand.report_prefix}</div>
-            <div style="color:{brand.text_on_primary};font-size:13px;font-weight:500">{report_type}</div>
+        <div class="print-header">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="brand-logo">{datazag_logo}</div>
+                <div style="border-left: 1px solid rgba(255,255,255,0.25); height: 30px;"></div>
+                <div style="display: flex; flex-direction: column;">
+                    <div style="color: rgba(255,255,255,0.7); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">{brand.report_prefix}</div>
+                    <div style="color: #FFFFFF; font-size: 14px; font-weight: 500; letter-spacing: 0.02em;">{report_type}</div>
+                </div>
             </div>
-        </div>
-        <div style="text-align:right">
-            <div style="color:{brand.accent_colour};font-size:20px;font-weight:700;
-                        letter-spacing:-.02em">{self.domain}</div>
-            <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:3px">
-            {self.o.get('generated_at','')[:10]}
+            <div style="display: flex; align-items: center; gap: 24px; text-align: right;">
+                {f'<div class="customer-logo" style="opacity: 0.9;">{customer_logo}</div>' if customer_logo else ''}
+                <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                    <div style="color: {brand.accent_colour}; font-size: 18px; font-weight: 700; letter-spacing: -0.02em;">{self.domain}</div>
+                    <div style="color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 2px;">{self.o.get('generated_at','')[:10]}</div>
+                </div>
             </div>
-        </div>
         </div>"""
 
     def _html_contact_block(self, brand: "BrandConfig") -> str:
-        phone_html = ""
-        if brand.contact_phone:
-            phone_html = f"""
-            <div style="margin-top:6px">
-            <span style="color:#888;font-size:12px">Phone </span>
-            <a href="tel:{brand.contact_phone}" style="color:#333;font-size:12px;text-decoration:none">
-                {brand.contact_phone}</a></div>"""
-        powered_by = ""
-        if brand.is_white_label and brand.powered_by_text:
-            powered_by = f"""
-            <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0;text-align:center">
-            <span style="color:#ccc;font-size:10px">{brand.powered_by_text}</span></div>"""
         return f"""
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;
-                    padding-top:24px;border-top:2px solid {brand.accent_colour}">
-        <div>
-            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:12px">
-            Questions about this report?</div>
-            <div><span style="color:#888;font-size:12px">Email </span>
-            <a href="mailto:{brand.contact_email}"
-               style="color:{brand.primary_colour};font-size:12px;font-weight:500;text-decoration:none">
-               {brand.contact_email}</a></div>
-            {phone_html}
-            <div style="margin-top:6px"><span style="color:#888;font-size:12px">Web </span>
-            <a href="{brand.contact_web}" target="_blank"
-               style="color:{brand.primary_colour};font-size:12px;text-decoration:none">
-               {brand.contact_web}</a></div>
-            <div style="margin-top:8px;font-size:11px;color:#aaa">{brand.contact_address}</div>
-        </div>
-        <div style="background:#f8f9fa;border-radius:10px;padding:16px 18px;
-                    border-left:3px solid {brand.accent_colour}">
-            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:6px">{brand.cta_heading}</div>
-            <div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:12px">{brand.cta_body}</div>
-            <a href="{brand.cta_button_url}" target="_blank"
-               style="display:inline-block;background:{brand.primary_colour};color:{brand.text_on_primary};
-                      padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;
-                      text-decoration:none;letter-spacing:.01em">{brand.cta_button_text} →</a>
-            <div style="margin-top:8px;font-size:11px;color:#888">
-            {brand.cta_secondary_text}
-            <a href="{brand.cta_secondary_url}" style="color:{brand.primary_colour};text-decoration:none">
-            {brand.contact_email}</a></div>
-        </div>
-        </div>{powered_by}"""
+        <div class="contact-block avoid-break">
+            <div class="contact-col">
+                <div class="contact-heading">Questions about this report?</div>
+                <div class="contact-item"><span class="contact-label">Email:</span> <span class="contact-value">{brand.contact_email}</span></div>
+                {f'<div class="contact-item"><span class="contact-label">Phone:</span> <span class="contact-value">{brand.contact_phone}</span></div>' if brand.contact_phone else ''}
+                <div class="contact-item"><span class="contact-label">Web:</span> <span class="contact-value">{brand.contact_web}</span></div>
+            </div>
+            <div class="cta-col">
+                <div class="cta-heading">{brand.cta_heading}</div>
+                <div class="cta-body">{brand.cta_body}</div>
+            </div>
+        </div>"""
 
     def _html_footer(self, brand: "BrandConfig") -> str:
         footer_text = "" if brand.is_white_label else brand.report_footer
         return f"""
-        <div style="margin-top:40px;padding:16px 0;border-top:1px solid #ebebeb">
-        <div style="font-size:10px;color:#aaa;line-height:1.6;margin-bottom:8px">
-            {brand.confidentiality_notice}</div>
-        {f'<div style="font-size:10px;color:#ccc;line-height:1.6">{footer_text}</div>' if footer_text else ''}
+        <div class="print-footer avoid-break">
+            <div class="footer-notice">{brand.confidentiality_notice}</div>
+            {f'<div class="footer-text">{footer_text}</div>' if footer_text else ''}
         </div>"""
 
     def _html_shell_branded(self, brand: "BrandConfig", report_type: str, body: str) -> str:
@@ -195,40 +168,93 @@ class BaseRenderer:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>{brand.report_prefix} — {self.domain}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-    * {{ box-sizing: border-box }}
-    body  {{ font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-             font-size: 14px; color: #1a1a1a; margin: 0;
-             padding: 32px 40px; background: #fff; max-width: 1000px; margin: 0 auto; }}
-    h1   {{ font-size: 24px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.02em }}
-    h2   {{ font-size: 14px; font-weight: 700; margin: 28px 0 10px;
-            text-transform: uppercase; letter-spacing: .06em;
-            color: {brand.primary_colour}; border-bottom: 2px solid {brand.accent_colour};
-            padding-bottom: 6px; }}
-    h3   {{ font-size: 13px; font-weight: 600; margin: 16px 0 8px; color: #333 }}
-    .meta {{ font-size: 12px; color: #888; margin: 0 0 24px }}
-    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-             gap: 10px; margin: 12px 0 20px; }}
-    .card {{ background: #f7f8f9; border-radius: 8px; padding: 12px 14px;
-             border-top: 2px solid {brand.accent_colour}; }}
-    .card .num {{ font-size: 24px; font-weight: 700; line-height: 1.1 }}
-    .card .lbl {{ font-size: 10px; color: #888; margin-top: 4px;
-                  text-transform: uppercase; letter-spacing: .05em; }}
-    .signal {{ border-left: 3px solid; padding: 10px 14px; margin: 8px 0;
-               border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.6; }}
-    code {{ font-family: ui-monospace,monospace; font-size: 11px;
-            background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }}
-    a {{ color: {brand.primary_colour} }}
-    table {{ font-size: 12px; border-collapse: collapse; width: 100% }}
-    th {{ text-align: left }}
-    @media print {{ body {{ padding: 16px }} .noprint {{ display: none }} }}
+    /* CSS Reset & Base */
+    * {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+    @page {{ size: A4; margin: 0; }}
+    body {{
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        color: #1E293B;
+        margin: 0;
+        padding: 0;
+        background: #F8FAFC;
+        line-height: 1.5;
+    }}
+    .page-container {{
+        background: #FFFFFF;
+        margin: 0 auto;
+        padding: 40px 50px;
+        min-height: 297mm;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }}
+    
+    /* Typography */
+    h1 {{ font-size: 24px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.03em; color: #0F172A; }}
+    h2 {{ font-size: 13px; font-weight: 700; margin: 32px 0 16px; text-transform: uppercase; letter-spacing: 0.08em; color: {brand.primary_colour}; border-bottom: 2px solid {brand.accent_colour}; padding-bottom: 8px; page-break-after: avoid; }}
+    h3 {{ font-size: 14px; font-weight: 600; margin: 20px 0 10px; color: #334155; page-break-after: avoid; }}
+    .meta {{ font-size: 11px; color: #64748B; margin: 0 0 24px }}
+    code {{ font-family: 'JetBrains Mono', monospace; font-size: 10px; background: #F1F5F9; padding: 2px 6px; border-radius: 4px; color: #334155; }}
+    a {{ color: {brand.accent_dark}; text-decoration: none; }}
+    
+    /* Header */
+    .print-header {{
+        background: linear-gradient(135deg, {brand.primary_colour} 0%, #1E293B 100%);
+        margin: -40px -50px 32px;
+        padding: 32px 50px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 4px solid {brand.accent_colour};
+    }}
+    
+    /* Grid & Cards */
+    .grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 16px 0 24px; }}
+    .card {{ background: #F8FAFC; border-radius: 8px; padding: 16px; border: 1px solid #E2E8F0; border-top: 3px solid {brand.accent_colour}; break-inside: avoid; }}
+    .card .num {{ font-size: 28px; font-weight: 800; line-height: 1; color: #0F172A; letter-spacing: -0.02em; }}
+    .card .lbl {{ font-size: 10px; color: #64748B; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }}
+    
+    /* Tables */
+    table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; margin-bottom: 24px; border-radius: 8px; overflow: hidden; border: 1px solid #E2E8F0; }}
+    th {{ background: #F1F5F9; padding: 10px 12px; text-align: left; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #475569; border-bottom: 1px solid #E2E8F0; }}
+    td {{ padding: 10px 12px; border-bottom: 1px solid #F1F5F9; color: #334155; vertical-align: top; }}
+    tr:last-child td {{ border-bottom: none; }}
+    tr:nth-child(even) td {{ background-color: #F8FAFC; }}
+    
+    /* Alerts & Signals */
+    .signal {{ border-left: 4px solid; padding: 12px 16px; margin: 12px 0; border-radius: 0 8px 8px 0; font-size: 12px; line-height: 1.5; background: #FFF; box-shadow: 0 1px 3px rgba(0,0,0,0.05); break-inside: avoid; }}
+    
+    /* Print Utilities */
+    .avoid-break {{ page-break-inside: avoid; break-inside: avoid; }}
+    .page-break {{ page-break-before: always; break-before: page; }}
+    
+    /* Footer / Contact */
+    .contact-block {{ display: grid; grid-template-columns: 1fr 1.2fr; gap: 32px; margin-top: 48px; padding-top: 32px; border-top: 2px solid #E2E8F0; }}
+    .contact-heading {{ font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 16px; }}
+    .contact-item {{ font-size: 11px; margin-bottom: 8px; }}
+    .contact-label {{ color: #64748B; display: inline-block; width: 50px; }}
+    .contact-value {{ color: #0F172A; font-weight: 500; }}
+    .cta-col {{ background: #F8FAFC; border-radius: 12px; padding: 20px; border-left: 4px solid {brand.accent_colour}; }}
+    .cta-heading {{ font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 8px; }}
+    .cta-body {{ font-size: 11px; color: #475569; line-height: 1.6; margin-bottom: 0; }}
+    
+    .print-footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; text-align: center; }}
+    .footer-notice {{ font-size: 10px; color: #94A3B8; font-weight: 500; }}
+    .footer-text {{ font-size: 9px; color: #CBD5E1; margin-top: 4px; }}
     </style>
     </head>
     <body>
-    {self._html_header(brand, report_type)}
-    {body}
-    {self._html_contact_block(brand)}
-    {self._html_footer(brand)}
+    <div class="page-container">
+        {self._html_header(brand, report_type)}
+        <div class="content-body">
+            {body}
+        </div>
+        {self._html_contact_block(brand)}
+        {self._html_footer(brand)}
+    </div>
     </body>
     </html>"""
 
@@ -969,31 +995,24 @@ class InsurerRenderer(BaseRenderer):
         # FIX 1: body is defined ONCE here, then appended to below
         body = f"""
         {key_finding_html}
-
-        {self._rdap_html()}
         <h2>Risk overview</h2>
         {grid}
         {executive_html}
         {insurer_html}
         {narrative_html}
         {positive_html}
-        {self._technographics_html()}
-
-        {self._certificate_intelligence_html()}
-
         <h2>Key risk signals</h2>
         {signals_html if signals_html else '<p style="color:#888;font-size:13px">No critical signals detected.</p>'}
-        
         <h2>Critical and high findings</h2>
         {table}
-
         {remediation_html}
         {saas_html}
-
         {self._risk_breakdown_html()}
+        {self._technographics_html()}
         """
 
         # Append RDAP, cert analysis, subdomains AFTER body is defined
+        body += self._rdap_html()
         body += self._cert_analysis_html()
         body += self._subdomains_html()
 
