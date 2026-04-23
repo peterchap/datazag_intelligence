@@ -575,7 +575,10 @@ async def run(
 
     print(f"\n  Converting HTML reports to PDF using Playwright...")
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(
+            headless=True,
+            args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        )
         for html_path, pdf_path in html_paths:
             print(f"  -> Generating {pdf_path.name}")
             page = await browser.new_page()
