@@ -428,6 +428,40 @@ class BaseRenderer:
 
     # --- Shared HTML builders -----------------------------------------------
 
+    def _html_score_ring_layout(self, grid_cards: str) -> str:
+        score = self.cs['score']
+        risk_band = self.cs['risk_band'].replace("_", " ").title()
+        color = RISK_BAND_COLOUR.get(self.cs['risk_band'], "#666")
+        
+        return f"""
+        <div style="display: flex; gap: 24px; margin: 16px 0 24px; align-items: stretch;">
+            <div style="flex: 0 0 200px; background: #FFFFFF; border: 1px solid #E2E8F0; border-top: 3px solid {color}; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); break-inside: avoid;">
+                <div style="font-size: 10px; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 4px; text-align: center;">Domain assessed</div>
+                <div style="font-size: 13px; font-weight: 600; color: #0F172A; margin-bottom: 16px; text-align: center; word-break: break-all;">{self.domain}</div>
+                
+                <div style="position: relative; width: 90px; height: 90px;">
+                    <svg viewBox="0 0 36 36" style="width: 100%; height: 100%;">
+                        <path stroke="#F1F5F9" fill="none" stroke-width="3.5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path stroke="{color}" fill="none" stroke-width="3.5" stroke-dasharray="{score}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1; letter-spacing: -0.02em;">{score}</div>
+                        <div style="font-size: 10px; color: #64748B; font-weight: 600;">/100</div>
+                    </div>
+                </div>
+                
+                <div style="font-size: 14px; font-weight: 700; color: {color}; margin-top: 16px; text-align: center;">{risk_band} risk</div>
+                <div style="font-size: 9px; color: #94A3B8; margin-top: 4px; text-align: center;">0 = low &middot; 100 = critical</div>
+            </div>
+            
+            <div style="flex: 1;">
+                <div class="grid" style="margin: 0; height: 100%; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+                    {grid_cards}
+                </div>
+            </div>
+        </div>
+        """
+
     def _rdap_html(self) -> str:
         rdap = self.rdap
         if not rdap.get("rdap_available"):
@@ -935,9 +969,7 @@ class InsurerRenderer(BaseRenderer):
                         border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;
                         margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>"""
 
-        grid = f"""
-        <div class="grid">
-          <div class="card"><div class="num" style="color:{score_colour}">{self.cs['score']}</div><div class="lbl">Risk score (0–100)</div></div>
+        grid_cards = f"""
           <div class="card"><div class="num" style="color:{RISK_COLOURS['critical']['border']}">{exp['critical']}</div><div class="lbl">Critical findings</div></div>
           <div class="card"><div class="num" style="color:{RISK_COLOURS['high']['border']}">{exp['high']}</div><div class="lbl">High findings</div></div>
           <div class="card"><div class="num" style="color:{'#A32D2D' if exp['spoofable'] else '#3B6D11'}">{'YES' if exp['spoofable'] else 'No'}</div><div class="lbl">Spoofable</div></div>
@@ -945,7 +977,8 @@ class InsurerRenderer(BaseRenderer):
           <div class="card"><div class="num">{self.certs['https_days_left'] or '—'}d</div><div class="lbl">HTTPS cert expiry</div></div>
           <div class="card"><div class="num">{'Yes' if self.infra['dual_stack'] else 'No'}</div><div class="lbl">IPv6 dual-stack</div></div>
           <div class="card"><div class="num" style="color:{'#A32D2D' if not self.flags.get('has_caa') else '#3B6D11'}">{'None' if not self.flags.get('has_caa') else 'Present'}</div><div class="lbl">CAA records</div></div>
-        </div>"""
+        """
+        grid = self._html_score_ring_layout(grid_cards)
 
         executive_html = ""
         if self._executive_summary():
@@ -1137,14 +1170,12 @@ class ConsultantRenderer(BaseRenderer):
                 f'Fix: {(self._remediation_detail(f) or "")[:120]}</div></div>'
             )
 
-        # FIX 2: body built by appending, no misplaced blocks at module level
-        body = f"""
-        <div style="background:#f8f8f8;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.7">
-          Score: <strong>{self.cs['score']}/100</strong> ({self.cs['risk_band']}) ·
-          {len([f for f in self.findings if f.get('severity')=='critical'])} critical ·
-          {len([f for f in self.findings if f.get('severity')=='high'])} high ·
-          Primary driver: {self.cs['primary_driver']}
-        </div>"""
+        grid_cards = f"""
+          <div class="card"><div class="num" style="color:{RISK_COLOURS['critical']['border']}">{len([f for f in self.findings if f.get('severity')=='critical'])}</div><div class="lbl">Critical findings</div></div>
+          <div class="card"><div class="num" style="color:{RISK_COLOURS['high']['border']}">{len([f for f in self.findings if f.get('severity')=='high'])}</div><div class="lbl">High findings</div></div>
+          <div class="card"><div class="num" style="font-size:14px;line-height:1.2;margin-top:8px">{self.cs['primary_driver']}</div><div class="lbl">Primary driver</div></div>
+        """
+        body = self._html_score_ring_layout(grid_cards)
 
         if self._key_finding():
             body += f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>'
@@ -1304,13 +1335,13 @@ class ITRenderer(BaseRenderer):
         if self._key_finding():
             key_finding_html = f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>'
 
-        grid = f"""
-        <div class="grid">
+        grid_cards = f"""
           <div class="card" style="border-left:3px solid #A32D2D"><div class="num" style="color:#A32D2D">{counts['critical']}</div><div class="lbl">Fix immediately</div></div>
           <div class="card" style="border-left:3px solid #854F0B"><div class="num" style="color:#854F0B">{counts['high']}</div><div class="lbl">Fix this sprint</div></div>
           <div class="card" style="border-left:3px solid #185FA5"><div class="num" style="color:#185FA5">{counts['medium']}</div><div class="lbl">Fix this quarter</div></div>
           <div class="card"><div class="num">{counts['info']}</div><div class="lbl">Backlog</div></div>
-        </div>"""
+        """
+        grid = self._html_score_ring_layout(grid_cards)
 
         rows = ""
         for f in self._sorted_findings():
@@ -1483,14 +1514,14 @@ class SalesRenderer(BaseRenderer):
         if self._key_finding():
             key_finding_html = f'<div style="font-size:14px;font-weight:500;color:#111;margin-bottom:20px;line-height:1.5;padding:12px 16px;background:#f9f9f9;border-radius:8px">{self._key_finding()}</div>'
 
-        grid = f"""
-        <div class="grid">
+        grid_cards = f"""
           <div class="card"><div class="num">{nums['total_findings']}</div><div class="lbl">Issues found</div></div>
           <div class="card"><div class="num" style="color:#A32D2D">{nums['critical'] + nums['high']}</div><div class="lbl">Priority issues</div></div>
           <div class="card"><div class="num" style="color:{'#A32D2D' if nums['spoofable'] else '#3B6D11'}">{'Yes' if nums['spoofable'] else 'No'}</div><div class="lbl">Spoofable now</div></div>
           <div class="card"><div class="num">{nums['missing_layers']}</div><div class="lbl">Missing auth layers</div></div>
           <div class="card"><div class="num">{nums['saas_count']}</div><div class="lbl">SaaS platforms</div></div>
-        </div>"""
+        """
+        grid = self._html_score_ring_layout(grid_cards)
 
         talking_html = "".join(f'<li style="margin-bottom:10px;line-height:1.6">{p}</li>' for p in self._talking_points())
 
