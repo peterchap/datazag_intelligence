@@ -33,7 +33,6 @@ load_dotenv()
 
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
 
-
 # ---------------------------------------------------------------------------
 # Ducklake Infrastructure Intelligence Extractor
 # ---------------------------------------------------------------------------

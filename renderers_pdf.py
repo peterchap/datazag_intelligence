@@ -84,7 +84,6 @@ def _findings_table(findings: list[dict], columns: list[tuple], max_rows: int = 
         f'<tbody>{rows}</tbody></table></div>{overflow}'
     )
 
-
 # ---------------------------------------------------------------------------
 # Base renderer
 # ---------------------------------------------------------------------------
