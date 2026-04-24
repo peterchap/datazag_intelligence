@@ -1,0 +1,16 @@
+[Unit]
+Description=Datazag Webhook Dispatcher API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/datazag_intelligence
+Environment="PYTHONUNBUFFERED=1"
+# Start the FastAPI server using uvicorn
+ExecStart=/root/dnsproject/dnsproject/bin/python3 -m uvicorn webhook_dispatcher:app --host 0.0.0.0 --port 8085
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

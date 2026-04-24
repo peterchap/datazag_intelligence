@@ -461,6 +461,111 @@ class BaseRenderer:
         </div>
         """
 
+    def _infrastructure_routing_html(self) -> str:
+        infra_intel = self.o.get("infrastructure_intelligence") or {}
+        context = infra_intel.get("domain_risk_context", {})
+        if isinstance(context, str):
+            import json
+            try:
+                context = json.loads(context)
+            except Exception:
+                context = {}
+                
+        domain_details = context.get("domain_details", context)
+        
+        rpki = str(domain_details.get("rpki_status", "unknown")).upper()
+        rpki_color = "#3B6D11" if rpki == "VALID" else "#A32D2D" if rpki == "INVALID" else "#64748B"
+        
+        hijack = domain_details.get("asn_hijack_history", False)
+        hijack_val = "Detected" if hijack else "None"
+        hijack_color = "#A32D2D" if hijack else "#3B6D11"
+        
+        moas = domain_details.get("moas_risk", "none")
+        moas_color = "#A32D2D" if str(moas).lower() != "none" and moas else "#64748B"
+        
+        churn = domain_details.get("bgp_strangeness", "stable")
+        
+        ff = domain_details.get("fast_flux_risk", 0.0)
+        try:
+            ff_label = "Elevated" if float(ff) > 0.5 else "Low"
+        except (ValueError, TypeError):
+            ff_label = "Low"
+            
+        dga = domain_details.get("dga_risk", 0.0)
+        try:
+            dga_label = "Elevated" if float(dga) > 0.5 else "Low"
+        except (ValueError, TypeError):
+            dga_label = "Low"
+            
+        isp = self.tech.get("isp_name", "Unknown ISP") or "Unknown ISP"
+        asn = self.tech.get("asn", "Unknown ASN") or "Unknown ASN"
+        asn_risk = str(self.tech.get("asn_risk_level", "medium")).upper()
+        trust = self.tech.get("net_trust_score", 50)
+        
+        return f"""
+        <h2>Infrastructure & Routing Analysis</h2>
+        <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:16px;margin-bottom:24px;box-shadow: 0 1px 2px rgba(0,0,0,0.02); break-inside: avoid;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #F1F5F9; padding-bottom: 12px; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                    <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Primary ASN</div>
+                    <div style="font-size:13px;font-weight:600;color:#0F172A">{asn}</div>
+                </div>
+                <div style="flex: 1.5;">
+                    <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Hosting Network</div>
+                    <div style="font-size:13px;font-weight:600;color:#0F172A">{isp}</div>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Network Trust Score</div>
+                    <div style="font-size:13px;font-weight:600;color:#0F172A">{trust}/100</div>
+                </div>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:16px;margin-top:16px;">
+                <!-- Column 1: Routing -->
+                <div>
+                    <h3 style="font-size:12px;color:#334155;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.02em;">BGP Routing Posture</h3>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <tr>
+                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">RPKI State</td>
+                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{rpki_color};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{rpki}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">Hijack History</td>
+                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{hijack_color};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{hijack_val}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">MOAS Risk</td>
+                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{moas_color};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{str(moas).title()}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">BGP Stability</td>
+                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:#64748B;background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{str(churn).title()}</span></td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <!-- Column 2: Threat Modeling -->
+                <div>
+                    <h3 style="font-size:12px;color:#334155;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.02em;">Threat Intelligence</h3>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <tr>
+                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">Fast Flux Risk</td>
+                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{'#A32D2D' if ff_label == 'Elevated' else '#3B6D11'};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{ff_label}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">DGA Entropy Risk</td>
+                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{'#A32D2D' if dga_label == 'Elevated' else '#3B6D11'};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{dga_label}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">ASN Risk Tier</td>
+                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:#64748B;background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{asn_risk}</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        """
+
     def _rdap_html(self) -> str:
         rdap = self.rdap
         if not rdap.get("rdap_available"):
@@ -1039,6 +1144,7 @@ class InsurerRenderer(BaseRenderer):
         {table}
         {remediation_html}
         {saas_html}
+        {self._infrastructure_routing_html()}
         {self._risk_breakdown_html()}
         {self._technographics_html()}
         """
@@ -1204,6 +1310,7 @@ class ConsultantRenderer(BaseRenderer):
         if self._saas_stack_analysis():
             body += f'<h2>SaaS stack analysis</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._saas_stack_analysis()}</p>'
 
+        body += self._infrastructure_routing_html()
         body += self._risk_breakdown_html()
         body += self._technographics_html()
         body += self._rdap_html()
@@ -1390,6 +1497,7 @@ class ITRenderer(BaseRenderer):
         <h2>Full action list</h2>
         {action_table}
         {positive_html}
+        {self._infrastructure_routing_html()}
         {self._risk_breakdown_html()}
         {self._technographics_html()}
         """
@@ -1557,6 +1665,7 @@ class SalesRenderer(BaseRenderer):
         {narrative_html}
         {saas_analysis_html}
         {f'<h2>Identified SaaS platforms ({self.txt_intel.get("total_identified",0)})</h2><div style="margin:10px 0">{saas_pills}</div>' if saas_pills else ''}
+        {self._infrastructure_routing_html()}
         """
 
         return self._html_shell_branded(brand, "Infrastructure Intelligence Brief", body)

@@ -185,6 +185,9 @@ class CanonicalDNSRecord:
     mx_records: list[dict]
     ns_records: list[str]
     txt_records: list[str]
+    soa_records: list[str]          # New: SOA extraction
+    soa_ttl_min: int                # New: SOA TTL
+    ns_ttl_min: int                 # New: NS TTL
     mail_a_records: list[str]       # New: mail subdomain resolution
     www_a_records: list[str]        # New: www subdomain resolution
     ip_int: int
@@ -259,6 +262,9 @@ class DatazagCanonicalAdapter:
             mx_records=self._parse_mx(),
             ns_records=self._get_raw("NS"),
             txt_records=self._get_raw("TXT"),
+            soa_records=self._get_raw("SOA"),
+            soa_ttl_min=self._get_ttl("SOA"),
+            ns_ttl_min=self._get_ttl("NS"),
             mail_a_records=self._get_raw("MAIL_A"),
             www_a_records=self._get_raw("WWW_A"),
             ip_int=int(self.r.get("ip_int", 0)),
@@ -290,6 +296,10 @@ class DatazagCanonicalAdapter:
         if rec.get("status") in ("NODATA", "NXDOMAIN", "NOT_FOUND"):
             return []
         return rec.get("raw", [])
+
+    def _get_ttl(self, rtype: str) -> int:
+        rec = self.records.get(rtype, {})
+        return int(rec.get("ttl", 0))
 
     def _parse_mx(self) -> list[dict]:
         results = []

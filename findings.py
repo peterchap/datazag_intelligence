@@ -182,6 +182,9 @@ class CanonicalDNSRecord:
     mx_records: list[dict]
     ns_records: list[str]
     txt_records: list[str]
+    soa_records: list[str]          # New: SOA extraction
+    soa_ttl_min: int                # New: SOA TTL
+    ns_ttl_min: int                 # New: NS TTL
     mail_a_records: list[str]       # New: mail subdomain resolution
     www_a_records: list[str]        # New: www subdomain resolution
     ip_int: int
@@ -249,6 +252,9 @@ class DatazagCanonicalAdapter:
             mx_records=self._parse_mx(),
             ns_records=self._get_raw("NS"),
             txt_records=self._get_raw("TXT"),
+            soa_records=self._get_raw("SOA"),
+            soa_ttl_min=self._get_ttl("SOA"),
+            ns_ttl_min=self._get_ttl("NS"),
             mail_a_records=self._get_raw("MAIL_A"),
             www_a_records=self._get_raw("WWW_A"),
             ip_int=int(self.r.get("ip_int", 0)),
@@ -280,6 +286,10 @@ class DatazagCanonicalAdapter:
         if rec.get("status") in ("NODATA", "NXDOMAIN", "NOT_FOUND"):
             return []
         return rec.get("raw", [])
+
+    def _get_ttl(self, rtype: str) -> int:
+        rec = self.records.get(rtype, {})
+        return int(rec.get("ttl", 0))
 
     def _parse_mx(self) -> list[dict]:
         results = []
@@ -989,6 +999,51 @@ def passive_security_findings_v2(record) -> list[dict]:
                 "hosting or origin infrastructure."
             ),
             "remediation": "Enable IPv6 at your hosting provider or CDN if supported.",
+        })
+
+    # -----------------------------------------------------------------------
+    # DNS Infrastructure & Redundancy
+    # -----------------------------------------------------------------------
+    if len(record.ns_records) == 1:
+        findings.append({
+            "finding":     "single_ns_record",
+            "severity":    "high",
+            "title":       "No DNS redundancy — single nameserver configured",
+            "evidence":    f"NS: {record.ns_records[0]}",
+            "detail":      (
+                "This domain is served by only a single nameserver. This represents "
+                "a critical single point of failure. If the nameserver goes offline or "
+                "is targeted by DDoS, the entire domain will become unresolvable."
+            ),
+            "remediation": "Configure at least two geographically dispersed nameservers.",
+        })
+
+    if ann.ns_risk_bias and ann.ns_risk_bias > 2.0:
+        findings.append({
+            "finding":     "ns_bad_neighborhood",
+            "severity":    "high",
+            "title":       "Nameservers hosted in high-risk infrastructure",
+            "evidence":    f"Provider: {ann.ns_provider_name or 'Unknown'} (Risk Bias: {ann.ns_risk_bias})",
+            "detail":      (
+                "The authoritative nameservers for this domain are located on an ASN or provider "
+                "associated with bulletproof hosting or significant malicious activity. "
+                "This severely damages the domain's trust score."
+            ),
+            "remediation": "Migrate DNS hosting to a reputable enterprise provider (e.g., Cloudflare, Route53).",
+        })
+
+    if record.soa_ttl_min and record.soa_ttl_min > 0 and record.soa_ttl_min < 3300:
+        findings.append({
+            "finding":     "anomalous_soa_ttl",
+            "severity":    "high",
+            "title":       f"Anomalous SOA TTL — extremely rapid zone rotation ({record.soa_ttl_min}s)",
+            "evidence":    f"SOA TTL: {record.soa_ttl_min} seconds",
+            "detail":      (
+                "The Start of Authority (SOA) record has a TTL under 55 minutes. While sometimes "
+                "used briefly during migrations, sustained low SOA TTLs are heavily associated "
+                "with fast-flux networks, dynamic DNS, and DGA malware evasion tactics."
+            ),
+            "remediation": "Increase the SOA TTL to standard enterprise levels (e.g., 3600 or 86400) unless actively migrating.",
         })
 
     # -----------------------------------------------------------------------
