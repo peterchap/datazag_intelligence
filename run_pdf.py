@@ -290,7 +290,7 @@ async def run(
 
     # 3. Generate passive findings
     subs_data = raw.get("subdomains", {})
-rdap_data = raw.get("rdap", {})
+    rdap_data = raw.get("rdap", {})
     # Build the summary stats passive_security_findings_v2 needs
     if isinstance(subs_data, list):
         total = len(subs_data)
@@ -314,12 +314,12 @@ rdap_data = raw.get("rdap", {})
     # Evaluates physical infrastructure against Ducklake Gold BGP tables
     certstream_intel = _fetch_certstream_ip_intel(raw)
     if certstream_intel.get("certstream_anomalies"):
-    findings.append({
-        "finding":     "certstream_infra_hit",
-        "severity":    "high",
-        "title":       f"Infrastructure serving {certstream_intel['certstream_anomalies']} malicious certificates in Datazag BGP feed",
-        "evidence":    (
-            f"certstream_hits: {certstream_intel['certstream_anomalies']}, "
+        findings.append({
+            "finding":     "certstream_infra_hit",
+            "severity":    "high",
+            "title":       f"Infrastructure serving {certstream_intel['certstream_anomalies']} malicious certificates in Datazag BGP feed",
+            "evidence":    (
+                f"certstream_hits: {certstream_intel['certstream_anomalies']}, "
             f"A-record hits: {certstream_intel.get('certstream_a_risk',0)}, "
             f"NS hits: {certstream_intel.get('certstream_ns_risk',0)}, "
             f"MX hits: {certstream_intel.get('certstream_mx_risk',0)}"
@@ -420,9 +420,9 @@ rdap_data = raw.get("rdap", {})
         "audience":     audience,
 
         "risk_score_breakdown": [
-    {"rule": r.rule, "points": r.points}
-    for r in record.risk.reasons
-],
+            {"rule": r.rule, "points": r.points}
+            for r in record.risk.reasons
+        ],
 
         "composite_score": {
             "score":          composite.composite_score,
@@ -595,6 +595,7 @@ rdap_data = raw.get("rdap", {})
             "available": False,
             "requires_permission": True,
             "note": "Available for commissioned assessments with written authorisation"
+        },
         "http_enrichment":   http_section,
         "shodan_enrichment": shodan_section,
         "txt_intelligence": _extract_txt_intelligence(record),
@@ -603,10 +604,6 @@ rdap_data = raw.get("rdap", {})
 
     }
     
-    # DEBUG — remove once working
-    print(f"  DEBUG output subdomains: {len(output.get('subdomains', []))}", flush=True)
-    print(f"  DEBUG output rdap available: {output.get('rdap', {}).get('rdap_available')}", flush=True)
-    print(f"  DEBUG output rdap registrar: {output.get('rdap', {}).get('registrar_name')}", flush=True)
     # Save the full output (JSON + domain + scanned_at + enriched subdomains + rdap)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
