@@ -1029,7 +1029,7 @@ class BaseRenderer:
             return extra
 
         # Don't duplicate the main cert expiry finding from passive_security_findings_v2
-    existing_keys = {f.get("finding", "") for f in self.findings}
+        existing_keys = {f.get("finding", "") for f in self.findings}
 
         missed  = self.cert_analysis.get("missed_renewals", [])
         expired = self.cert_analysis.get("expired", [])
@@ -1071,17 +1071,17 @@ class BaseRenderer:
 
         exp_30 = summary.get("expiring_within_30d", 0)
         if exp_30 > 0 and "cert_expiring_soon" not in existing_keys and not missed:
-        extra.append({
-            "finding":     "certs_expiring_soon",
-            "severity":    "high",
-            "title":       f"{exp_30} certificate{'s' if exp_30>1 else ''} expiring within 30 days",
-            "evidence":    f"expiring_within_30d: {exp_30}",
-            "detail":      (
-                f"{exp_30} certificate(s) across the subdomain portfolio expire within 30 days. "
-                f"Verify auto-renewal is configured and working."
-            ),
-            "remediation": "Verify auto-renewal is active. Trigger manual renewal if in doubt.",
-        })
+            extra.append({
+                "finding":     "certs_expiring_soon",
+                "severity":    "high",
+                "title":       f"{exp_30} certificate{'s' if exp_30>1 else ''} expiring within 30 days",
+                "evidence":    f"expiring_within_30d: {exp_30}",
+                "detail":      (
+                    f"{exp_30} certificate(s) across the subdomain portfolio expire within 30 days. "
+                    f"Verify auto-renewal is configured and working."
+                ),
+                "remediation": "Verify auto-renewal is active. Trigger manual renewal if in doubt.",
+            })
 
         # VPN/staging subdomains not already in main findings
         existing_findings = {f.get("finding","") for f in self.findings}
