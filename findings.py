@@ -1000,6 +1000,28 @@ def passive_security_findings_v2(record) -> list[dict]:
             ),
             "remediation": "Enable IPv6 at your hosting provider or CDN if supported.",
         })
+    
+    #------------------------------------------------------------------------
+    # When subdomain HTTP header data is present
+    # -----------------------------------------------------------------------
+    if subs.get("no_https_pct", 0) > 50:
+    findings.append({
+        "finding":     "hsts_absent_majority",
+        "severity":    "high",
+        "title":       f"HSTS absent on {subs['no_https_pct']}% of live subdomains",
+        "evidence":    f"{subs['no_hsts_count']} of {subs['total']} subdomains missing HSTS header",
+        "detail":      (
+            "HTTP Strict Transport Security is absent on the majority of subdomains. "
+            "Without HSTS, browsers will accept HTTP connections, enabling SSL stripping "
+            "attacks where an attacker downgrades HTTPS to HTTP and intercepts credentials."
+        ),
+        "remediation": (
+            "Add 'Strict-Transport-Security: max-age=31536000; includeSubDomains' "
+            "to all web server responses. For nginx: add_header Strict-Transport-Security "
+            "'max-age=31536000; includeSubDomains' always; "
+            "For Apache: Header always set Strict-Transport-Security 'max-age=31536000; includeSubDomains'"
+        ),
+    })
 
     # -----------------------------------------------------------------------
     # DNS Infrastructure & Redundancy

@@ -25,6 +25,10 @@ TXT_FINGERPRINTS = [
     (r"segment-site-verification=",           "Segment",                          "saas"),
     (r"marketo-domain-verification=",         "Marketo",                          "saas"),
     (r"klaviyo-site-verification=",           "Klaviyo",                          "saas"),
+    (r"salesforce-verification=",             "Salesforce",                       "saas"),
+    (r"linkedin-site-verification=",          "LinkedIn",                         "saas"),
+    (r"mailchimp-verification=",              "Mailchimp",                        "email"),
+    (r"^dnt-tracking=",                       "DNT-Tracking",                     "saas"),
 
     # Payment / Legal
     (r"stripe-verification=",                 "Stripe",                           "payment"),
@@ -33,6 +37,8 @@ TXT_FINGERPRINTS = [
 
     # Monitoring / Security
     (r"intersight=",                          "Cisco Intersight",                 "saas"),
+    (r"access-domain-verification=",          "Cloudflare Access",                "security"),
+    (r"fortimailcloud\.com",                  "Fortinet FortiMail Cloud",         "security"),
     (r"have-i-been-pwned-verification=",      "HaveIBeenPwned",                   "security"),
     (r"globalsign-domain-verification=",      "GlobalSign CA",                    "security"),
 
@@ -40,10 +46,15 @@ TXT_FINGERPRINTS = [
     (r"facebook-domain-verification=",        "Facebook / Meta",                  "saas"),
     (r"brave-ledger-verification=",           "Brave Publisher",                  "saas"),
     (r"pinterest-site-verification=",         "Pinterest",                        "saas"),
-
+    (r"^docusign:",                           "DocuSign",                         "saas"),
+    
     # Email policy
     (r"^v=spf1",                              "SPF Policy",                       "email"),
     (r"^v=DMARC1",                            "DMARC Policy",                     "email"),
+    (r"spf\.ssmx\.net",                      "SSMX Mail Security",                "email"),
+    (r"spf\.exclaimer\.net",                 "Exclaimer Email Signatures",        "email"),
+    (r"^amazonses:",                         "Amazon SES",                       "email"),
+    
 ]
 
 ADDITIONAL_TXT_FINGERPRINTS = [
