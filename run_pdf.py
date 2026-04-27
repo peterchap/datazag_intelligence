@@ -68,14 +68,14 @@ def _fetch_infrastructure_intelligence(domain: str) -> dict:
     """
 
     # Identify targets
-    local_path = "C:/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet" if os.name == 'nt' else "/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet"
+    local_path = "/root/asn_data_v3/ducklake/gold/gold_risk_domain_latest.parquet"
     target_path = os.environ.get("DUCKLAKE_GOLD_PATH", local_path)
     
     db = duckdb.connect()
     
     try:
         # Check for remote R2 HTTPFS setup
-        if target_path.startswith("r2://") or target_path.startswith("s3://"):
+        if target_path.startswith("r2://"):
             access_key = os.environ.get('R2_ACCESS_KEY', '')
             secret_key = os.environ.get('R2_SECRET_KEY', '')
             account_id = os.environ.get('R2_ACCOUNT_ID', '')
@@ -336,11 +336,11 @@ async def run(
         ),
         "category":    "threat_intelligence",
     })
-        
-    critical = [f for f in findings if f["severity"] == "critical"]
-    high     = [f for f in findings if f["severity"] == "high"]
-    print(f"  Findings — {len(critical)} critical, {len(high)} high, "
-          f"{len(findings)} total")
+    if findings:
+        critical = [f for f in findings if f["severity"] == "critical"]
+        high     = [f for f in findings if f["severity"] == "high"]
+        print(f"  Findings — {len(critical)} critical, {len(high)} high, "
+            f"{len(findings)} total")
 
     http_section, shodan_section = await enrich_http_and_shodan(
     domain=domain,
