@@ -37,6 +37,9 @@ RISK_BAND_COLOUR = {
     "low":      "#3B6D11",
 }
 
+def _fmt_int(val) -> str:
+    """Format integer with comma separator, return '—' for None/non-int."""
+    return f"{val:,}" if isinstance(val, int) else '—'
 
 def _badge(severity: str) -> str:
     c = RISK_COLOURS.get(severity, RISK_COLOURS["info"])
@@ -2465,6 +2468,8 @@ class SalesRenderer(BaseRenderer):
         # --- Corpus intelligence teaser ---
         # For sales, this is a value demonstration not a deep technical section.
         # Show the headline numbers only — the full section is for technical audiences.
+        domains_on_ip = conc.get('domains_on_ip')
+        domains_on_ip_display = f"{domains_on_ip:,}" if isinstance(domains_on_ip, int) else '—'
         corr = self.o.get("infrastructure_correlation", {})
         bgp  = self.o.get("bgp_routing", {}) or self.o.get("bgp_intelligence", {})
         bl   = self.o.get("blocklist_signals", {}) or self.o.get("ip_reputation", {})
@@ -2520,7 +2525,7 @@ class SalesRenderer(BaseRenderer):
         </div>
         <div style="background:#f7f8f9;border-radius:8px;padding:14px;text-align:center">
             <div style="font-size:22px;font-weight:800;color:#374151">
-            {conc.get('domains_on_ip', '—'):,}
+            {domains_on_ip_display}
             </div>
             <div style="font-size:10px;color:#555;margin-top:4px;
                         text-transform:uppercase;letter-spacing:.05em">
