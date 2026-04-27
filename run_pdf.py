@@ -11,6 +11,7 @@ Outputs JSON + Markdown + HTML for each audience to ./output/<domain>/
 
 import argparse
 import asyncio
+import duckdb
 import json
 import os
 import re
@@ -33,6 +34,28 @@ load_dotenv()
 
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
 
+def _deduplicate_findings(findings: list[dict]) -> list[dict]:
+    """
+    Deduplicates findings by key, keeping the entry with the best evidence.
+    Handles the case where passive_security_findings_v2 and the subs_summary
+    path both generate findings for the same issue.
+    """
+    seen = {}
+    for f in findings:
+        key = f.get("finding", "")
+        if not key:
+            continue
+        if key not in seen:
+            seen[key] = f
+        else:
+            existing = seen[key]
+            has_evidence = lambda x: x.get("evidence") and x.get("evidence") not in ("n/a", "")
+            if has_evidence(f) and not has_evidence(existing):
+                seen[key] = f
+    # Preserve findings without a key (e.g. certstream injection)
+    keyless = [f for f in findings if not f.get("finding")]
+    return list(seen.values()) + keyless
+
 # ---------------------------------------------------------------------------
 # Ducklake Infrastructure Intelligence Extractor
 # ---------------------------------------------------------------------------
@@ -43,7 +66,6 @@ def _fetch_infrastructure_intelligence(domain: str) -> dict:
     the mathematically modeled risk vectors like Fast Flux, Dangling CNAMEs, and MOAS.
     Supports R2 remote lakes or local fallbacks.
     """
-    import duckdb
 
     # Identify targets
     local_path = "C:/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet" if os.name == 'nt' else "/root/asn_data_v3/ducklake/gold/gold_risk_domain_*.parquet"
@@ -257,10 +279,6 @@ async def run(
         raw = await compile_pure_dns_report(domain)
         raw.setdefault("domain", domain)
 
-        # DEBUG — remove once working
-        print(f"  DEBUG raw subdomains: {len(raw.get('subdomains', []))}", flush=True)
-        print(f"  DEBUG raw rdap available: {raw.get('rdap', {}).get('rdap_available')}", flush=True)
-        print(f"  DEBUG raw rdap registrar: {raw.get('rdap', {}).get('registrar_name')}", flush=True)
     print(f"\n  Analysing {domain}...")
 
     # 2. Parse canonical record
@@ -272,6 +290,7 @@ async def run(
 
     # 3. Generate passive findings
     subs_data = raw.get("subdomains", {})
+rdap_data = raw.get("rdap", {})
     # Build the summary stats passive_security_findings_v2 needs
     if isinstance(subs_data, list):
         total = len(subs_data)
@@ -289,18 +308,34 @@ async def run(
     else:
         subs_summary = {}
 
-    findings = passive_security_findings_v2(record, subs=subs_summary)
+    findings = passive_security_findings_v2(record, subs=subs_summary, rdap=rdap_data)
     
     # 3.5 Dynamic Certstream Threat Hit Injection!
     # Evaluates physical infrastructure against Ducklake Gold BGP tables
     certstream_intel = _fetch_certstream_ip_intel(raw)
     if certstream_intel.get("certstream_anomalies"):
-        findings.append({
-            "severity": "high",
-            "category": "threat_intelligence",
-            "label": "CERTSTREAM_INFRA_HIT",
-            "description": f"Domain perfectly overlays infrastructure actively serving {certstream_intel['certstream_anomalies']} distinct malicious certificates inside the Datazag Global BGP Feed."
-        })
+    findings.append({
+        "finding":     "certstream_infra_hit",
+        "severity":    "high",
+        "title":       f"Infrastructure serving {certstream_intel['certstream_anomalies']} malicious certificates in Datazag BGP feed",
+        "evidence":    (
+            f"certstream_hits: {certstream_intel['certstream_anomalies']}, "
+            f"A-record hits: {certstream_intel.get('certstream_a_risk',0)}, "
+            f"NS hits: {certstream_intel.get('certstream_ns_risk',0)}, "
+            f"MX hits: {certstream_intel.get('certstream_mx_risk',0)}"
+        ),
+        "detail":      (
+            f"This domain's infrastructure is co-located with infrastructure currently "
+            f"serving {certstream_intel['certstream_anomalies']} distinct malicious "
+            f"certificates detected in the Datazag Global BGP CertStream feed. "
+            f"This indicates active malicious certificate issuance on shared infrastructure."
+        ),
+        "remediation": (
+            "Investigate co-hosted infrastructure for malicious activity. "
+            "Consider migrating to dedicated infrastructure if confirmed malicious neighbours."
+        ),
+        "category":    "threat_intelligence",
+    })
         
     critical = [f for f in findings if f["severity"] == "critical"]
     high     = [f for f in findings if f["severity"] == "high"]
@@ -320,11 +355,14 @@ async def run(
 
     findings.extend(http_section.get("findings", []))
     findings.extend(shodan_section.get("findings", []))
-    
+
     # Normalise to canonical vocabulary before anything else sees the list
     for f in findings:
         f["severity"] = _NORMALISE_SEV.get(f.get("severity", "info"), f.get("severity", "info"))
 
+    # De-dupe while preserving evidence quality
+    findings = _deduplicate_findings(findings)
+    
     # 4. Compute composite score
     scorer       = DatazagCompositeScorer()
     annotation   = NormalisedAnnotation.from_raw(raw)
@@ -380,6 +418,11 @@ async def run(
         "scanned_at":   record.scanned_at,
         "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
         "audience":     audience,
+
+        "risk_score_breakdown": [
+    {"rule": r.rule, "points": r.points}
+    for r in record.risk.reasons
+],
 
         "composite_score": {
             "score":          composite.composite_score,
@@ -470,7 +513,7 @@ async def run(
             "tld_country":          record.annotation.tld_country,
             "tld_risk_level":       record.annotation.tld_risk_level,
             "is_cdn_ugc":           record.annotation.is_cdn_ugc,
-            "is_hosting_cdn":       record.annotation.is_hosting_cdn,
+            "is_hosting_cdn":       getattr(record.annotation, 'is_hosting_cdn', False),
             "net_trust_score":      record.annotation.net_trust_score,
         },
 
@@ -535,11 +578,29 @@ async def run(
         },
 
         "infrastructure_intelligence": infra_intel,
+        "bgp_routing":                  raw.get("bgp_routing") or {},
+        "ip_reputation":                raw.get("ip_reputation") or {},
+        "infrastructure_concentration": raw.get("infrastructure_concentration") or {},
+        "certificate_intelligence":     raw.get("certificate_intelligence") or {},
+        "geolocation":                  raw.get("geolocation_jurisdiction") or {},
+        "velocity":                     raw.get("historical_velocity") or {},
+        "abuse_contact":                raw.get("abuse_contact_quality") or {},
+
+        # Corpus intelligence — from DuckLake pipeline when available
+        "infrastructure_correlation":   raw.get("infrastructure_correlation") or {},
+        "blocklist_signals":            raw.get("blocklist_signals") or {},
+
+        # Port scan — placeholder until permission-based scanning enabled
+        "port_scan": raw.get("port_scan") or {
+            "available": False,
+            "requires_permission": True,
+            "note": "Available for commissioned assessments with written authorisation"
         "http_enrichment":   http_section,
         "shodan_enrichment": shodan_section,
         "txt_intelligence": _extract_txt_intelligence(record),
         "findings":  findings,
         "narrative": {},        # Populated below after API call
+
     }
     
     # DEBUG — remove once working
@@ -624,30 +685,30 @@ async def run(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Datazag DNS Intelligence Engine")
 
-# Input — mutually exclusive
-input_group = parser.add_mutually_exclusive_group(required=True)
-input_group.add_argument("--dns_file", default=None,
-                         help="Path to pre-collected Datazag DNS JSON file")
-input_group.add_argument("--domain",   default=None,
-                         help="Domain to scan live e.g. adaptavist.com")
+    # Input — mutually exclusive
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--dns_file", default=None,
+                            help="Path to pre-collected Datazag DNS JSON file")
+    input_group.add_argument("--domain",   default=None,
+                            help="Domain to scan live e.g. adaptavist.com")
 
-parser.add_argument("--audience",     default="insurer",
-                    choices=["insurer","consultant","it","sales"])
-parser.add_argument("--partner",      default=None)
-parser.add_argument("--threat",       default=None)
-parser.add_argument("--output-dir",   default=None)
-parser.add_argument("--no-narrative", action="store_true")
-parser.add_argument("--brand",        default=None)
+    parser.add_argument("--audience",     default="insurer",
+                        choices=["insurer","consultant","it","sales"])
+    parser.add_argument("--partner",      default=None)
+    parser.add_argument("--threat",       default=None)
+    parser.add_argument("--output-dir",   default=None)
+    parser.add_argument("--no-narrative", action="store_true")
+    parser.add_argument("--brand",        default=None)
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-asyncio.run(run(
-    dns_file=args.dns_file,
-    domain=args.domain,
-    audience=args.audience,
-    partner_context=args.partner,
-    threat_context=args.threat,
-    skip_narrative=args.no_narrative,
-    output_dir=Path(args.output_dir) if args.output_dir else None,
-    brand_profile=args.brand,
-))
+    asyncio.run(run(
+        dns_file=args.dns_file,
+        domain=args.domain,
+        audience=args.audience,
+        partner_context=args.partner,
+        threat_context=args.threat,
+        skip_narrative=args.no_narrative,
+        output_dir=Path(args.output_dir) if args.output_dir else None,
+        brand_profile=args.brand,
+    ))

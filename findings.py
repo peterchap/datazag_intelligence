@@ -616,7 +616,7 @@ class DatazagCanonicalAdapter:
         }
 
 
-def passive_security_findings_v2(record, subs: dict = None) -> list[dict]:
+def passive_security_findings_v2(record, subs: dict = None, rdap: dict = None) -> list[dict]:
     """
     Generates a finding for every security layer — both present and missing.
     Missing layers are flagged with their security implication, not just noted.
@@ -854,7 +854,7 @@ def passive_security_findings_v2(record, subs: dict = None) -> list[dict]:
     # -----------------------------------------------------------------------
     # DNSSEC inconsistency (registrar vs DNS scan)
     # -----------------------------------------------------------------------   
-    rdap = getattr(record, 'rdap', {}) or {}
+    rdap = rdap or {}
     if rdap.get("dnssec_enabled") and not ea.dnssec_enabled:
         findings.append({
             "finding":     "dnssec_inconsistent",
@@ -924,45 +924,45 @@ def passive_security_findings_v2(record, subs: dict = None) -> list[dict]:
     # Certificate findings
     # -----------------------------------------------------------------------
     if c:
-    if c.days_remaining is not None:
-        if c.days_remaining <= 14:
-            findings.append({
-                "finding":     "cert_expiring_soon",
-                "severity":    "critical",
-                "title":       f"HTTPS certificate expires in {c.days_remaining} days — URGENT",
-                "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
-                "detail":      (
-                    f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
-                    f"After expiry, browsers will show a security warning to all visitors "
-                    f"and HTTPS connections will fail. Renewal is overdue."
-                ),
-                "remediation": "Renew immediately — auto-renewal has likely failed. Check certbot/ACME client logs.",
-            })
-        elif c.days_remaining <= 30:
-            findings.append({
-                "finding":     "cert_expiring_soon",
-                "severity":    "high",
-                "title":       f"HTTPS certificate expires in {c.days_remaining} days",
-                "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
-                "detail":      (
-                    f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
-                    f"After expiry, browsers will show a security warning to all visitors."
-                ),
-                "remediation": "Trigger certificate renewal immediately. Check auto-renewal is configured.",
-            })
-        elif c.days_remaining <= 60:
-            findings.append({
-                "finding":     "cert_expiring_warning",
-                "severity":    "medium",
-                "title":       f"HTTPS certificate expires in {c.days_remaining} days — renewal due soon",
-                "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
-                "detail":      (
-                    f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
-                    f"Let's Encrypt auto-renews at 30 days — verify auto-renewal is configured "
-                    f"and working before this window closes."
-                ),
-                "remediation": "Verify auto-renewal configuration. Run a dry-run renewal to confirm: certbot renew --dry-run",
-            })
+        if c.days_remaining is not None:
+            if c.days_remaining <= 14:
+                findings.append({
+                    "finding":     "cert_expiring_soon",
+                    "severity":    "critical",
+                    "title":       f"HTTPS certificate expires in {c.days_remaining} days — URGENT",
+                    "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
+                    "detail":      (
+                        f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
+                        f"After expiry, browsers will show a security warning to all visitors "
+                        f"and HTTPS connections will fail. Renewal is overdue."
+                    ),
+                    "remediation": "Renew immediately — auto-renewal has likely failed. Check certbot/ACME client logs.",
+                })
+            elif c.days_remaining <= 30:
+                findings.append({
+                    "finding":     "cert_expiring_soon",
+                    "severity":    "high",
+                    "title":       f"HTTPS certificate expires in {c.days_remaining} days",
+                    "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
+                    "detail":      (
+                        f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
+                        f"After expiry, browsers will show a security warning to all visitors."
+                    ),
+                    "remediation": "Trigger certificate renewal immediately. Check auto-renewal is configured.",
+                })
+            elif c.days_remaining <= 60:
+                findings.append({
+                    "finding":     "cert_expiring_warning",
+                    "severity":    "medium",
+                    "title":       f"HTTPS certificate expires in {c.days_remaining} days — renewal due soon",
+                    "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
+                    "detail":      (
+                        f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
+                        f"Let's Encrypt auto-renews at 30 days — verify auto-renewal is configured "
+                        f"and working before this window closes."
+                    ),
+                    "remediation": "Verify auto-renewal configuration. Run a dry-run renewal to confirm: certbot renew --dry-run",
+                })
 
     # -----------------------------------------------------------------------
     # SMTP banner verification
