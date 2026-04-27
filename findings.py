@@ -616,7 +616,7 @@ class DatazagCanonicalAdapter:
         }
 
 
-def passive_security_findings_v2(record) -> list[dict]:
+def passive_security_findings_v2(record, subs: dict = None) -> list[dict]:
     """
     Generates a finding for every security layer — both present and missing.
     Missing layers are flagged with their security implication, not just noted.
@@ -1024,15 +1024,15 @@ def passive_security_findings_v2(record) -> list[dict]:
             "remediation": "Enable IPv6 at your hosting provider or CDN if supported.",
         })
     
-    #------------------------------------------------------------------------
-    # When subdomain HTTP header data is present
     # -----------------------------------------------------------------------
-    if subs.get("no_https_pct", 0) > 50:
+    # Subdomain HTTP security headers (requires subs data from output dict)
+    # -----------------------------------------------------------------------
+    if subs and subs.get("no_https_pct", 0) > 50:
         findings.append({
             "finding":     "hsts_absent_majority",
             "severity":    "high",
             "title":       f"HSTS absent on {subs['no_https_pct']}% of live subdomains",
-            "evidence":    f"{subs['no_hsts_count']} of {subs['total']} subdomains missing HSTS header",
+            "evidence":    f"{subs.get('no_hsts_count', '?')} of {subs.get('total', '?')} subdomains missing HSTS header",
             "detail":      (
                 "HTTP Strict Transport Security is absent on the majority of subdomains. "
                 "Without HSTS, browsers will accept HTTP connections, enabling SSL stripping "
@@ -1042,7 +1042,45 @@ def passive_security_findings_v2(record) -> list[dict]:
                 "Add 'Strict-Transport-Security: max-age=31536000; includeSubDomains' "
                 "to all web server responses. For nginx: add_header Strict-Transport-Security "
                 "'max-age=31536000; includeSubDomains' always; "
-                "For Apache: Header always set Strict-Transport-Security 'max-age=31536000; includeSubDomains'"
+                "For Apache: Header always set Strict-Transport-Security "
+                "'max-age=31536000; includeSubDomains'"
+            ),
+        })
+
+    if subs and subs.get("no_csp_pct", 0) > 50:
+        findings.append({
+            "finding":     "csp_absent_majority",
+            "severity":    "high",
+            "title":       f"Content Security Policy absent on {subs['no_csp_pct']}% of subdomains",
+            "evidence":    f"{subs.get('no_csp_count', '?')} of {subs.get('total', '?')} subdomains missing CSP header",
+            "detail":      (
+                "Content Security Policy is absent on the majority of subdomains. "
+                "Without CSP, cross-site scripting attacks can execute arbitrary JavaScript "
+                "in users' browsers, enabling credential theft and data exfiltration."
+            ),
+            "remediation": (
+                "Add a Content-Security-Policy header to all web server responses. "
+                "Start with 'Content-Security-Policy: default-src \\'self\\'' and "
+                "expand the policy to cover legitimate third-party sources."
+            ),
+        })
+
+    if subs and subs.get("version_disclosed_count", 0) > 0:
+        findings.append({
+            "finding":     "server_version_disclosed",
+            "severity":    "medium",
+            "title":       f"Server version disclosed on {subs['version_disclosed_count']} subdomains",
+            "evidence":    f"Server header reveals version on {subs['version_disclosed_count']} subdomains",
+            "detail":      (
+                "Web server version strings are exposed in HTTP response headers across "
+                "multiple subdomains. This provides attackers with specific targeting "
+                "information for exploit development against known CVEs."
+            ),
+            "remediation": (
+                "Configure web servers to suppress version disclosure. "
+                "For nginx: server_tokens off; "
+                "For Apache: ServerTokens Prod and ServerSignature Off; "
+                "For LiteSpeed: set Response Header to 'No Version'."
             ),
         })
 

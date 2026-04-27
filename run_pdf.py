@@ -271,7 +271,8 @@ async def run(
           f"MX: {record.annotation.mx_provider_name or 'none'}")
 
     # 3. Generate passive findings
-    findings = passive_security_findings_v2(record)
+    subs_output = output.get("subdomains", {})
+    findings = passive_security_findings_v2(record, subs=subs_output)
     
     # 3.5 Dynamic Certstream Threat Hit Injection!
     # Evaluates physical infrastructure against Ducklake Gold BGP tables
