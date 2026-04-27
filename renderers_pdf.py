@@ -412,15 +412,20 @@ class BaseRenderer:
                 lines.append("")
         return "\n".join(lines)
 
-    def _subdomains_md(self, limit: int = 30) -> str:
+    def _subdomains_md(self, limit: int = 50) -> str:
         if not self.subdomains:
             return ""
         lines = [f"## Subdomain corpus ({len(self.subdomains)} subdomains)", ""]
         for s in self.subdomains[:limit]:
-            expired    = s.get("is_expired", False)
-            days       = s.get("days_remaining")
+            fqdn    = s.get("dns_name", "")
+            expired = s.get("is_expired", False)
+            days    = s.get("days_remaining")
+            risk    = s.get("risk_level", "")
+            if not risk or risk == "other":
+                risk = self._derive_subdomain_risk(fqdn)
             days_label = "EXPIRED ⚠" if expired else f"{days}d" if days is not None else "—"
-            lines.append(f"- `{s['dns_name']}` — {s.get('issuer_category', '—')} · {days_label}")
+            flag = " ⚠" if risk in ("critical", "high") else ""
+            lines.append(f"- `{fqdn}` — {risk}{flag} · {days_label}")
         if len(self.subdomains) > limit:
             lines.append(f"- *...and {len(self.subdomains) - limit} more*")
         return "\n".join(lines)
@@ -639,36 +644,127 @@ class BaseRenderer:
         {alert_block("orange", "High cert churn",         churn)}
         {alert_block("blue",   "Cross-domain SANs found", cross)}"""
 
-    def _subdomains_html(self, limit: int = 30) -> str:
+    def _subdomains_html(self, limit: int = 50) -> str:
         if not self.subdomains:
             return ""
+
+        RISK_COLOURS_SUB = {
+            "critical": ("#FCEBEB", "#A32D2D", "#791F1F"),
+            "high":     ("#FAEEDA", "#854F0B", "#633806"),
+            "medium":   ("#E6F1FB", "#185FA5", "#0C447C"),
+            "info":     ("#F9FAFB", "#E2E8F0", "#374151"),
+        }
+
         rows = ""
+        counts = {"critical": 0, "high": 0, "medium": 0, "info": 0}
+
         for s in self.subdomains[:limit]:
-            expired    = s.get("is_expired", False)
-            days       = s.get("days_remaining")
-            colour     = "#A32D2D" if expired else "#854F0B" if days is not None and days < 30 else "#3B6D11"
-            days_label = "EXPIRED" if expired else f"{days}d" if days is not None else "—"
+            fqdn    = s.get("dns_name", "")
+            expired = s.get("is_expired", False)
+            days    = s.get("days_remaining")
+
+            # Derive risk from keyword if not provided
+            risk = s.get("risk_level", "")
+            if not risk or risk == "other":
+                risk = self._derive_subdomain_risk(fqdn)
+
+            counts[risk] = counts.get(risk, 0) + 1
+            bg, border, text = RISK_COLOURS_SUB.get(risk, RISK_COLOURS_SUB["info"])
+
+            cert_colour = "#A32D2D" if expired else "#854F0B" if days is not None and days < 30 else "#3B6D11"
+            days_label  = "EXPIRED ⚠" if expired else f"{days}d" if days is not None else "—"
+
+            risk_badge = (
+                f'<span style="background:{bg};color:{text};border:1px solid {border};'
+                f'padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;'
+                f'text-transform:uppercase">{risk}</span>'
+                if risk != "info" else ""
+            )
+
+            # Risk reasons from keyword
+            reasons = s.get("risk_reasons", [])
+            if not reasons and risk in ("critical", "high"):
+                sub = fqdn.split(".")[0].lower()
+                if any(k in sub for k in ("vpn","remote","citrix","rdp","ssh","bastion")):
+                    reasons = ["Remote access endpoint — primary ransomware vector"]
+                elif any(k in sub for k in ("staging","stage","dev","test","qa","uat","sandbox","preprod")):
+                    reasons = ["Development/staging environment — typically less hardened"]
+                elif any(k in sub for k in ("admin","portal","dashboard","console","panel")):
+                    reasons = ["Admin panel keyword — high-value target"]
+
+            reason_html = (
+                f'<div style="font-size:10px;color:{text};margin-top:2px">'
+                + "; ".join(reasons[:1])
+                + "</div>"
+            ) if reasons else ""
+
             rows += (
-                f"<tr style='border-bottom:1px solid #f5f5f5'>"
-                f"<td style='padding:5px 10px;font-family:monospace;font-size:11px'>{s['dns_name']}</td>"
-                f"<td style='padding:5px 10px;font-size:11px;color:#666'>{s.get('issuer_category', '—')}</td>"
-                f"<td style='padding:5px 10px;font-size:11px;font-weight:500;color:{colour}'>{days_label}</td>"
+                f"<tr style='background:{bg};border-bottom:1px solid {border}22'>"
+                f"<td style='padding:6px 10px;font-family:monospace;font-size:11px;color:#222'>"
+                f"{fqdn}</td>"
+                f"<td style='padding:6px 10px'>{risk_badge}</td>"
+                f"<td style='padding:6px 10px;font-size:11px;color:#666'>"
+                f"{s.get('issuer_category', '—')}</td>"
+                f"<td style='padding:6px 10px;font-size:11px;font-weight:500;color:{cert_colour}'>"
+                f"{days_label}</td>"
+                f"<td style='padding:6px 10px;font-size:11px;color:#555'>"
+                f"{reason_html}</td>"
                 f"</tr>"
             )
+
+        # Summary stats
+        stats = f"""
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0">
+        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700">{len(self.subdomains)}</div>
+            <div style="font-size:10px;color:#888;text-transform:uppercase">Total</div>
+        </div>
+        <div style="background:#FCEBEB;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#A32D2D">{counts['critical']}</div>
+            <div style="font-size:10px;color:#A32D2D;text-transform:uppercase">Critical</div>
+        </div>
+        <div style="background:#FAEEDA;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#854F0B">{counts['high']}</div>
+            <div style="font-size:10px;color:#854F0B;text-transform:uppercase">High</div>
+        </div>
+        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#A32D2D">
+            {self.cert_analysis.get('summary',{}).get('missed_renewals',0)}</div>
+            <div style="font-size:10px;color:#A32D2D;text-transform:uppercase">Missed renewals</div>
+        </div>
+        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#A32D2D">
+            {self.cert_analysis.get('summary',{}).get('expiring_within_30d',0)}</div>
+            <div style="font-size:10px;color:#A32D2D;text-transform:uppercase">Expiring 30d</div>
+        </div>
+        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700">
+            {self.cert_analysis.get('summary',{}).get('cross_domain_sans',0)}</div>
+            <div style="font-size:10px;color:#888;text-transform:uppercase">Cross-domain SANs</div>
+        </div>
+        </div>"""
+
         overflow = (
-            f'<p style="font-size:11px;color:#888;margin:6px 0">+ {len(self.subdomains) - limit} more subdomains</p>'
+            f'<p style="font-size:11px;color:#888;margin:6px 0">'
+            f'+ {len(self.subdomains) - limit} more subdomains</p>'
             if len(self.subdomains) > limit else ""
         )
+
         return f"""
-        <h2>Subdomain corpus ({len(self.subdomains)} subdomains)</h2>
+        <h2>Subdomain inventory ({len(self.subdomains)} subdomains)</h2>
+        {stats}
+        <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:#f5f5f5">
             <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Issuer</th>
-            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Cert expiry</th>
+            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Risk</th>
+            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Issuer</th>
+            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Cert expiry</th>
+            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Signal</th>
         </tr></thead>
         <tbody>{rows}</tbody>
-        </table>{overflow}"""
+        </table>
+        </div>{overflow}"""
 
     def _technographics_html(self) -> str:
         t, ti, lbl, flags, dns = self.tech, self.txt_intel, self.labels, self.flags, self.dns
@@ -890,6 +986,419 @@ class BaseRenderer:
         </h2>
         <table style="width:100%;border-collapse:collapse">{rows}</table>"""
 
+
+    python# ---------------------------------------------------------------------------
+    # Subdomain risk derivation
+    # ---------------------------------------------------------------------------
+
+    def _derive_subdomain_risk(self, fqdn: str) -> str:
+        """Derive risk level from subdomain keyword when not provided."""
+        sub = fqdn.split(".")[0].lower()
+        if any(k in sub for k in (
+            "vpn", "remote", "citrix", "rdp", "ssh", "bastion",
+            "sso", "login", "auth", "idp",
+        )):
+            return "critical"
+        if any(k in sub for k in (
+            "staging", "stage", "dev", "test", "qa", "uat",
+            "sandbox", "preprod", "admin", "portal", "dashboard",
+            "console", "panel", "manage", "management",
+        )):
+            return "high"
+        if any(k in sub for k in (
+            "api", "gateway", "proxy", "internal", "corp", "intranet",
+        )):
+            return "medium"
+        return "info"
+
+    # ---------------------------------------------------------------------------
+    # Certificate expiry findings from cert_analysis
+    # ---------------------------------------------------------------------------
+
+    def _cert_expiry_findings(self) -> list[dict]:
+        """
+        Generate findings from cert_analysis data.
+        These should be prepended to findings list in renderers.
+        """
+        extra = []
+        summary = self.cert_analysis.get("summary", {})
+        if not summary:
+            return extra
+
+        missed  = self.cert_analysis.get("missed_renewals", [])
+        expired = self.cert_analysis.get("expired", [])
+
+        if missed:
+            names = ", ".join(r["dns_name"] for r in missed[:5])
+            extra.append({
+                "finding":     "cert_missed_renewals",
+                "severity":    "critical",
+                "title":       f"{len(missed)} certificate{'s' if len(missed)>1 else ''} missed renewal — expiring within 30 days",
+                "evidence":    f"Subdomains: {names}",
+                "detail":      (
+                    f"{len(missed)} certificate(s) across the domain portfolio are expiring "
+                    f"within 30 days and appear to have missed auto-renewal. "
+                    f"After expiry, browsers will display security warnings to all visitors. "
+                    f"Affected: {names}."
+                ),
+                "remediation": (
+                    "Trigger manual renewal for all listed certificates immediately. "
+                    "Verify auto-renewal configuration on your certificate management platform. "
+                    "Check Let's Encrypt certbot cron jobs or ACME client configuration."
+                ),
+            })
+
+        if expired:
+            names = ", ".join(r["dns_name"] for r in expired[:5])
+            extra.append({
+                "finding":     "cert_expired",
+                "severity":    "critical",
+                "title":       f"{len(expired)} certificate{'s' if len(expired)>1 else ''} already expired",
+                "evidence":    f"Expired: {names}",
+                "detail":      (
+                    f"{len(expired)} certificate(s) have already expired. "
+                    f"These subdomains are currently showing browser security warnings. "
+                    f"Any HTTPS traffic to these subdomains may be blocked."
+                ),
+                "remediation": "Renew expired certificates immediately.",
+            })
+
+        exp_30 = summary.get("expiring_within_30d", 0)
+        if exp_30 > 0 and not missed:
+            extra.append({
+                "finding":     "certs_expiring_soon",
+                "severity":    "high",
+                "title":       f"{exp_30} certificate{'s' if exp_30>1 else ''} expiring within 30 days",
+                "evidence":    f"expiring_within_30d: {exp_30}",
+                "detail":      (
+                    f"{exp_30} certificate(s) across the subdomain portfolio expire within 30 days. "
+                    f"Verify auto-renewal is configured and working."
+                ),
+                "remediation": "Verify auto-renewal is active. Trigger manual renewal if in doubt.",
+            })
+
+        # VPN/staging subdomains not already in main findings
+        existing_findings = {f.get("finding","") for f in self.findings}
+        for sub in self.subdomains:
+            fqdn = sub.get("dns_name","")
+            risk = self._derive_subdomain_risk(fqdn)
+            sub_part = fqdn.split(".")[0].lower()
+
+            if risk == "critical" and "vpn_exposed" not in existing_findings:
+                if any(k in sub_part for k in ("vpn","remote","citrix","rdp","ssh","bastion")):
+                    existing_findings.add("vpn_exposed")
+                    extra.append({
+                        "finding":     "vpn_exposed",
+                        "severity":    "high",
+                        "title":       f"Remote access endpoint publicly accessible: {fqdn}",
+                        "evidence":    f"Subdomain: {fqdn}, cert days: {sub.get('days_remaining','?')}",
+                        "detail":      (
+                            f"{fqdn} is a publicly accessible remote access endpoint. "
+                            "These are the primary initial access vector in ransomware attacks — "
+                            "over 70% of ransomware incidents involve an exposed remote access service. "
+                            "Verify MFA is enforced and access is restricted to known IP ranges."
+                        ),
+                        "remediation": (
+                            "Restrict access to VPN/remote endpoints by IP allowlist if possible. "
+                            "Ensure MFA is enforced. Verify this subdomain is intentionally public."
+                        ),
+                    })
+
+            if risk == "high" and "staging_exposed" not in existing_findings:
+                if any(k in sub_part for k in ("staging","stage","dev","test","qa","uat","sandbox","preprod","normstagingsite")):
+                    existing_findings.add("staging_exposed")
+                    extra.append({
+                        "finding":     "staging_exposed",
+                        "severity":    "high",
+                        "title":       f"Development/staging environment publicly accessible: {fqdn}",
+                        "evidence":    f"Subdomain: {fqdn}",
+                        "detail":      (
+                            f"{fqdn} appears to be a development or staging environment that is "
+                            "publicly accessible. Staging environments typically run older software "
+                            "versions with weaker access controls and may contain sensitive test data."
+                        ),
+                        "remediation": (
+                            "Restrict staging/dev environments behind VPN or IP allowlist. "
+                            "They should not be publicly accessible from the internet."
+                        ),
+                    })
+
+        return extra
+
+
+    # ---------------------------------------------------------------------------
+    # Corpus intelligence section
+    # ---------------------------------------------------------------------------
+
+    def _corpus_intelligence_html(self, brand: "BrandConfig") -> str:
+        corr = self.o.get("infrastructure_correlation", {})
+        bgp  = self.o.get("bgp_routing", {}) or self.o.get("bgp_intelligence", {})
+        conc = self.o.get("infrastructure_concentration", {})
+        bl   = self.o.get("blocklist_signals", {}) or self.o.get("ip_reputation", {})
+
+        if not any([corr, bgp, conc, bl]):
+            return ""
+
+        # BGP/RPKI block
+        rpki_state  = str(bgp.get("rpki_state", "unknown")).upper()
+        moas        = bgp.get("moas_detected", False)
+        rpki_colour = "#3B6D11" if rpki_state == "VALID" else "#A32D2D" if rpki_state == "INVALID" else "#64748B"
+        bgp_label   = "MOAS DETECTED — possible hijack" if moas else f"RPKI {rpki_state}"
+        bgp_colour  = "#A32D2D" if moas else rpki_colour
+
+        # Blocklist
+        spamhaus = bl.get("spamhaus_zen") or bl.get("spamhaus_xbl")
+        urlhaus  = bl.get("urlhaus_listed") or bl.get("urlhaus")
+        any_listed = bl.get("any_listed") or spamhaus or urlhaus or (bl.get("firehol_level", 0) > 0)
+        feed_matches = bl.get("feed_matches", [])
+        listing_count = bl.get("listing_count", len(feed_matches))
+
+        # Concentration cards
+        conc_cards = ""
+        for label, key in [
+            ("Domains on same IP",     "domains_on_ip"),
+            ("Domains on prefix",      "domains_on_prefix"),
+            ("Domains on ASN",         "domains_on_asn"),
+            ("Domains using same NS",  "ns_domain_count"),
+            ("Domains using same MX",  "mx_domain_count"),
+        ]:
+            val = conc.get(key)
+            if val is None or val == 0:
+                continue
+            dedicated = key == "domains_on_ip" and val < 5
+            colour = "#3B6D11" if dedicated else "#374151"
+            conc_cards += f"""
+            <div style="background:#f7f8f9;border-radius:8px;padding:12px 14px;
+                        border-top:2px solid {brand.accent_colour}">
+            <div style="font-size:20px;font-weight:700;color:{colour}">{val:,}</div>
+            <div style="font-size:10px;color:#888;margin-top:3px;text-transform:uppercase;
+                        letter-spacing:.05em">{label}</div>
+            {f"<div style='font-size:10px;color:#3B6D11;margin-top:2px'>Dedicated infrastructure</div>" if dedicated else ""}
+            </div>"""
+
+        # Pivot findings (malicious co-hosts)
+        pivot_rows = ""
+        any_malicious = False
+        for pivot in corr.get("pivot_findings", []):
+            if pivot.get("malicious_count", 0) == 0:
+                continue
+            any_malicious = True
+            count = pivot["malicious_count"]
+            total = pivot.get("total_count", 0)
+            severity = "critical" if count >= 5 else "high" if count >= 2 else "medium"
+            bg, col = {
+                "critical": ("#FCEBEB", "#A32D2D"),
+                "high":     ("#FAEEDA", "#854F0B"),
+                "medium":   ("#E6F1FB", "#185FA5"),
+            }.get(severity, ("#F9FAFB", "#374151"))
+            examples = ", ".join(pivot.get("examples", [])[:3])
+            pivot_rows += f"""
+            <tr style="background:{bg}">
+            <td style="padding:8px 12px;font-weight:600;font-size:12px;color:{col}">{pivot['dimension'].upper()}</td>
+            <td style="padding:8px 12px;font-family:monospace;font-size:11px">{pivot.get('value','')}</td>
+            <td style="padding:8px 12px;font-size:22px;font-weight:800;color:{col}">{count}</td>
+            <td style="padding:8px 12px;font-size:12px;color:#555">of {total:,} domains on same {pivot['dimension']}</td>
+            <td style="padding:8px 12px;font-size:11px;color:#888;font-family:monospace">{examples}</td>
+            </tr>"""
+
+        # Prefix malicious ratio
+        ratio = corr.get("prefix_malicious_ratio", 0)
+        if not ratio and conc.get("domains_on_prefix"):
+            ratio = 0
+        ratio_pct = round(ratio * 100, 3)
+        ratio_col = "#A32D2D" if ratio > 0.01 else "#854F0B" if ratio > 0.003 else "#3B6D11"
+
+        # Feed pills
+        feed_html = ""
+        for feed in feed_matches:
+            feed_html += (
+                f'<span style="background:#FCEBEB;color:#791F1F;padding:2px 8px;'
+                f'border-radius:4px;font-size:11px;font-weight:500;'
+                f'display:inline-block;margin:2px 3px">{feed}</span>'
+            )
+
+        if not conc_cards and not any_malicious and not any_listed and not moas:
+            # All clean — show a positive summary
+            return f"""
+            <h2 style="display:flex;justify-content:space-between;align-items:baseline">
+            <span>Corpus intelligence</span>
+            <span style="font-size:11px;font-weight:400;color:#888;text-transform:none;letter-spacing:0">
+                Cross-referenced against 320M domains · updated hourly
+            </span>
+            </h2>
+            <div style="background:#EAF3DE;border-left:3px solid #3B6D11;padding:12px 16px;
+                        border-radius:0 8px 8px 0;font-size:13px;color:#1a3d0f;line-height:1.6">
+            <strong>No malicious co-hosts detected.</strong>
+            Infrastructure cross-reference across IP, prefix, ASN, NS and MX dimensions
+            shows no known-malicious domains sharing this domain's infrastructure.
+            BGP routing is stable with no MOAS or hijack signals. All threat feeds clean.
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:#888;line-height:1.6">
+            Datazag corpus intelligence cross-references this domain's infrastructure
+            against 320 million domains monitored in real time across 40+ threat feeds,
+            updated hourly.
+            </div>"""
+
+        return f"""
+        <h2 style="display:flex;justify-content:space-between;align-items:baseline">
+        <span>Corpus intelligence</span>
+        <span style="font-size:11px;font-weight:400;color:#888;text-transform:none;letter-spacing:0">
+            Cross-referenced against 320M domains · updated hourly
+        </span>
+        </h2>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0">
+        <div style="background:{'#FCEBEB' if moas else '#f7f8f9'};border-radius:8px;padding:12px 14px;
+                    border-top:2px solid {bgp_colour}">
+            <div style="font-size:13px;font-weight:700;color:{bgp_colour}">{bgp_label}</div>
+            <div style="font-size:10px;color:#888;margin-top:2px;text-transform:uppercase">BGP / RPKI</div>
+        </div>
+        <div style="background:#f7f8f9;border-radius:8px;padding:12px 14px">
+            <div style="font-size:20px;font-weight:700">{bgp.get('asn') or self.tech.get('asn') or '—'}</div>
+            <div style="font-size:10px;color:#888;margin-top:2px;text-transform:uppercase">ASN</div>
+        </div>
+        <div style="background:#f7f8f9;border-radius:8px;padding:12px 14px">
+            <div style="font-size:13px;font-weight:600">{bgp.get('prefix') or '—'}</div>
+            <div style="font-size:10px;color:#888;margin-top:2px;text-transform:uppercase">Announced prefix</div>
+        </div>
+        <div style="background:{'#FCEBEB' if any_listed else '#EAF3DE'};border-radius:8px;padding:12px 14px">
+            <div style="font-size:13px;font-weight:700;
+                        color:{'#A32D2D' if any_listed else '#3B6D11'}">
+            {'LISTED — ' + str(listing_count) + ' feed(s)' if any_listed else 'Clean — all feeds'}
+            </div>
+            <div style="font-size:10px;color:#888;margin-top:2px;text-transform:uppercase">Blocklist status</div>
+        </div>
+        </div>
+
+        {f'''<div style="margin:10px 0">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#555;margin-bottom:4px">
+            <span>Malicious domain ratio on this prefix</span>
+            <span style="font-weight:700;color:{ratio_col}">{ratio_pct}%</span>
+        </div>
+        <div style="background:#f0f0f0;border-radius:3px;height:8px">
+            <div style="background:{ratio_col};width:{min(100, ratio_pct * 20)}%;height:100%;border-radius:3px"></div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:4px">
+            Based on {conc.get("domains_on_prefix",0):,} domains on this prefix in the Datazag corpus
+        </div>
+        </div>''' if conc.get("domains_on_prefix") else ""}
+
+        {f'''<h3 style="font-size:12px;font-weight:700;color:#A32D2D;margin:16px 0 8px">
+        Malicious co-hosts detected</h3>
+        <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f5f5f5">
+            <th style="padding:6px 12px;text-align:left;font-size:11px;text-transform:uppercase">Dimension</th>
+            <th style="padding:6px 12px;text-align:left;font-size:11px;text-transform:uppercase">Value</th>
+            <th style="padding:6px 12px;text-align:left;font-size:11px;text-transform:uppercase">Malicious</th>
+            <th style="padding:6px 12px;text-align:left;font-size:11px;text-transform:uppercase">Context</th>
+            <th style="padding:6px 12px;text-align:left;font-size:11px;text-transform:uppercase">Examples</th>
+        </tr></thead>
+        <tbody>{pivot_rows}</tbody>
+        </table>''' if any_malicious else ""}
+
+        {f'''<h3 style="font-size:12px;font-weight:700;color:#374151;margin:16px 0 8px">
+        Infrastructure concentration</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0">
+        {conc_cards}
+        </div>''' if conc_cards else ""}
+
+        {f'''<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:#A32D2D;margin-bottom:6px">
+        Active blocklist listings</div>{feed_html}</div>''' if feed_html else ""}
+
+        <div style="margin-top:16px;padding:10px 14px;background:#f0f4ff;
+                    border-radius:6px;font-size:11px;color:#555;line-height:1.6">
+        Corpus intelligence is derived from Datazag's passive monitoring of 320 million domains
+        across 40+ servers, updated hourly. Co-host analysis identifies domains sharing IP,
+        prefix, ASN, NS and MX infrastructure with this domain and cross-references against
+        live threat feed integrations.
+        </div>"""
+
+
+    # ---------------------------------------------------------------------------
+    # Alerting CTA
+    # ---------------------------------------------------------------------------
+
+    def _alerting_cta_html(self, brand: "BrandConfig") -> str:
+        subs = self.subdomains
+        sub_count = len(subs) if subs else 0
+        return f"""
+        <div style="margin:32px 0;padding:20px 24px;
+                    background:{brand.primary_colour};border-radius:10px;
+                    display:grid;grid-template-columns:1fr auto;gap:20px;
+                    align-items:center;break-inside:avoid">
+        <div>
+            <div style="color:{brand.accent_colour};font-size:11px;font-weight:700;
+                        text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">
+            Real-time monitoring available
+            </div>
+            <div style="color:white;font-size:15px;font-weight:600;
+                        margin-bottom:8px;line-height:1.4">
+            This report is a point-in-time snapshot.
+            {self.domain} changes — we detect it in seconds.
+            </div>
+            <div style="color:rgba(255,255,255,.65);font-size:12px;line-height:1.7">
+            Branded threat alerts within 5–10 seconds of SSL issuance ·
+            New subdomain detection across {sub_count or 'all'} known assets ·
+            Infrastructure change alerting across IP, NS, MX and BGP ·
+            Malicious co-host notifications updated hourly ·
+            Active phishing campaign alerts relevant to your SaaS stack
+            </div>
+        </div>
+        <div style="text-align:center;flex-shrink:0">
+            <a href="{brand.cta_button_url}" target="_blank"
+            style="display:block;background:{brand.accent_colour};
+                    color:{brand.text_on_accent};padding:12px 20px;
+                    border-radius:6px;font-size:13px;font-weight:700;
+                    text-decoration:none;white-space:nowrap;margin-bottom:8px">
+            Activate monitoring →
+            </a>
+            <div style="color:rgba(255,255,255,.45);font-size:11px">
+            {brand.contact_email}
+            </div>
+        </div>
+        </div>"""
+
+
+    # ---------------------------------------------------------------------------
+    # Security checklist markdown
+    # ---------------------------------------------------------------------------
+
+    def _security_checklist_md(self) -> str:
+        ea    = self.ea
+        flags = self.flags
+        certs = self.certs
+
+        def status(ok):
+            return "✓" if ok else "✗ MISSING"
+
+        spf_ok    = ea.get("spf") in ("-all", "~all")
+        dmarc_ok  = ea.get("dmarc_policy") in ("reject", "quarantine")
+        reject_ok = ea.get("dmarc_policy") == "reject"
+        mta_ok    = ea.get("mta_sts") == "NOERROR"
+        tls_ok    = ea.get("tls_rpt") == "NOERROR"
+        bimi_ok   = ea.get("bimi") == "NOERROR"
+        dnssec_ok = bool(ea.get("dnssec"))
+        caa_ok    = flags.get("has_caa", False)
+        sec_ok    = flags.get("has_security_txt", False)
+        smtp_ok   = certs.get("provider_live", False)
+
+        lines = [
+            "## Security layer checklist", "",
+            "| Layer | Status | Attack risk if missing |",
+            "|-------|--------|------------------------|",
+            f"| SPF | {status(spf_ok)} {ea.get('spf') or ''} | Any server can send as this domain |",
+            f"| DMARC | {status(dmarc_ok)} {'p='+ea.get('dmarc_policy') if ea.get('dmarc_policy') else ''} | Spoofed mail delivered without enforcement |",
+            f"| DMARC p=reject | {status(reject_ok)} | Quarantine/deliver depends on policy |",
+            f"| MTA-STS | {status(mta_ok)} | SMTP TLS downgrade attacks possible |",
+            f"| TLS-RPT | {status(tls_ok)} | No visibility into SMTP TLS failures |",
+            f"| BIMI | {status(bimi_ok)} | Brand logo not shown in email clients |",
+            f"| DNSSEC | {status(dnssec_ok)} | DNS cache poisoning possible |",
+            f"| CAA records | {status(caa_ok)} | Any CA can issue certificates |",
+            f"| security.txt | {status(sec_ok)} | No responsible disclosure channel |",
+            f"| SMTP banner verified | {status(smtp_ok)} | MX provider identity unconfirmed |",
+        ]
+        return "\n".join(lines)
+
     def render(self, fmt: str = "json", brand: "BrandConfig" = None) -> str:
         if fmt == "json":     return json.dumps(self.to_dict(), indent=2, default=str)
         if fmt == "markdown": return self.to_markdown(brand=brand)
@@ -1066,6 +1575,13 @@ class InsurerRenderer(BaseRenderer):
         score_colour = RISK_BAND_COLOUR.get(self.cs["risk_band"], "#666")
         exp = self._exposure_summary()
 
+        # Prepend cert expiry and subdomain risk findings
+        extra_findings = self._cert_expiry_findings()
+        all_findings_combined = extra_findings + self.findings
+        # Temporarily override for this render
+        original_findings = self.findings
+        self.findings = all_findings_combined
+
         key_finding_html = ""
         if self._key_finding():
             key_finding_html = f"""
@@ -1129,11 +1645,12 @@ class InsurerRenderer(BaseRenderer):
             ],
         )
 
-        # FIX 1: body is defined ONCE here, then appended to below
+        # body is defined ONCE here, then appended to below
         body = f"""
         {key_finding_html}
         <h2>Risk overview</h2>
         {grid}
+        {self._corpus_intelligence_html(brand)}
         {executive_html}
         {insurer_html}
         {narrative_html}
@@ -1144,6 +1661,7 @@ class InsurerRenderer(BaseRenderer):
         {table}
         {remediation_html}
         {saas_html}
+        {self._alerting_cta_html(brand)}
         {self._infrastructure_routing_html()}
         {self._risk_breakdown_html()}
         {self._technographics_html()}
@@ -1153,6 +1671,9 @@ class InsurerRenderer(BaseRenderer):
         body += self._rdap_html()
         body += self._cert_analysis_html()
         body += self._subdomains_html()
+
+        # Restore original findings after rendering
+        self.findings = original_findings
 
         return self._html_shell_branded(brand=brand, report_type="Cyber Risk Underwriting Report", body=body)
 
@@ -1221,6 +1742,15 @@ class ConsultantRenderer(BaseRenderer):
             f"| BIMI | {self.ea['bimi']} | — |",
             "", "## Findings", "",
         ]
+        lines += ["", self._security_checklist_md(), ""]
+
+        # Add the narrative sections that are generated but not appearing
+        if self._threat_narrative():
+            lines += ["## Threat analysis", "", self._threat_narrative(), ""]
+        if self._positive_signals():
+            lines += ["## Positive signals", "", self._positive_signals(), ""]
+        if self._remediation_priority():
+            lines += ["## Remediation priorities", "", self._remediation_priority(), ""]
         for f in self._sorted_findings():
             lines += [
                 f"### [{f['severity'].upper()}] {f['title']}", "",
@@ -1239,83 +1769,192 @@ class ConsultantRenderer(BaseRenderer):
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
+
+        # --- Prepend cert expiry + subdomain risk findings ---
+        extra_findings = self._cert_expiry_findings()
+        original_findings = self.findings
+        self.findings = extra_findings + self.findings
+
+        # --- Email auth layers table ---
         auth_rows = ""
         for layer, status, detail in [
-            ("SPF",     self.ea["spf"] or "MISSING",
-             "Hard fail (-all)" if self.ea["spf"] == "-all" else "Soft fail (~all)" if self.ea["spf"] == "~all" else "Not configured"),
-            ("DMARC",   ("p=" + self.ea["dmarc_policy"]) if self.ea["dmarc_policy"] else "MISSING",
-             f"pct={self.ea['dmarc_pct']} · aspf={self.ea.get('aspf','?')} · adkim={self.ea.get('adkim','?')}"),
+            ("SPF",
+            self.ea["spf"] or "MISSING",
+            "Hard fail (-all)" if self.ea["spf"] == "-all"
+            else "Soft fail (~all)" if self.ea["spf"] == "~all"
+            else "Not configured"),
+            ("DMARC",
+            ("p=" + self.ea["dmarc_policy"]) if self.ea["dmarc_policy"] else "MISSING",
+            f"pct={self.ea['dmarc_pct']} · aspf={self.ea.get('aspf','?')} · adkim={self.ea.get('adkim','?')}"),
             ("MTA-STS", self.ea["mta_sts"],  "Inbound TLS enforcement"),
             ("TLS-RPT", self.ea["tls_rpt"],  "SMTP delivery failure reporting"),
             ("BIMI",    self.ea["bimi"],      "Brand logo in email clients"),
-            ("CAA",     "Present" if not any(f.get("finding") == "no_caa" for f in self.findings) else "MISSING",
-             "Certificate authority restriction"),
+            ("CAA",
+            "Present" if not any(f.get("finding") == "no_caa" for f in self.findings)
+            else "MISSING",
+            "Certificate authority restriction"),
         ]:
             ok = status not in ("MISSING", "NXDOMAIN", "NOT_FOUND")
             colour = "#3B6D11" if ok else "#A32D2D"
             auth_rows += (
                 f"<tr><td style='padding:6px 10px;font-size:12px'>{layer}</td>"
-                f"<td style='padding:6px 10px'><code style='color:{colour};font-size:11px'>{status}</code></td>"
+                f"<td style='padding:6px 10px'>"
+                f"<code style='color:{colour};font-size:11px'>{status}</code></td>"
                 f"<td style='padding:6px 10px;font-size:12px;color:#666'>{detail}</td></tr>"
             )
 
+        # --- All findings blocks ---
         findings_html = ""
         for f in self._sorted_findings():
-            c = RISK_COLOURS.get(f.get("severity","info"), RISK_COLOURS["info"])
+            c = RISK_COLOURS.get(f.get("severity", "info"), RISK_COLOURS["info"])
             findings_html += (
-                f'<div style="border:1px solid {c["border"]};border-left:3px solid {c["border"]};'
-                f'border-radius:0 6px 6px 0;padding:12px 16px;margin:8px 0;background:{c["bg"]}">'
-                f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
-                f'<strong style="font-size:13px;color:{c["text"]}">{f.get("title","Finding")}</strong>'
+                f'<div style="border:1px solid {c["border"]};'
+                f'border-left:3px solid {c["border"]};'
+                f'border-radius:0 6px 6px 0;padding:12px 16px;'
+                f'margin:8px 0;background:{c["bg"]}">'
+                f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:flex-start;margin-bottom:6px">'
+                f'<strong style="font-size:13px;color:{c["text"]}">'
+                f'{f.get("title","Finding")}</strong>'
                 f'{_badge(f.get("severity","info"))}</div>'
-                f'<div style="font-size:12px;color:#333;margin-bottom:6px;line-height:1.6">{f.get("detail","")}</div>'
-                f'<code style="font-size:11px;background:rgba(0,0,0,.05);padding:2px 6px;border-radius:3px;display:block;margin:4px 0">'
+                f'<div style="font-size:12px;color:#333;margin-bottom:6px;line-height:1.6">'
+                f'{f.get("detail","")}</div>'
+                f'<code style="font-size:11px;background:rgba(0,0,0,.05);'
+                f'padding:2px 6px;border-radius:3px;display:block;margin:4px 0">'
                 f'{f.get("evidence","")[:100]}</code>'
                 f'<div style="font-size:11px;color:#555;margin-top:6px;font-style:italic">'
-                f'Fix: {(self._remediation_detail(f) or "")[:120]}</div></div>'
+                f'Fix: {(self._remediation_detail(f) or "")[:120]}</div>'
+                f'</div>'
             )
 
+        # --- Score ring + summary cards ---
         grid_cards = f"""
-          <div class="card"><div class="num" style="color:{RISK_COLOURS['critical']['border']}">{len([f for f in self.findings if f.get('severity')=='critical'])}</div><div class="lbl">Critical findings</div></div>
-          <div class="card"><div class="num" style="color:{RISK_COLOURS['high']['border']}">{len([f for f in self.findings if f.get('severity')=='high'])}</div><div class="lbl">High findings</div></div>
-          <div class="card"><div class="num" style="font-size:14px;line-height:1.2;margin-top:8px">{self.cs['primary_driver']}</div><div class="lbl">Primary driver</div></div>
+        <div class="card">
+            <div class="num" style="color:{RISK_COLOURS['critical']['border']}">
+            {len([f for f in self.findings if f.get('severity')=='critical'])}
+            </div>
+            <div class="lbl">Critical findings</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{RISK_COLOURS['high']['border']}">
+            {len([f for f in self.findings if f.get('severity')=='high'])}
+            </div>
+            <div class="lbl">High findings</div>
+        </div>
+        <div class="card">
+            <div class="num" style="font-size:14px;line-height:1.2;margin-top:8px">
+            {self.cs['primary_driver']}
+            </div>
+            <div class="lbl">Primary driver</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if self.ea['is_spoofable'] else '#3B6D11'}">
+            {'YES' if self.ea['is_spoofable'] else 'No'}
+            </div>
+            <div class="lbl">Spoofable</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if not self.flags.get('has_caa') else '#3B6D11'}">
+            {'None' if not self.flags.get('has_caa') else 'Present'}
+            </div>
+            <div class="lbl">CAA records</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if self.cert_analysis.get('summary',{}).get('missed_renewals',0) > 0 else '#3B6D11'}">
+            {self.cert_analysis.get('summary',{}).get('missed_renewals',0)}
+            </div>
+            <div class="lbl">Missed renewals</div>
+        </div>
         """
         body = self._html_score_ring_layout(grid_cards)
 
+        # --- Key finding banner ---
         if self._key_finding():
-            body += f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>'
-        if self._executive_summary():
-            body += f'<h2>Executive summary</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._executive_summary()}</p>'
-        if self._threat_narrative():
-            body += f'<h2>Threat analysis</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._threat_narrative()}</p>'
-        if self._positive_signals():
-            body += f'<div style="background:#EAF3DE;border-left:3px solid #3B6D11;padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6"><strong>Positive signals:</strong> {self._positive_signals()}</div>'
+            body += f"""
+            <div style="background:#FAEEDA;border-left:4px solid #854F0B;
+                        padding:12px 16px;border-radius:0 8px 8px 0;
+                        font-size:14px;font-weight:500;color:#412402;
+                        margin-bottom:20px;line-height:1.5">
+            {self._key_finding()}
+            </div>"""
 
+        # --- Corpus intelligence ---
+        body += self._corpus_intelligence_html(brand)
+
+        # --- Executive summary ---
+        if self._executive_summary():
+            body += f"""
+            <h2>Executive summary</h2>
+            <p style="font-size:13px;line-height:1.8;color:#333">
+            {self._executive_summary()}
+            </p>"""
+
+        # --- Threat analysis ---
+        if self._threat_narrative():
+            body += f"""
+            <h2>Threat analysis</h2>
+            <p style="font-size:13px;line-height:1.8;color:#333">
+            {self._threat_narrative()}
+            </p>"""
+
+        # --- Positive signals ---
+        if self._positive_signals():
+            body += f"""
+            <div style="background:#EAF3DE;border-left:3px solid #3B6D11;
+                        padding:12px 16px;border-radius:0 8px 8px 0;
+                        font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6">
+            <strong>Positive signals:</strong> {self._positive_signals()}
+            </div>"""
+
+        # --- Email authentication layers ---
         body += f"""
         <h2>Email authentication layers</h2>
-        <table style="width:100%;border-collapse:collapse;background:#fafafa;border-radius:8px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;background:#fafafa;
+                    border-radius:8px;overflow:hidden">
         <thead><tr style="background:#f0f0f0">
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Layer</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Status</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Detail</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em">Layer</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em">Status</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em">Detail</th>
         </tr></thead>
         <tbody>{auth_rows}</tbody>
         </table>"""
 
+        # --- Remediation priorities ---
         if self._remediation_priority():
-            body += f'<h2>Remediation priorities</h2><div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;font-size:13px;line-height:1.9;color:#333;white-space:pre-line">{self._remediation_priority()}</div>'
+            body += f"""
+            <h2>Remediation priorities</h2>
+            <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
+                        font-size:13px;line-height:1.9;color:#333;white-space:pre-line">
+            {self._remediation_priority()}
+            </div>"""
 
+        # --- All findings ---
         body += f"<h2>All findings</h2>{findings_html}"
 
+        # --- SaaS stack analysis ---
         if self._saas_stack_analysis():
-            body += f'<h2>SaaS stack analysis</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._saas_stack_analysis()}</p>'
+            body += f"""
+            <h2>SaaS stack analysis</h2>
+            <p style="font-size:13px;line-height:1.8;color:#333">
+            {self._saas_stack_analysis()}
+            </p>"""
 
+        # --- Alerting CTA ---
+        body += self._alerting_cta_html(brand)
+
+        # --- Supporting sections ---
         body += self._infrastructure_routing_html()
         body += self._risk_breakdown_html()
         body += self._technographics_html()
         body += self._rdap_html()
         body += self._cert_analysis_html()
         body += self._subdomains_html()
+
+        # --- Restore original findings ---
+        self.findings = original_findings
 
         return self._html_shell_branded(brand, "Technical Security Assessment", body)
 
@@ -1434,79 +2073,168 @@ class ITRenderer(BaseRenderer):
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
-        brand = brand or BrandConfig.default()
-        counts = {sev: sum(1 for f in self.findings if f.get("severity") == sev) for sev in ["critical","high","medium","info"]}
+    brand = brand or BrandConfig.default()
 
-        key_finding_html = ""
-        if self._key_finding():
-            key_finding_html = f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;font-weight:500;color:#412402;margin-bottom:20px;line-height:1.5">{self._key_finding()}</div>'
+    # --- Prepend cert expiry + subdomain risk findings ---
+    extra_findings = self._cert_expiry_findings()
+    original_findings = self.findings
+    self.findings = extra_findings + self.findings
 
-        grid_cards = f"""
-          <div class="card" style="border-left:3px solid #A32D2D"><div class="num" style="color:#A32D2D">{counts['critical']}</div><div class="lbl">Fix immediately</div></div>
-          <div class="card" style="border-left:3px solid #854F0B"><div class="num" style="color:#854F0B">{counts['high']}</div><div class="lbl">Fix this sprint</div></div>
-          <div class="card" style="border-left:3px solid #185FA5"><div class="num" style="color:#185FA5">{counts['medium']}</div><div class="lbl">Fix this quarter</div></div>
-          <div class="card"><div class="num">{counts['info']}</div><div class="lbl">Backlog</div></div>
-        """
-        grid = self._html_score_ring_layout(grid_cards)
+    # --- Counts after merging extra findings ---
+    counts = {
+        sev: sum(1 for f in self.findings if f.get("severity") == sev)
+        for sev in ["critical", "high", "medium", "info"]
+    }
 
-        rows = ""
-        for f in self._sorted_findings():
-            label, colour = self.PRIORITY.get(f.get("severity", "info"), ("Review", "#666"))
-            rows += (
-                f"<tr>"
-                f"<td style='padding:8px 10px;white-space:nowrap'><span style='color:{colour};font-weight:600;font-size:11px;text-transform:uppercase'>{label}</span></td>"
-                f"<td style='padding:8px 10px;font-size:12px'><strong>{f.get('title','')}</strong>"
-                f"<div style='color:#666;font-size:11px;margin-top:2px'>{f.get('detail','')[:100]}</div></td>"
-                f"<td style='padding:8px 10px;font-size:12px;color:#555;white-space:nowrap'>{self._owner(f)}</td>"
-                f"<td style='padding:8px 10px;font-size:12px'>{self._action(f)[:100]}</td>"
-                f"<td style='padding:8px 10px;font-family:monospace;font-size:11px;color:#666;max-width:180px;word-break:break-all'>{f.get('evidence','')[:60]}</td>"
-                f"</tr>"
-            )
+    # --- Key finding banner ---
+    key_finding_html = ""
+    if self._key_finding():
+        key_finding_html = f"""
+        <div style="background:#FAEEDA;border-left:4px solid #854F0B;
+                    padding:12px 16px;border-radius:0 8px 8px 0;
+                    font-size:14px;font-weight:500;color:#412402;
+                    margin-bottom:20px;line-height:1.5">
+          {self._key_finding()}
+        </div>"""
 
-        action_table = f"""
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr style="background:#f5f5f5">
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap">Priority</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Finding</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Owner</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Action</th>
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em">Evidence</th>
-          </tr></thead>
-          <tbody>{rows}</tbody>
-        </table>"""
+    # --- Score ring + action summary cards ---
+    grid_cards = f"""
+      <div class="card" style="border-left:3px solid #A32D2D">
+        <div class="num" style="color:#A32D2D">{counts['critical']}</div>
+        <div class="lbl">Fix immediately</div>
+      </div>
+      <div class="card" style="border-left:3px solid #854F0B">
+        <div class="num" style="color:#854F0B">{counts['high']}</div>
+        <div class="lbl">Fix this sprint</div>
+      </div>
+      <div class="card" style="border-left:3px solid #185FA5">
+        <div class="num" style="color:#185FA5">{counts['medium']}</div>
+        <div class="lbl">Fix this quarter</div>
+      </div>
+      <div class="card">
+        <div class="num">{counts['info']}</div>
+        <div class="lbl">Backlog</div>
+      </div>
+      <div class="card">
+        <div class="num" style="color:{'#A32D2D' if self.cert_analysis.get('summary',{}).get('missed_renewals',0) > 0 else '#3B6D11'}">
+          {self.cert_analysis.get('summary',{}).get('missed_renewals',0)}
+        </div>
+        <div class="lbl">Missed renewals</div>
+      </div>
+      <div class="card">
+        <div class="num" style="color:{'#A32D2D' if not self.flags.get('has_caa') else '#3B6D11'}">
+          {'None' if not self.flags.get('has_caa') else 'Present'}
+        </div>
+        <div class="lbl">CAA records</div>
+      </div>
+    """
+    grid = self._html_score_ring_layout(grid_cards)
 
-        context_html = ""
-        if self._threat_narrative():
-            context_html = f'<h2>Context</h2><p style="font-size:13px;line-height:1.8;color:#333">{self._threat_narrative()}</p>'
+    # --- Action list table ---
+    rows = ""
+    for f in self._sorted_findings():
+        label, colour = self.PRIORITY.get(f.get("severity", "info"), ("Review", "#666"))
+        rows += (
+            f"<tr>"
+            f"<td style='padding:8px 10px;white-space:nowrap'>"
+            f"<span style='color:{colour};font-weight:600;font-size:11px;"
+            f"text-transform:uppercase'>{label}</span></td>"
+            f"<td style='padding:8px 10px;font-size:12px'>"
+            f"<strong>{f.get('title','')}</strong>"
+            f"<div style='color:#666;font-size:11px;margin-top:2px'>"
+            f"{f.get('detail','')[:100]}</div></td>"
+            f"<td style='padding:8px 10px;font-size:12px;color:#555;white-space:nowrap'>"
+            f"{self._owner(f)}</td>"
+            f"<td style='padding:8px 10px;font-size:12px'>"
+            f"{self._action(f)[:100]}</td>"
+            f"<td style='padding:8px 10px;font-family:monospace;font-size:11px;"
+            f"color:#666;max-width:180px;word-break:break-all'>"
+            f"{f.get('evidence','')[:60]}</td>"
+            f"</tr>"
+        )
 
-        remediation_html = ""
-        if self._remediation_priority():
-            remediation_html = f'<h2>Remediation priorities</h2><div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;font-size:13px;line-height:1.9;color:#333;white-space:pre-line">{self._remediation_priority()}</div>'
+    action_table = f"""
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#f5f5f5">
+        <th style="padding:8px 10px;text-align:left;font-size:11px;
+                   text-transform:uppercase;letter-spacing:.04em;
+                   white-space:nowrap">Priority</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;
+                   text-transform:uppercase;letter-spacing:.04em">Finding</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;
+                   text-transform:uppercase;letter-spacing:.04em">Owner</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;
+                   text-transform:uppercase;letter-spacing:.04em">Action</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;
+                   text-transform:uppercase;letter-spacing:.04em">Evidence</th>
+      </tr></thead>
+      <tbody>{rows}</tbody>
+    </table>"""
 
-        positive_html = ""
-        if self._positive_signals():
-            positive_html = f'<div style="background:#EAF3DE;border-left:3px solid #3B6D11;padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6"><strong>What is configured correctly:</strong> {self._positive_signals()}</div>'
+    # --- Context / threat narrative ---
+    context_html = ""
+    if self._threat_narrative():
+        context_html = f"""
+        <h2>Context</h2>
+        <p style="font-size:13px;line-height:1.8;color:#333">
+          {self._threat_narrative()}
+        </p>"""
 
-        # FIX 3: body defined once, then appended to
-        body = f"""
-        {key_finding_html}
-        <h2>Action summary</h2>
-        {grid}
-        {context_html}
-        {remediation_html}
-        <h2>Full action list</h2>
-        {action_table}
-        {positive_html}
-        {self._infrastructure_routing_html()}
-        {self._risk_breakdown_html()}
-        {self._technographics_html()}
-        """
+    # --- Remediation priorities ---
+    remediation_html = ""
+    if self._remediation_priority():
+        remediation_html = f"""
+        <h2>Remediation priorities</h2>
+        <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
+                    font-size:13px;line-height:1.9;color:#333;white-space:pre-line">
+          {self._remediation_priority()}
+        </div>"""
 
-        body += self._rdap_html()
-        body += self._cert_analysis_html()
-        body += self._subdomains_html()
+    # --- Positive signals ---
+    positive_html = ""
+    if self._positive_signals():
+        positive_html = f"""
+        <div style="background:#EAF3DE;border-left:3px solid #3B6D11;
+                    padding:12px 16px;border-radius:0 8px 8px 0;
+                    font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6">
+          <strong>What is configured correctly:</strong> {self._positive_signals()}
+        </div>"""
 
-        return self._html_shell_branded(brand, "IT Security Action List", body)
+    # --- Assemble body ---
+    body = f"""
+    {key_finding_html}
+    <h2>Action summary</h2>
+    {grid}
+    """
+
+    # Corpus intelligence — shows co-host risk and blocklist status
+    # directly relevant to IT teams making infrastructure decisions
+    body += self._corpus_intelligence_html(brand)
+
+    body += f"""
+    {context_html}
+    {remediation_html}
+    <h2>Full action list</h2>
+    {action_table}
+    {positive_html}
+    """
+
+    # Alerting CTA — positioned after the action list where IT team
+    # is primed to think about continuous monitoring
+    body += self._alerting_cta_html(brand)
+
+    # Supporting detail sections
+    body += self._infrastructure_routing_html()
+    body += self._risk_breakdown_html()
+    body += self._technographics_html()
+    body += self._rdap_html()
+    body += self._cert_analysis_html()
+    body += self._subdomains_html()
+
+    # --- Restore original findings ---
+    self.findings = original_findings
+
+    return self._html_shell_branded(brand, "IT Security Action List", body)
 
 
 # ---------------------------------------------------------------------------
@@ -1613,46 +2341,200 @@ class SalesRenderer(BaseRenderer):
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
-        nums = self.to_dict()["headline_numbers"]
 
-        hook_html = f'<div style="background:#FAEEDA;border-left:4px solid #854F0B;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px;font-size:14px;color:#412402;line-height:1.6">{self._hook()}</div>'
+        # --- Prepend cert expiry + subdomain risk findings ---
+        extra_findings = self._cert_expiry_findings()
+        original_findings = self.findings
+        self.findings = extra_findings + self.findings
 
+        # --- Recalculate nums with merged findings ---
+        nums = {
+            "total_findings": len(self.findings),
+            "critical":       sum(1 for f in self.findings if f.get("severity") == "critical"),
+            "high":           sum(1 for f in self.findings if f.get("severity") == "high"),
+            "spoofable":      self.ea["is_spoofable"],
+            "missing_layers": len(self.ea.get("missing_layers", [])),
+            "saas_count":     self.txt_intel.get("total_identified", 0),
+        }
+
+        # --- Hook banner ---
+        hook_html = f"""
+        <div style="background:#FAEEDA;border-left:4px solid #854F0B;
+                    padding:14px 18px;border-radius:0 8px 8px 0;
+                    margin-bottom:24px;font-size:14px;color:#412402;line-height:1.6">
+        {self._hook()}
+        </div>"""
+
+        # --- Key finding ---
         key_finding_html = ""
         if self._key_finding():
-            key_finding_html = f'<div style="font-size:14px;font-weight:500;color:#111;margin-bottom:20px;line-height:1.5;padding:12px 16px;background:#f9f9f9;border-radius:8px">{self._key_finding()}</div>'
+            key_finding_html = f"""
+            <div style="font-size:14px;font-weight:500;color:#111;
+                        margin-bottom:20px;line-height:1.5;
+                        padding:12px 16px;background:#f9f9f9;border-radius:8px">
+            {self._key_finding()}
+            </div>"""
 
+        # --- Score ring + headline cards ---
         grid_cards = f"""
-          <div class="card"><div class="num">{nums['total_findings']}</div><div class="lbl">Issues found</div></div>
-          <div class="card"><div class="num" style="color:#A32D2D">{nums['critical'] + nums['high']}</div><div class="lbl">Priority issues</div></div>
-          <div class="card"><div class="num" style="color:{'#A32D2D' if nums['spoofable'] else '#3B6D11'}">{'Yes' if nums['spoofable'] else 'No'}</div><div class="lbl">Spoofable now</div></div>
-          <div class="card"><div class="num">{nums['missing_layers']}</div><div class="lbl">Missing auth layers</div></div>
-          <div class="card"><div class="num">{nums['saas_count']}</div><div class="lbl">SaaS platforms</div></div>
+        <div class="card">
+            <div class="num">{nums['total_findings']}</div>
+            <div class="lbl">Issues found</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:#A32D2D">
+            {nums['critical'] + nums['high']}
+            </div>
+            <div class="lbl">Priority issues</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if nums['spoofable'] else '#3B6D11'}">
+            {'Yes' if nums['spoofable'] else 'No'}
+            </div>
+            <div class="lbl">Spoofable now</div>
+        </div>
+        <div class="card">
+            <div class="num">{nums['missing_layers']}</div>
+            <div class="lbl">Missing auth layers</div>
+        </div>
+        <div class="card">
+            <div class="num">{nums['saas_count']}</div>
+            <div class="lbl">SaaS platforms</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if nums['critical'] > 0 else '#854F0B' if nums['high'] > 0 else '#3B6D11'}">
+            {nums['critical'] if nums['critical'] > 0 else nums['high']}
+            </div>
+            <div class="lbl">{'Critical' if nums['critical'] > 0 else 'High'} findings</div>
+        </div>
         """
         grid = self._html_score_ring_layout(grid_cards)
 
-        talking_html = "".join(f'<li style="margin-bottom:10px;line-height:1.6">{p}</li>' for p in self._talking_points())
+        # --- Talking points ---
+        talking_html = "".join(
+            f'<li style="margin-bottom:10px;line-height:1.6">{p}</li>'
+            for p in self._talking_points()
+        )
 
+        # --- Top 5 findings in plain English ---
         top5_html = "".join(
             f'<div style="padding:10px 0;border-bottom:1px solid #f0f0f0">'
-            f'{_badge(f.get("severity","info"))} <strong style="font-size:13px;margin-left:6px">{f.get("title","")}</strong>'
-            f'<div style="font-size:12px;color:#555;margin-top:4px;padding-left:2px">{self._plain_english(f)}</div></div>'
+            f'{_badge(f.get("severity","info"))} '
+            f'<strong style="font-size:13px;margin-left:6px">{f.get("title","")}</strong>'
+            f'<div style="font-size:12px;color:#555;margin-top:4px;padding-left:2px">'
+            f'{self._plain_english(f)}</div></div>'
             for f in self._sorted_findings()[:5]
         )
 
+        # --- Threat narrative / context ---
         narrative_html = ""
         if self._threat_narrative():
-            narrative_html = f'<h2>Context</h2><p style="font-size:13px;line-height:1.8;color:#444">{self._threat_narrative()}</p>'
+            narrative_html = f"""
+            <h2>Context</h2>
+            <p style="font-size:13px;line-height:1.8;color:#444">
+            {self._threat_narrative()}
+            </p>"""
 
+        # --- SaaS stack analysis ---
         saas_analysis_html = ""
         if self._saas_stack_analysis():
-            saas_analysis_html = f'<h2>SaaS stack</h2><p style="font-size:13px;line-height:1.8;color:#444">{self._saas_stack_analysis()}</p>'
+            saas_analysis_html = f"""
+            <h2>SaaS stack analysis</h2>
+            <p style="font-size:13px;line-height:1.8;color:#444">
+            {self._saas_stack_analysis()}
+            </p>"""
 
+        # --- SaaS pills ---
         saas_pills = ""
         for svc in self.txt_intel.get("all_identified", []):
-            is_risky = any(k in svc.lower() for k in ("lastpass","okta","twilio","mailchimp","circleci"))
-            style = "background:#FCEBEB;color:#791F1F" if is_risky else "background:#EEEDFE;color:#3C3489"
-            saas_pills += f'<span style="{style};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;display:inline-block;margin:2px 3px 2px 0">{svc}</span>'
+            is_risky = any(
+                k in svc.lower()
+                for k in ("lastpass","okta","twilio","mailchimp","circleci")
+            )
+            style = (
+                "background:#FCEBEB;color:#791F1F"
+                if is_risky else
+                "background:#EEEDFE;color:#3C3489"
+            )
+            saas_pills += (
+                f'<span style="{style};padding:2px 8px;border-radius:4px;'
+                f'font-size:11px;font-weight:500;display:inline-block;'
+                f'margin:2px 3px 2px 0">{svc}</span>'
+            )
 
+        # --- Corpus intelligence teaser ---
+        # For sales, this is a value demonstration not a deep technical section.
+        # Show the headline numbers only — the full section is for technical audiences.
+        corr = self.o.get("infrastructure_correlation", {})
+        bgp  = self.o.get("bgp_routing", {}) or self.o.get("bgp_intelligence", {})
+        bl   = self.o.get("blocklist_signals", {}) or self.o.get("ip_reputation", {})
+        conc = self.o.get("infrastructure_concentration", {})
+        any_malicious = any(
+            p.get("malicious_count", 0) > 0
+            for p in corr.get("pivot_findings", [])
+        )
+        any_listed = bl.get("any_listed") or bl.get("spamhaus_zen") or bl.get("urlhaus_listed")
+        moas = bgp.get("moas_detected", False)
+
+        corpus_teaser = f"""
+        <h2 style="display:flex;justify-content:space-between;align-items:baseline">
+        <span>Infrastructure intelligence</span>
+        <span style="font-size:11px;font-weight:400;color:#888;
+                    text-transform:none;letter-spacing:0">
+            320M domain corpus · updated hourly
+        </span>
+        </h2>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0">
+        <div style="background:{'#FCEBEB' if any_malicious else '#EAF3DE'};
+                    border-radius:8px;padding:14px;text-align:center">
+            <div style="font-size:22px;font-weight:800;
+                        color:{'#A32D2D' if any_malicious else '#3B6D11'}">
+            {sum(p.get('malicious_count',0) for p in corr.get('pivot_findings',[]))}
+            </div>
+            <div style="font-size:10px;color:#555;margin-top:4px;
+                        text-transform:uppercase;letter-spacing:.05em">
+            Malicious co-hosts
+            </div>
+        </div>
+        <div style="background:{'#FCEBEB' if any_listed else '#EAF3DE'};
+                    border-radius:8px;padding:14px;text-align:center">
+            <div style="font-size:22px;font-weight:800;
+                        color:{'#A32D2D' if any_listed else '#3B6D11'}">
+            {'Listed' if any_listed else 'Clean'}
+            </div>
+            <div style="font-size:10px;color:#555;margin-top:4px;
+                        text-transform:uppercase;letter-spacing:.05em">
+            Blocklist status
+            </div>
+        </div>
+        <div style="background:{'#FCEBEB' if moas else '#EAF3DE'};
+                    border-radius:8px;padding:14px;text-align:center">
+            <div style="font-size:22px;font-weight:800;
+                        color:{'#A32D2D' if moas else '#3B6D11'}">
+            {'MOAS' if moas else 'Clean'}
+            </div>
+            <div style="font-size:10px;color:#555;margin-top:4px;
+                        text-transform:uppercase;letter-spacing:.05em">
+            BGP / routing
+            </div>
+        </div>
+        <div style="background:#f7f8f9;border-radius:8px;padding:14px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#374151">
+            {conc.get('domains_on_ip', '—'):,}
+            </div>
+            <div style="font-size:10px;color:#555;margin-top:4px;
+                        text-transform:uppercase;letter-spacing:.05em">
+            Domains on same IP
+            </div>
+        </div>
+        </div>
+        <div style="font-size:11px;color:#888;line-height:1.6;margin-bottom:8px">
+        Intelligence derived from Datazag's passive corpus of 320M domains, updated
+        hourly across 40+ threat feeds — a level of context not available from any
+        single-domain scanner.
+        </div>"""
+
+        # --- Assemble body ---
         body = f"""
         {hook_html}
         {key_finding_html}
@@ -1663,10 +2545,19 @@ class SalesRenderer(BaseRenderer):
         <h2>Top findings</h2>
         {top5_html}
         {narrative_html}
+        {corpus_teaser}
         {saas_analysis_html}
-        {f'<h2>Identified SaaS platforms ({self.txt_intel.get("total_identified",0)})</h2><div style="margin:10px 0">{saas_pills}</div>' if saas_pills else ''}
+        {f'<h2>Identified SaaS platforms ({self.txt_intel.get("total_identified",0)})</h2>'
+        f'<div style="margin:10px 0">{saas_pills}</div>' if saas_pills else ''}
         {self._infrastructure_routing_html()}
         """
+
+        # CTA is the goal of the entire sales report —
+        # place it last so it's the final thing they read
+        body += self._alerting_cta_html(brand)
+
+        # --- Restore original findings ---
+        self.findings = original_findings
 
         return self._html_shell_branded(brand, "Infrastructure Intelligence Brief", body)
 

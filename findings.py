@@ -852,6 +852,29 @@ def passive_security_findings_v2(record) -> list[dict]:
         })
 
     # -----------------------------------------------------------------------
+    # DNSSEC inconsistency (registrar vs DNS scan)
+    # -----------------------------------------------------------------------   
+    rdap = getattr(record, 'rdap', {}) or {}
+    if rdap.get("dnssec_enabled") and not ea.dnssec_enabled:
+        findings.append({
+            "finding":     "dnssec_inconsistent",
+            "severity":    "medium",
+            "title":       "DNSSEC status inconsistent — registrar says enabled but DNS scan shows otherwise",
+            "evidence":    "rdap.dnssec_enabled=True but dnssec field empty in DNS scan",
+            "detail":      (
+                "The registrar RDAP record reports DNSSEC as enabled but the DNS scan "
+                "could not confirm active DNSSEC signatures. This may indicate an incomplete "
+                "DNSSEC configuration — the DS record may be published at the registrar "
+                "but DNSKEY records are not being served by the authoritative nameservers."
+            ),
+            "remediation": (
+                "Verify DNSSEC is fully configured end-to-end: check that both DS records "
+                "are published at the registrar and DNSKEY records are being served by "
+                "your authoritative nameservers. Use dnssec-debugger.verisignlabs.com to validate."
+            ),
+        })
+
+    # -----------------------------------------------------------------------
     # CAA records
     # -----------------------------------------------------------------------
     if not record.has_caa:
