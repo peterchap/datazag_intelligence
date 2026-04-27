@@ -2468,12 +2468,13 @@ class SalesRenderer(BaseRenderer):
         # --- Corpus intelligence teaser ---
         # For sales, this is a value demonstration not a deep technical section.
         # Show the headline numbers only — the full section is for technical audiences.
+        
+        corr = self.o.get("infrastructure_correlation") or {}
+bgp  = self.o.get("bgp_routing") or self.o.get("bgp_intelligence") or {}
+conc = self.o.get("infrastructure_concentration") or {}
+bl   = self.o.get("blocklist_signals") or self.o.get("ip_reputation") or {}
         domains_on_ip = conc.get('domains_on_ip')
         domains_on_ip_display = f"{domains_on_ip:,}" if isinstance(domains_on_ip, int) else '—'
-        corr = self.o.get("infrastructure_correlation", {})
-        bgp  = self.o.get("bgp_routing", {}) or self.o.get("bgp_intelligence", {})
-        bl   = self.o.get("blocklist_signals", {}) or self.o.get("ip_reputation", {})
-        conc = self.o.get("infrastructure_concentration", {})
         any_malicious = any(
             p.get("malicious_count", 0) > 0
             for p in corr.get("pivot_findings", [])
