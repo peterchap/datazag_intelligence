@@ -2470,9 +2470,9 @@ class SalesRenderer(BaseRenderer):
         # Show the headline numbers only — the full section is for technical audiences.
         
         corr = self.o.get("infrastructure_correlation") or {}
-bgp  = self.o.get("bgp_routing") or self.o.get("bgp_intelligence") or {}
-conc = self.o.get("infrastructure_concentration") or {}
-bl   = self.o.get("blocklist_signals") or self.o.get("ip_reputation") or {}
+        bgp  = self.o.get("bgp_routing") or self.o.get("bgp_intelligence") or {}
+        conc = self.o.get("infrastructure_concentration") or {}
+        bl   = self.o.get("blocklist_signals") or self.o.get("ip_reputation") or {}
         domains_on_ip = conc.get('domains_on_ip')
         domains_on_ip_display = f"{domains_on_ip:,}" if isinstance(domains_on_ip, int) else '—'
         any_malicious = any(
