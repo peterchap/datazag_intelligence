@@ -271,8 +271,25 @@ async def run(
           f"MX: {record.annotation.mx_provider_name or 'none'}")
 
     # 3. Generate passive findings
-    subs_output = output.get("subdomains", {})
-    findings = passive_security_findings_v2(record, subs=subs_output)
+    subs_data = raw.get("subdomains", {})
+    # Build the summary stats passive_security_findings_v2 needs
+    if isinstance(subs_data, list):
+        total = len(subs_data)
+        no_hsts  = [s for s in subs_data if not s.get("hsts")]
+        no_csp   = [s for s in subs_data if not s.get("csp")]
+        ver_disc  = [s for s in subs_data if s.get("server_version")]
+        subs_summary = {
+            "total":                  total,
+            "no_hsts_count":          len(no_hsts),
+            "no_csp_count":           len(no_csp),
+            "version_disclosed_count": len(ver_disc),
+            "no_https_pct":           round(len(no_hsts) / total * 100) if total else 0,
+            "no_csp_pct":             round(len(no_csp)  / total * 100) if total else 0,
+        }
+    else:
+        subs_summary = {}
+
+    findings = passive_security_findings_v2(record, subs=subs_summary)
     
     # 3.5 Dynamic Certstream Threat Hit Injection!
     # Evaluates physical infrastructure against Ducklake Gold BGP tables
