@@ -2073,168 +2073,168 @@ class ITRenderer(BaseRenderer):
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
-    brand = brand or BrandConfig.default()
+        brand = brand or BrandConfig.default()
 
-    # --- Prepend cert expiry + subdomain risk findings ---
-    extra_findings = self._cert_expiry_findings()
-    original_findings = self.findings
-    self.findings = extra_findings + self.findings
+        # --- Prepend cert expiry + subdomain risk findings ---
+        extra_findings = self._cert_expiry_findings()
+        original_findings = self.findings
+        self.findings = extra_findings + self.findings
 
-    # --- Counts after merging extra findings ---
-    counts = {
-        sev: sum(1 for f in self.findings if f.get("severity") == sev)
-        for sev in ["critical", "high", "medium", "info"]
-    }
+        # --- Counts after merging extra findings ---
+        counts = {
+            sev: sum(1 for f in self.findings if f.get("severity") == sev)
+            for sev in ["critical", "high", "medium", "info"]
+        }
 
-    # --- Key finding banner ---
-    key_finding_html = ""
-    if self._key_finding():
-        key_finding_html = f"""
-        <div style="background:#FAEEDA;border-left:4px solid #854F0B;
-                    padding:12px 16px;border-radius:0 8px 8px 0;
-                    font-size:14px;font-weight:500;color:#412402;
-                    margin-bottom:20px;line-height:1.5">
-          {self._key_finding()}
-        </div>"""
+        # --- Key finding banner ---
+        key_finding_html = ""
+        if self._key_finding():
+            key_finding_html = f"""
+            <div style="background:#FAEEDA;border-left:4px solid #854F0B;
+                        padding:12px 16px;border-radius:0 8px 8px 0;
+                        font-size:14px;font-weight:500;color:#412402;
+                        margin-bottom:20px;line-height:1.5">
+            {self._key_finding()}
+            </div>"""
 
-    # --- Score ring + action summary cards ---
-    grid_cards = f"""
-      <div class="card" style="border-left:3px solid #A32D2D">
-        <div class="num" style="color:#A32D2D">{counts['critical']}</div>
-        <div class="lbl">Fix immediately</div>
-      </div>
-      <div class="card" style="border-left:3px solid #854F0B">
-        <div class="num" style="color:#854F0B">{counts['high']}</div>
-        <div class="lbl">Fix this sprint</div>
-      </div>
-      <div class="card" style="border-left:3px solid #185FA5">
-        <div class="num" style="color:#185FA5">{counts['medium']}</div>
-        <div class="lbl">Fix this quarter</div>
-      </div>
-      <div class="card">
-        <div class="num">{counts['info']}</div>
-        <div class="lbl">Backlog</div>
-      </div>
-      <div class="card">
-        <div class="num" style="color:{'#A32D2D' if self.cert_analysis.get('summary',{}).get('missed_renewals',0) > 0 else '#3B6D11'}">
-          {self.cert_analysis.get('summary',{}).get('missed_renewals',0)}
+        # --- Score ring + action summary cards ---
+        grid_cards = f"""
+        <div class="card" style="border-left:3px solid #A32D2D">
+            <div class="num" style="color:#A32D2D">{counts['critical']}</div>
+            <div class="lbl">Fix immediately</div>
         </div>
-        <div class="lbl">Missed renewals</div>
-      </div>
-      <div class="card">
-        <div class="num" style="color:{'#A32D2D' if not self.flags.get('has_caa') else '#3B6D11'}">
-          {'None' if not self.flags.get('has_caa') else 'Present'}
+        <div class="card" style="border-left:3px solid #854F0B">
+            <div class="num" style="color:#854F0B">{counts['high']}</div>
+            <div class="lbl">Fix this sprint</div>
         </div>
-        <div class="lbl">CAA records</div>
-      </div>
-    """
-    grid = self._html_score_ring_layout(grid_cards)
+        <div class="card" style="border-left:3px solid #185FA5">
+            <div class="num" style="color:#185FA5">{counts['medium']}</div>
+            <div class="lbl">Fix this quarter</div>
+        </div>
+        <div class="card">
+            <div class="num">{counts['info']}</div>
+            <div class="lbl">Backlog</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if self.cert_analysis.get('summary',{}).get('missed_renewals',0) > 0 else '#3B6D11'}">
+            {self.cert_analysis.get('summary',{}).get('missed_renewals',0)}
+            </div>
+            <div class="lbl">Missed renewals</div>
+        </div>
+        <div class="card">
+            <div class="num" style="color:{'#A32D2D' if not self.flags.get('has_caa') else '#3B6D11'}">
+            {'None' if not self.flags.get('has_caa') else 'Present'}
+            </div>
+            <div class="lbl">CAA records</div>
+        </div>
+        """
+        grid = self._html_score_ring_layout(grid_cards)
 
-    # --- Action list table ---
-    rows = ""
-    for f in self._sorted_findings():
-        label, colour = self.PRIORITY.get(f.get("severity", "info"), ("Review", "#666"))
-        rows += (
-            f"<tr>"
-            f"<td style='padding:8px 10px;white-space:nowrap'>"
-            f"<span style='color:{colour};font-weight:600;font-size:11px;"
-            f"text-transform:uppercase'>{label}</span></td>"
-            f"<td style='padding:8px 10px;font-size:12px'>"
-            f"<strong>{f.get('title','')}</strong>"
-            f"<div style='color:#666;font-size:11px;margin-top:2px'>"
-            f"{f.get('detail','')[:100]}</div></td>"
-            f"<td style='padding:8px 10px;font-size:12px;color:#555;white-space:nowrap'>"
-            f"{self._owner(f)}</td>"
-            f"<td style='padding:8px 10px;font-size:12px'>"
-            f"{self._action(f)[:100]}</td>"
-            f"<td style='padding:8px 10px;font-family:monospace;font-size:11px;"
-            f"color:#666;max-width:180px;word-break:break-all'>"
-            f"{f.get('evidence','')[:60]}</td>"
-            f"</tr>"
-        )
+        # --- Action list table ---
+        rows = ""
+        for f in self._sorted_findings():
+            label, colour = self.PRIORITY.get(f.get("severity", "info"), ("Review", "#666"))
+            rows += (
+                f"<tr>"
+                f"<td style='padding:8px 10px;white-space:nowrap'>"
+                f"<span style='color:{colour};font-weight:600;font-size:11px;"
+                f"text-transform:uppercase'>{label}</span></td>"
+                f"<td style='padding:8px 10px;font-size:12px'>"
+                f"<strong>{f.get('title','')}</strong>"
+                f"<div style='color:#666;font-size:11px;margin-top:2px'>"
+                f"{f.get('detail','')[:100]}</div></td>"
+                f"<td style='padding:8px 10px;font-size:12px;color:#555;white-space:nowrap'>"
+                f"{self._owner(f)}</td>"
+                f"<td style='padding:8px 10px;font-size:12px'>"
+                f"{self._action(f)[:100]}</td>"
+                f"<td style='padding:8px 10px;font-family:monospace;font-size:11px;"
+                f"color:#666;max-width:180px;word-break:break-all'>"
+                f"{f.get('evidence','')[:60]}</td>"
+                f"</tr>"
+            )
 
-    action_table = f"""
-    <table style="width:100%;border-collapse:collapse">
-      <thead><tr style="background:#f5f5f5">
-        <th style="padding:8px 10px;text-align:left;font-size:11px;
-                   text-transform:uppercase;letter-spacing:.04em;
-                   white-space:nowrap">Priority</th>
-        <th style="padding:8px 10px;text-align:left;font-size:11px;
-                   text-transform:uppercase;letter-spacing:.04em">Finding</th>
-        <th style="padding:8px 10px;text-align:left;font-size:11px;
-                   text-transform:uppercase;letter-spacing:.04em">Owner</th>
-        <th style="padding:8px 10px;text-align:left;font-size:11px;
-                   text-transform:uppercase;letter-spacing:.04em">Action</th>
-        <th style="padding:8px 10px;text-align:left;font-size:11px;
-                   text-transform:uppercase;letter-spacing:.04em">Evidence</th>
-      </tr></thead>
-      <tbody>{rows}</tbody>
-    </table>"""
+        action_table = f"""
+        <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f5f5f5">
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em;
+                    white-space:nowrap">Priority</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em">Finding</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em">Owner</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em">Action</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;
+                    text-transform:uppercase;letter-spacing:.04em">Evidence</th>
+        </tr></thead>
+        <tbody>{rows}</tbody>
+        </table>"""
 
-    # --- Context / threat narrative ---
-    context_html = ""
-    if self._threat_narrative():
-        context_html = f"""
-        <h2>Context</h2>
-        <p style="font-size:13px;line-height:1.8;color:#333">
-          {self._threat_narrative()}
-        </p>"""
+        # --- Context / threat narrative ---
+        context_html = ""
+        if self._threat_narrative():
+            context_html = f"""
+            <h2>Context</h2>
+            <p style="font-size:13px;line-height:1.8;color:#333">
+            {self._threat_narrative()}
+            </p>"""
 
-    # --- Remediation priorities ---
-    remediation_html = ""
-    if self._remediation_priority():
-        remediation_html = f"""
-        <h2>Remediation priorities</h2>
-        <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
-                    font-size:13px;line-height:1.9;color:#333;white-space:pre-line">
-          {self._remediation_priority()}
-        </div>"""
+        # --- Remediation priorities ---
+        remediation_html = ""
+        if self._remediation_priority():
+            remediation_html = f"""
+            <h2>Remediation priorities</h2>
+            <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;
+                        font-size:13px;line-height:1.9;color:#333;white-space:pre-line">
+            {self._remediation_priority()}
+            </div>"""
 
-    # --- Positive signals ---
-    positive_html = ""
-    if self._positive_signals():
-        positive_html = f"""
-        <div style="background:#EAF3DE;border-left:3px solid #3B6D11;
-                    padding:12px 16px;border-radius:0 8px 8px 0;
-                    font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6">
-          <strong>What is configured correctly:</strong> {self._positive_signals()}
-        </div>"""
+        # --- Positive signals ---
+        positive_html = ""
+        if self._positive_signals():
+            positive_html = f"""
+            <div style="background:#EAF3DE;border-left:3px solid #3B6D11;
+                        padding:12px 16px;border-radius:0 8px 8px 0;
+                        font-size:13px;color:#1a3d0f;margin:16px 0;line-height:1.6">
+            <strong>What is configured correctly:</strong> {self._positive_signals()}
+            </div>"""
 
-    # --- Assemble body ---
-    body = f"""
-    {key_finding_html}
-    <h2>Action summary</h2>
-    {grid}
-    """
+        # --- Assemble body ---
+        body = f"""
+        {key_finding_html}
+        <h2>Action summary</h2>
+        {grid}
+        """
 
-    # Corpus intelligence — shows co-host risk and blocklist status
-    # directly relevant to IT teams making infrastructure decisions
-    body += self._corpus_intelligence_html(brand)
+        # Corpus intelligence — shows co-host risk and blocklist status
+        # directly relevant to IT teams making infrastructure decisions
+        body += self._corpus_intelligence_html(brand)
 
-    body += f"""
-    {context_html}
-    {remediation_html}
-    <h2>Full action list</h2>
-    {action_table}
-    {positive_html}
-    """
+        body += f"""
+        {context_html}
+        {remediation_html}
+        <h2>Full action list</h2>
+        {action_table}
+        {positive_html}
+        """
 
-    # Alerting CTA — positioned after the action list where IT team
-    # is primed to think about continuous monitoring
-    body += self._alerting_cta_html(brand)
+        # Alerting CTA — positioned after the action list where IT team
+        # is primed to think about continuous monitoring
+        body += self._alerting_cta_html(brand)
 
-    # Supporting detail sections
-    body += self._infrastructure_routing_html()
-    body += self._risk_breakdown_html()
-    body += self._technographics_html()
-    body += self._rdap_html()
-    body += self._cert_analysis_html()
-    body += self._subdomains_html()
+        # Supporting detail sections
+        body += self._infrastructure_routing_html()
+        body += self._risk_breakdown_html()
+        body += self._technographics_html()
+        body += self._rdap_html()
+        body += self._cert_analysis_html()
+        body += self._subdomains_html()
 
-    # --- Restore original findings ---
-    self.findings = original_findings
+        # --- Restore original findings ---
+        self.findings = original_findings
 
-    return self._html_shell_branded(brand, "IT Security Action List", body)
+        return self._html_shell_branded(brand, "IT Security Action List", body)
 
 
 # ---------------------------------------------------------------------------
