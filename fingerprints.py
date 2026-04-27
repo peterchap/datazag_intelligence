@@ -29,6 +29,8 @@ TXT_FINGERPRINTS = [
     (r"linkedin-site-verification=",          "LinkedIn",                         "saas"),
     (r"mailchimp-verification=",              "Mailchimp",                        "email"),
     (r"^dnt-tracking=",                       "DNT-Tracking",                     "saas"),
+    (r"servers\.mcsv\.net",  "Mailchimp",  "email_marketing"),
+(r"mcsv\.net",           "Mailchimp",  "email_marketing"),
 
     # Payment / Legal
     (r"stripe-verification=",                 "Stripe",                           "payment"),
@@ -121,4 +123,6 @@ TXT_ANOMALY_PATTERNS = [
      "Contains unusual characters — possible leaked secret or stale record"),
     (r"(?:password|passwd|secret|token|key|api_key|apikey|credential)",
      "Contains sensitive keyword — potential credential exposure"),
+    (r"^[0-9a-f]{40,}$",
+     "Bare hex token — unidentified verification record or stale credential"),
 ]

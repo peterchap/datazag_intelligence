@@ -1028,6 +1028,9 @@ class BaseRenderer:
         if not summary:
             return extra
 
+        # Don't duplicate the main cert expiry finding from passive_security_findings_v2
+    existing_keys = {f.get("finding", "") for f in self.findings}
+
         missed  = self.cert_analysis.get("missed_renewals", [])
         expired = self.cert_analysis.get("expired", [])
 
@@ -1067,18 +1070,18 @@ class BaseRenderer:
             })
 
         exp_30 = summary.get("expiring_within_30d", 0)
-        if exp_30 > 0 and not missed:
-            extra.append({
-                "finding":     "certs_expiring_soon",
-                "severity":    "high",
-                "title":       f"{exp_30} certificate{'s' if exp_30>1 else ''} expiring within 30 days",
-                "evidence":    f"expiring_within_30d: {exp_30}",
-                "detail":      (
-                    f"{exp_30} certificate(s) across the subdomain portfolio expire within 30 days. "
-                    f"Verify auto-renewal is configured and working."
-                ),
-                "remediation": "Verify auto-renewal is active. Trigger manual renewal if in doubt.",
-            })
+        if exp_30 > 0 and "cert_expiring_soon" not in existing_keys and not missed:
+        extra.append({
+            "finding":     "certs_expiring_soon",
+            "severity":    "high",
+            "title":       f"{exp_30} certificate{'s' if exp_30>1 else ''} expiring within 30 days",
+            "evidence":    f"expiring_within_30d: {exp_30}",
+            "detail":      (
+                f"{exp_30} certificate(s) across the subdomain portfolio expire within 30 days. "
+                f"Verify auto-renewal is configured and working."
+            ),
+            "remediation": "Verify auto-renewal is active. Trigger manual renewal if in doubt.",
+        })
 
         # VPN/staging subdomains not already in main findings
         existing_findings = {f.get("finding","") for f in self.findings}
@@ -1730,44 +1733,87 @@ class ConsultantRenderer(BaseRenderer):
             return guide.format(domain=self.domain)
         return finding.get("remediation") or ""
 
+    #The findings loop is misplaced — it comes after the narrative sections instead of directly under ## Findings. Here's the corrected order:
+    
     def to_markdown(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
+
+        # Prepend cert expiry + subdomain risk findings
+        extra_findings = self._cert_expiry_findings()
+        original_findings = self.findings
+        self.findings = extra_findings + self.findings
+
         lines = [
             f"# Technical security assessment — {self.domain}",
             f"*{self.o['generated_at']}*", "",
-            f"Score: **{self.cs['score']}/100** ({self.cs['risk_band']}) · Primary driver: {self.cs['primary_driver']}",
-            "", "## Email authentication", "",
-            "| Layer | Status | Detail |", "|-------|--------|--------|",
-            f"| SPF | {self.ea['spf'] or 'MISSING'} | {'Hard fail' if self.ea['spf'] == '-all' else 'Soft fail' if self.ea['spf'] == '~all' else 'Not configured'} |",
-            f"| DMARC | {'p=' + self.ea['dmarc_policy'] if self.ea['dmarc_policy'] else 'MISSING'} | pct={self.ea['dmarc_pct']}, aspf={self.ea.get('aspf','?')}, adkim={self.ea.get('adkim','?')} |",
+            f"Score: **{self.cs['score']}/100** ({self.cs['risk_band']}) · "
+            f"Primary driver: {self.cs['primary_driver']}",
+            "",
+        ]
+
+        # Key finding banner
+        if self._key_finding():
+            lines += [f"> **Key finding:** {self._key_finding()}", ""]
+
+        # Email authentication summary table
+        lines += [
+            "## Email authentication", "",
+            "| Layer | Status | Detail |",
+            "|-------|--------|--------|",
+            f"| SPF | {self.ea['spf'] or 'MISSING'} | "
+            f"{'Hard fail' if self.ea['spf'] == '-all' else 'Soft fail' if self.ea['spf'] == '~all' else 'Not configured'} |",
+            f"| DMARC | {'p=' + self.ea['dmarc_policy'] if self.ea['dmarc_policy'] else 'MISSING'} | "
+            f"pct={self.ea['dmarc_pct']}, aspf={self.ea.get('aspf','?')}, adkim={self.ea.get('adkim','?')} |",
             f"| MTA-STS | {self.ea['mta_sts']} | — |",
             f"| TLS-RPT | {self.ea['tls_rpt']} | — |",
             f"| BIMI | {self.ea['bimi']} | — |",
-            "", "## Findings", "",
+            "",
         ]
-        lines += ["", self._security_checklist_md(), ""]
 
-        # Add the narrative sections that are generated but not appearing
+        # Security layer checklist
+        lines += [self._security_checklist_md(), ""]
+
+        # Narrative sections
+        if self._executive_summary():
+            lines += ["## Executive summary", "", self._executive_summary(), ""]
         if self._threat_narrative():
             lines += ["## Threat analysis", "", self._threat_narrative(), ""]
         if self._positive_signals():
             lines += ["## Positive signals", "", self._positive_signals(), ""]
         if self._remediation_priority():
             lines += ["## Remediation priorities", "", self._remediation_priority(), ""]
+
+        # Findings — directly under heading, deduplicated
+        lines += ["## Findings", ""]
         for f in self._sorted_findings():
             lines += [
-                f"### [{f['severity'].upper()}] {f['title']}", "",
-                str(f.get("detail", "") or ""), "",
-                f"**Evidence:** `{f.get('evidence','n/a')}`", "",
-                f"**Remediation:** {self._remediation_detail(f)}", "",
+                f"### [{f['severity'].upper()}] {f['title']}",
+                "",
+                str(f.get("detail", "") or ""),
+                "",
+                f"**Evidence:** `{f.get('evidence', 'n/a')}`",
+                "",
+                f"**Remediation:** {self._remediation_detail(f)}",
+                "",
             ]
-        if self.score_breakdown:
-            lines += ["## Risk score rule breakdown", "", "| Rule | Points |", "|------|--------|"]
-            for r in self.score_breakdown:
-                sign = f"+{r['points']}" if r["points"] > 0 else str(r["points"])
-                lines.append(f"| {r['rule']} | {sign} |")
-        lines += ["", self._rdap_md(), "", self._cert_analysis_md(), "", self._subdomains_md()]
-        lines += ["", self._risk_breakdown_md(), "", self._technographics_md()]
+
+        if self._saas_stack_analysis():
+            lines += ["## SaaS stack analysis", "", self._saas_stack_analysis(), ""]
+
+        # Supporting detail sections
+        lines += ["", self._rdap_md()]
+        lines += ["", self._cert_analysis_md()]
+        lines += ["", self._subdomains_md()]
+        lines += ["", self._risk_breakdown_md()]
+        lines += ["", self._technographics_md()]
+        lines += ["", self._certs_md()]
+        lines += ["", self._dns_records_md()]
+        lines += ["", self._changes_md()]
+        lines += ["", self._labels_md()]
+
+        # Restore original findings
+        self.findings = original_findings
+
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:

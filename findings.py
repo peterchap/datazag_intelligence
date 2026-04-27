@@ -924,7 +924,21 @@ def passive_security_findings_v2(record, subs: dict = None) -> list[dict]:
     # Certificate findings
     # -----------------------------------------------------------------------
     if c:
-        if c.is_expiring_soon:
+    if c.days_remaining is not None:
+        if c.days_remaining <= 14:
+            findings.append({
+                "finding":     "cert_expiring_soon",
+                "severity":    "critical",
+                "title":       f"HTTPS certificate expires in {c.days_remaining} days — URGENT",
+                "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
+                "detail":      (
+                    f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
+                    f"After expiry, browsers will show a security warning to all visitors "
+                    f"and HTTPS connections will fail. Renewal is overdue."
+                ),
+                "remediation": "Renew immediately — auto-renewal has likely failed. Check certbot/ACME client logs.",
+            })
+        elif c.days_remaining <= 30:
             findings.append({
                 "finding":     "cert_expiring_soon",
                 "severity":    "high",
@@ -936,18 +950,18 @@ def passive_security_findings_v2(record, subs: dict = None) -> list[dict]:
                 ),
                 "remediation": "Trigger certificate renewal immediately. Check auto-renewal is configured.",
             })
-
-        if s.cert and c.issuer_org and s.cert.issuer_org and c.issuer_org != s.cert.issuer_org:
+        elif c.days_remaining <= 60:
             findings.append({
-                "finding":     "mixed_cert_authorities",
-                "severity":    "info",
-                "title":       f"Two CAs in use — {c.issuer_org} (HTTPS) and {s.cert.issuer_org} (SMTP)",
-                "evidence":    f"HTTPS issuer: {c.issuer}, SMTP issuer: {s.cert.issuer}",
+                "finding":     "cert_expiring_warning",
+                "severity":    "medium",
+                "title":       f"HTTPS certificate expires in {c.days_remaining} days — renewal due soon",
+                "evidence":    f"Issuer: {c.issuer_org}, days_remaining: {c.days_remaining}",
                 "detail":      (
-                    "Using different CAs for HTTPS and SMTP increases complexity "
-                    "and means CAA records must list both. Consolidating to one CA simplifies management."
+                    f"Certificate from {c.issuer_org} expires in {c.days_remaining} days. "
+                    f"Let's Encrypt auto-renews at 30 days — verify auto-renewal is configured "
+                    f"and working before this window closes."
                 ),
-                "remediation": f"Add CAA records for both: {c.issuer_org} and {s.cert.issuer_org}.",
+                "remediation": "Verify auto-renewal configuration. Run a dry-run renewal to confirm: certbot renew --dry-run",
             })
 
     # -----------------------------------------------------------------------
@@ -1150,4 +1164,18 @@ def passive_security_findings_v2(record, subs: dict = None) -> list[dict]:
             "remediation": ea.missing_layers[0] if ea.missing_layers else "Review email authentication configuration.",
         })
 
-    return [f for f in findings if f.get("finding")]
+    # Deduplicate — keep the first occurrence of each finding key,
+# preferring ones with actual evidence over n/a
+        seen = {}
+        for f in findings:
+            key = f.get("finding", "")
+            if key not in seen:
+                seen[key] = f
+            else:
+                # Replace with this one if it has better evidence
+                existing = seen[key]
+                if (not existing.get("evidence") or existing.get("evidence") == "n/a") \
+                        and f.get("evidence") and f.get("evidence") != "n/a":
+                    seen[key] = f
+
+        return [f for f in seen.values() if f.get("finding")]
