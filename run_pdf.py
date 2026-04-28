@@ -400,7 +400,7 @@ async def run(
         subs=subs_summary,
         rdap=rdap_data,
         subdomains=subdomains,
-    )
+    ) or[]
 
     # ── Step 3b: NS delegation findings (require resolved subdomain data) ─
     # Derive parent NS provider from raw NS records
