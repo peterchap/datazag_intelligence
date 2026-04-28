@@ -1,12 +1,13 @@
 """
-Entry point. Run against any Datazag DNS JSON file:
-
+run.py — Datazag DNS Intelligence Engine
+-----------------------------------------
+Usage:
     python run.py --dns_file excis.json
-    python run.py --dns_file atlassian.json --audience insurer
+    python run.py --domain normcyber.com --audience insurer
     python run.py --dns_file adaptavist.json --partner "Atlassian Platinum Partner" \
-                                              --threat "Atlassian ransom demand April 2026"
+                                              --threat "Subject of ransom demand"
 
-Outputs JSON + Markdown + HTML for each audience to ./output/<domain>/
+Outputs JSON + Markdown + HTML + PDF for each of 4 audiences to ./output/<domain>/
 """
 
 import argparse
@@ -15,9 +16,11 @@ import duckdb
 import json
 import os
 import re
-from datetime import datetime,timezone
+from datetime import datetime, timezone
 from pathlib import Path
+
 from dotenv import load_dotenv
+load_dotenv()
 
 from adapter import DatazagCanonicalAdapter
 from dnsproject.scripts.dns_generator import compile_pure_dns_report
@@ -30,141 +33,228 @@ from renderers_pdf import render_all
 from playwright.async_api import async_playwright
 from branding import BrandConfig
 
-load_dotenv()
-
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
+
+
+# ---------------------------------------------------------------------------
+# Finding deduplication
+# ---------------------------------------------------------------------------
 
 def _deduplicate_findings(findings: list[dict]) -> list[dict]:
     """
-    Deduplicates findings by key, keeping the entry with the best evidence.
-    Handles the case where passive_security_findings_v2 and the subs_summary
-    path both generate findings for the same issue.
+    Deduplicates by finding key, keeping the entry with the best evidence.
+    Findings without a key (e.g. certstream injection) are preserved as-is.
     """
-    seen = {}
+    seen: dict[str, dict] = {}
+
+    def has_evidence(f: dict) -> bool:
+        ev = f.get("evidence", "")
+        return bool(ev) and ev not in ("n/a", "")
+
     for f in findings:
         key = f.get("finding", "")
         if not key:
             continue
         if key not in seen:
             seen[key] = f
-        else:
-            existing = seen[key]
-            has_evidence = lambda x: x.get("evidence") and x.get("evidence") not in ("n/a", "")
-            if has_evidence(f) and not has_evidence(existing):
-                seen[key] = f
-    # Preserve findings without a key (e.g. certstream injection)
+        elif has_evidence(f) and not has_evidence(seen[key]):
+            seen[key] = f  # replace with better-evidenced version
+
     keyless = [f for f in findings if not f.get("finding")]
     return list(seen.values()) + keyless
 
+
 # ---------------------------------------------------------------------------
-# Ducklake Infrastructure Intelligence Extractor
+# NS delegation findings (post-resolution, uses enriched subdomain data)
+# ---------------------------------------------------------------------------
+
+def _ns_delegation_findings(subdomains: list[dict], primary_ns_provider: str | None) -> list[dict]:
+    """
+    Generates findings from NS delegation signals resolved in dns_generator.
+    Called after passive_security_findings_v2 so findings can be merged/deduped.
+    """
+    findings = []
+    seen_dangling = False
+    seen_external: set[str] = set()
+
+    for sub in subdomains:
+        fqdn = sub.get("dns_name", "")
+        if not fqdn:
+            continue
+
+        ns_risk = sub.get("ns_delegation_risk")
+
+        if ns_risk == "dangling_ns_delegation" and not seen_dangling:
+            seen_dangling = True
+            findings.append({
+                "finding":     "subdomain_ns_takeover",
+                "severity":    "critical",
+                "title":       f"NS delegation takeover risk: {fqdn}",
+                "evidence":    (
+                    f"Delegated to: {', '.join(sub.get('ns_records', []))} "
+                    f"— nameserver does not resolve"
+                ),
+                "detail":      (
+                    f"{fqdn} is delegated to a nameserver that no longer resolves. "
+                    f"An attacker who registers that nameserver's domain gains "
+                    f"complete DNS control over {fqdn} — affecting all record types "
+                    f"including A, MX, and TXT. More dangerous than a CNAME takeover "
+                    f"because it affects the entire subdomain zone."
+                ),
+                "remediation": (
+                    f"Remove the NS delegation for {fqdn} immediately or "
+                    f"re-register the nameserver domain. "
+                    f"Audit all DNS providers for lapsed registrations."
+                ),
+            })
+
+        elif (ns_risk == "high_risk_ns_provider"
+              and fqdn not in seen_external):
+            seen_external.add(fqdn)
+            findings.append({
+                "finding":     "subdomain_high_risk_ns",
+                "severity":    "high",
+                "title":       f"Subdomain delegated to high-risk DNS provider: {fqdn}",
+                "evidence":    f"NS: {', '.join(sub.get('ns_records', []))}",
+                "detail":      (
+                    f"{fqdn} is delegated to a free or historically abuse-prone "
+                    f"DNS provider. These providers are commonly used for malicious "
+                    f"infrastructure and reduce trust for any subdomain delegated to them."
+                ),
+                "remediation": (
+                    "Migrate the delegated zone to an enterprise DNS provider "
+                    "or consolidate under the parent domain's nameservers."
+                ),
+            })
+
+        elif (sub.get("is_delegated")
+              and not sub.get("ns_delegation_same_provider")
+              and ns_risk not in ("dangling_ns_delegation", "high_risk_ns_provider")
+              and fqdn not in seen_external):
+            seen_external.add(fqdn)
+            findings.append({
+                "finding":     "subdomain_external_ns_delegation",
+                "severity":    "medium",
+                "title":       f"Subdomain delegated to different DNS provider: {fqdn}",
+                "evidence":    (
+                    f"Parent NS provider: {primary_ns_provider or '?'}, "
+                    f"Subdomain NS: {', '.join(sub.get('ns_records', []))}"
+                ),
+                "detail":      (
+                    f"{fqdn} is delegated to a different DNS provider than the "
+                    f"parent domain. May indicate a separately managed service, "
+                    f"an acquisition, or shadow IT. Verify the delegation is "
+                    f"intentional and the delegated zone has equivalent controls."
+                ),
+                "remediation": (
+                    "Verify this delegation is authorised. Ensure the delegated "
+                    "zone has DNSSEC, CAA records, and equivalent email auth "
+                    "if it serves MX records."
+                ),
+            })
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# DuckLake — Infrastructure Intelligence
 # ---------------------------------------------------------------------------
 
 def _fetch_infrastructure_intelligence(domain: str) -> dict:
     """
-    Connects to the DuckLake Medallion architecture (via DuckDB) and extracts 
-    the mathematically modeled risk vectors like Fast Flux, Dangling CNAMEs, and MOAS.
-    Supports R2 remote lakes or local fallbacks.
+    Queries the DuckLake Gold layer for domain-level risk vectors
+    (Fast Flux, MOAS, DGA, etc.). Silently degrades on any failure.
     """
-
-    # Identify targets
-    local_path = "/root/asn_data_v3/ducklake/gold/gold_risk_domain_latest.parquet"
+    local_path  = "/root/asn_data_v3/ducklake/gold/gold_risk_domain_latest.parquet"
     target_path = os.environ.get("DUCKLAKE_GOLD_PATH", local_path)
-    
     db = duckdb.connect()
-    
     try:
-        # Check for remote R2 HTTPFS setup
         if target_path.startswith("r2://"):
-            access_key = os.environ.get('R2_ACCESS_KEY', '')
-            secret_key = os.environ.get('R2_SECRET_KEY', '')
-            account_id = os.environ.get('R2_ACCOUNT_ID', '')
-            if access_key and secret_key and account_id:
-                db.execute("INSTALL httpfs; LOAD httpfs;")
-                db.execute(f"""
-                    CREATE OR REPLACE SECRET r2_creds (
-                        TYPE r2,
-                        KEY_ID '{access_key}',
-                        SECRET '{secret_key}',
-                        ACCOUNT_ID '{account_id}'
-                    );
-                """)
-            else:
-                return {} # Remote path but missing credentials, fail gracefully
-                
-        # Fast query across Gold Risk Tables
-        query = f"""
-            SELECT domain_risk_score, domain_risk_context 
-            FROM read_parquet('{target_path}') 
+            access_key = os.environ.get("R2_ACCESS_KEY", "")
+            secret_key = os.environ.get("R2_SECRET_KEY", "")
+            account_id = os.environ.get("R2_ACCOUNT_ID", "")
+            if not (access_key and secret_key and account_id):
+                return {}
+            db.execute("INSTALL httpfs; LOAD httpfs;")
+            db.execute(f"""
+                CREATE OR REPLACE SECRET r2_creds (
+                    TYPE r2, KEY_ID '{access_key}',
+                    SECRET '{secret_key}', ACCOUNT_ID '{account_id}'
+                );
+            """)
+
+        df = db.execute(f"""
+            SELECT domain_risk_score, domain_risk_context
+            FROM read_parquet('{target_path}')
             WHERE domain = '{domain}'
             LIMIT 1
-        """
-        df = db.execute(query).df()
-        if not df.empty:
-            raw_result = df.to_dict(orient="records")[0]
-            # Context is a JSON string containing the reason codes array. 
-            # Safely deserialise it so it can be dumped natively into the JSON payload.
+        """).df()
+
+        if df.empty:
+            return {}
+
+        result = df.to_dict(orient="records")[0]
+        ctx = result.get("domain_risk_context")
+        if isinstance(ctx, str):
             try:
-                if raw_result.get("domain_risk_context"):
-                    if isinstance(raw_result["domain_risk_context"], str):
-                        raw_result["domain_risk_context"] = json.loads(raw_result["domain_risk_context"])
+                result["domain_risk_context"] = json.loads(ctx)
             except Exception:
                 pass
-            return raw_result
+        return result
+
+    except Exception:
         return {}
-    except Exception as e:
-        # Silently degrade if the Gold table hasn't caught up to this domain yet
-        return {}
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
-# Certstream Dynamic Intelligence Array
+# DuckLake — CertStream IP intelligence
 # ---------------------------------------------------------------------------
 
 def _fetch_certstream_ip_intel(raw_json: dict) -> dict:
     """
-    Scans any resolved IP within the physical layer of the target payload,
-    and dynamically checks if it is participating in an active BGP CertStream threat loop.
+    Extracts all IPs from the raw JSON and checks whether they appear in
+    the CertStream threat parquet — indicating malicious certificate activity
+    on co-hosted infrastructure.
     """
-    import re
-    import duckdb
-    
-    # 1. Bruteforce extract all underlying IPs from the parsed Domain JSON
     raw_str = json.dumps(raw_json)
     ips = list(set(re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', raw_str)))
     if not ips:
         return {}
-        
-    certstream_path = "C:/root/asn_data_v3/cache/certstream/certstream.parquet" if os.name == 'nt' else "/root/asn_data_v3/cache/certstream/certstream.parquet"
+
+    certstream_path = "/root/asn_data_v3/cache/certstream/certstream.parquet"
     if not os.path.exists(certstream_path):
         return {}
-        
+
     db = duckdb.connect()
     try:
-        # 2. Vectorized Ducklake Lookup matching any extracted local IP to the global Threat Parquet
-        ip_list_str = "['" + "', '".join(ips) + "']"
-        query = f"""
-            SELECT 
-                SUM(certstream_hits) as total_threat_hits,
-                SUM(a_certstream_hits) as a_hits,
-                SUM(ns_certstream_hits) as ns_hits,
-                SUM(mx_certstream_hits) as mx_hits
+        ip_list = "['" + "', '".join(ips) + "']"
+        df = db.execute(f"""
+            SELECT
+                SUM(certstream_hits)    AS total_threat_hits,
+                SUM(a_certstream_hits)  AS a_hits,
+                SUM(ns_certstream_hits) AS ns_hits,
+                SUM(mx_certstream_hits) AS mx_hits
             FROM read_parquet('{certstream_path}')
-            WHERE ip IN (SELECT * FROM UNNEST({ip_list_str}))
-        """
-        df = db.execute(query).df()
-        if not df.empty and df['total_threat_hits'].iloc[0] is not None:
-            hits = int(df['total_threat_hits'].iloc[0])
+            WHERE ip IN (SELECT * FROM UNNEST({ip_list}))
+        """).df()
+
+        if not df.empty and df["total_threat_hits"].iloc[0] is not None:
+            hits = int(df["total_threat_hits"].iloc[0])
             if hits > 0:
                 return {
                     "certstream_anomalies": hits,
-                    "certstream_a_risk": int(df['a_hits'].iloc[0] or 0),
-                    "certstream_ns_risk": int(df['ns_hits'].iloc[0] or 0),
-                    "certstream_mx_risk": int(df['mx_hits'].iloc[0] or 0)
+                    "certstream_a_risk":   int(df["a_hits"].iloc[0] or 0),
+                    "certstream_ns_risk":  int(df["ns_hits"].iloc[0] or 0),
+                    "certstream_mx_risk":  int(df["mx_hits"].iloc[0] or 0),
                 }
     except Exception:
         pass
+    finally:
+        db.close()
     return {}
+
 
 # ---------------------------------------------------------------------------
 # TXT intelligence extractor
@@ -172,15 +262,15 @@ def _fetch_certstream_ip_intel(raw_json: dict) -> dict:
 
 def _extract_txt_intelligence(record) -> dict:
     """
-    Extracts SaaS stack, identity providers, and anomalies
-    from TXT records using the fingerprint patterns.
+    Identifies SaaS platforms, identity providers, and anomalies
+    from TXT records using the combined fingerprint pattern lists.
     """
     all_patterns = TXT_FINGERPRINTS + ADDITIONAL_TXT_FINGERPRINTS
 
     saas, identity, payment, ai_infra, security, email_mktg = [], [], [], [], [], []
-    anomalies  = []
+    anomalies    = []
     unrecognised = []
-    seen = set()
+    seen: set[str] = set()
 
     category_map = {
         "saas":     saas,
@@ -194,7 +284,15 @@ def _extract_txt_intelligence(record) -> dict:
     ANOMALY_PATTERNS = [
         r"[^a-zA-Z0-9=:_\-. /+@]",
         r"(?:password|passwd|secret|token|key|api_key|credential)",
+        r"^[0-9a-f]{40,}$",  # bare hex token — unidentified verification or stale credential
     ]
+
+    SKIP_PREFIXES = (
+        "v=spf1", "v=dmarc1", "v=mcpv1",
+        "google-site-verification", "ms=",
+        "apple-domain-verification", "_",
+    )
+    ANOMALY_SKIP = ("v=spf1", "v=dmarc1", "google-site-verification", "ms=", "apple-domain")
 
     for txt in record.txt_records:
         matched = False
@@ -202,31 +300,20 @@ def _extract_txt_intelligence(record) -> dict:
             if re.search(pattern, txt, re.IGNORECASE):
                 if service not in seen:
                     seen.add(service)
-                    bucket = category_map.get(category, saas)
-                    bucket.append(service)
+                    category_map.get(category, saas).append(service)
                 matched = True
                 break
 
         if not matched:
-            skip_prefixes = (
-                "v=spf1", "v=dmarc1", "v=mcpv1",
-                "google-site-verification", "ms=",
-                "apple-domain-verification", "_",
-            )
-            if (not any(txt.lower().startswith(p) for p in skip_prefixes)
-                    and len(txt) > 8):
+            if not any(txt.lower().startswith(p) for p in SKIP_PREFIXES) and len(txt) > 8:
                 unrecognised.append(txt[:80])
 
         for pattern in ANOMALY_PATTERNS:
-            skip = ("v=spf1","v=dmarc1","google-site-verification","ms=","apple-domain")
-            if any(txt.lower().startswith(s) for s in skip):
+            if any(txt.lower().startswith(s) for s in ANOMALY_SKIP):
                 break
             if re.search(pattern, txt, re.IGNORECASE):
                 anomalies.append(txt[:80])
                 break
-
-    stripe_count   = sum(1 for t in record.txt_records if t.startswith("stripe-verification="))
-    docusign_count = sum(1 for t in record.txt_records if t.startswith("docusign="))
 
     return {
         "saas_platforms":     saas,
@@ -239,8 +326,8 @@ def _extract_txt_intelligence(record) -> dict:
         "total_identified":   len(seen),
         "anomalous_records":  anomalies,
         "unrecognised":       unrecognised,
-        "stripe_count":       stripe_count,
-        "docusign_count":     docusign_count,
+        "stripe_count":       sum(1 for t in record.txt_records if t.startswith("stripe-verification=")),
+        "docusign_count":     sum(1 for t in record.txt_records if t.startswith("docusign=")),
     }
 
 
@@ -249,121 +336,135 @@ def _extract_txt_intelligence(record) -> dict:
 # ---------------------------------------------------------------------------
 
 async def run(
-    dns_file: str = None,       # existing — load from JSON
-    domain: str = None,         # new — live DNS fetch
-    audience: str = "insurer",
+    dns_file: str       = None,
+    domain: str         = None,
+    audience: str       = "insurer",
     partner_context: str = None,
-    threat_context: str = None,
+    threat_context: str  = None,
     skip_narrative: bool = False,
-    output_dir: Path = None,
-    brand_profile: str = None,
+    output_dir: Path    = None,
+    brand_profile: str  = None,
 ) -> dict:
-    # Validate — must have one or the other
+
     if not dns_file and not domain:
         raise ValueError("Provide either --dns_file or --domain")
-    if dns_file and not domain:
-        # Will be set from raw after load — existing behaviour
-        pass
-    # Load brand config early
+
+    # ── Load brand early ───────────────────────────────────────────────────
     brand = BrandConfig.load(brand_profile)
     print(f"  Brand: {brand.brand_name}")
 
-    # 1. Load raw record
+    # ── Step 1: Load or fetch raw DNS record ──────────────────────────────
     if dns_file:
-        with open(dns_file) as f:
-            raw = json.load(f)
+        with open(dns_file) as fh:
+            raw = json.load(fh)
         domain = raw.get("domain", "unknown")
     else:
-        # Live DNS fetch — calls the full pipeline directly
         print(f"\n  Running live DNS fetch for {domain}...")
         raw = await compile_pure_dns_report(domain)
         raw.setdefault("domain", domain)
 
     print(f"\n  Analysing {domain}...")
 
-    # 2. Parse canonical record
+    # ── Step 2: Parse canonical record ───────────────────────────────────
     adapter = DatazagCanonicalAdapter(raw)
     record  = adapter.parse()
-    print(f"  Parsed — {len(record.txt_records)} TXT records, "
-          f"IPv6: {record.is_dual_stack}, "
-          f"MX: {record.annotation.mx_provider_name or 'none'}")
+    print(
+        f"  Parsed — {len(record.txt_records)} TXT records, "
+        f"IPv6: {record.is_dual_stack}, "
+        f"MX: {record.annotation.mx_provider_name or 'none'}"
+    )
 
-    # 3. Generate passive findings
-    subs_data = raw.get("subdomains", {})
-    rdap_data = raw.get("rdap", {})
-    # Build the summary stats passive_security_findings_v2 needs
-    if isinstance(subs_data, list):
-        total = len(subs_data)
-        no_hsts  = [s for s in subs_data if not s.get("hsts")]
-        no_csp   = [s for s in subs_data if not s.get("csp")]
-        ver_disc  = [s for s in subs_data if s.get("server_version")]
+    # ── Step 3: Build subdomain summary for findings generator ────────────
+    rdap_data    = raw.get("rdap") or {}
+    subdomains   = raw.get("subdomains") or []
+    subs_summary = raw.get("subdomain_summary") or {}
+
+    # Fallback — compute summary from subdomain list if not pre-computed
+    if not subs_summary and isinstance(subdomains, list) and subdomains:
+        total = len(subdomains)
         subs_summary = {
-            "total":                  total,
-            "no_hsts_count":          len(no_hsts),
-            "no_csp_count":           len(no_csp),
-            "version_disclosed_count": len(ver_disc),
-            "no_https_pct":           round(len(no_hsts) / total * 100) if total else 0,
-            "no_csp_pct":             round(len(no_csp)  / total * 100) if total else 0,
+            "total":                   total,
+            "no_hsts_count":           sum(1 for s in subdomains if not s.get("hsts")),
+            "no_csp_count":            sum(1 for s in subdomains if not s.get("csp")),
+            "version_disclosed_count": sum(1 for s in subdomains if s.get("server_version")),
+            "dangling_cname_count":    sum(1 for s in subdomains if s.get("is_dangling_cname")),
+            "malicious_ip_count":      sum(1 for s in subdomains if s.get("is_malicious_ip")),
+            "no_https_pct":            round(sum(1 for s in subdomains if not s.get("hsts")) / total * 100),
+            "no_csp_pct":              round(sum(1 for s in subdomains if not s.get("csp")) / total * 100),
         }
-    else:
-        subs_summary = {}
 
+    # ── Step 3a: Core passive findings ───────────────────────────────────
     findings = passive_security_findings_v2(record, subs=subs_summary, rdap=rdap_data)
-    
-    # 3.5 Dynamic Certstream Threat Hit Injection!
-    # Evaluates physical infrastructure against Ducklake Gold BGP tables
+
+    # ── Step 3b: NS delegation findings (require resolved subdomain data) ─
+    # Derive parent NS provider from raw NS records
+    ns_raw = raw.get("dns_profile", {}).get("records", {}).get("NS", {}).get("raw", [])
+    primary_ns_provider = None
+    if ns_raw:
+        first_ns = str(ns_raw[0]).rstrip(".").lower()
+        primary_ns_provider = ".".join(first_ns.split(".")[-2:])
+
+    if isinstance(subdomains, list):
+        findings.extend(_ns_delegation_findings(subdomains, primary_ns_provider))
+
+    # ── Step 3c: CertStream infrastructure hit injection ─────────────────
     certstream_intel = _fetch_certstream_ip_intel(raw)
     if certstream_intel.get("certstream_anomalies"):
         findings.append({
-            "finding":     "certstream_infra_hit",
-            "severity":    "high",
-            "title":       f"Infrastructure serving {certstream_intel['certstream_anomalies']} malicious certificates in Datazag BGP feed",
-            "evidence":    (
+            "finding":  "certstream_infra_hit",
+            "severity": "high",
+            "title":    (
+                f"Infrastructure serving "
+                f"{certstream_intel['certstream_anomalies']} "
+                f"malicious certificates in Datazag BGP feed"
+            ),
+            "evidence": (
                 f"certstream_hits: {certstream_intel['certstream_anomalies']}, "
-            f"A-record hits: {certstream_intel.get('certstream_a_risk',0)}, "
-            f"NS hits: {certstream_intel.get('certstream_ns_risk',0)}, "
-            f"MX hits: {certstream_intel.get('certstream_mx_risk',0)}"
-        ),
-        "detail":      (
-            f"This domain's infrastructure is co-located with infrastructure currently "
-            f"serving {certstream_intel['certstream_anomalies']} distinct malicious "
-            f"certificates detected in the Datazag Global BGP CertStream feed. "
-            f"This indicates active malicious certificate issuance on shared infrastructure."
-        ),
-        "remediation": (
-            "Investigate co-hosted infrastructure for malicious activity. "
-            "Consider migrating to dedicated infrastructure if confirmed malicious neighbours."
-        ),
-        "category":    "threat_intelligence",
-    })
-    if findings:
-        critical = [f for f in findings if f["severity"] == "critical"]
-        high     = [f for f in findings if f["severity"] == "high"]
-        print(f"  Findings — {len(critical)} critical, {len(high)} high, "
-            f"{len(findings)} total")
+                f"A-hits: {certstream_intel.get('certstream_a_risk', 0)}, "
+                f"NS-hits: {certstream_intel.get('certstream_ns_risk', 0)}, "
+                f"MX-hits: {certstream_intel.get('certstream_mx_risk', 0)}"
+            ),
+            "detail": (
+                f"This domain's infrastructure is co-located with infrastructure "
+                f"currently serving {certstream_intel['certstream_anomalies']} "
+                f"distinct malicious certificates in the Datazag CertStream BGP feed. "
+                f"This indicates active malicious certificate issuance on shared infrastructure."
+            ),
+            "remediation": (
+                "Investigate co-hosted infrastructure for malicious activity. "
+                "Consider migrating to dedicated infrastructure if malicious "
+                "neighbours are confirmed."
+            ),
+            "category": "threat_intelligence",
+        })
 
+    # ── Step 3d: HTTP + Shodan enrichment ─────────────────────────────────
     http_section, shodan_section = await enrich_http_and_shodan(
-    domain=domain,
-    record=record,
-    raw=raw,
-    shodan_api_key=os.environ.get("SHODAN_API_KEY"),
+        domain=domain,
+        record=record,
+        raw=raw,
+        shodan_api_key=os.environ.get("SHODAN_API_KEY"),
     )
-    
-    # ── Merge findings ──────────────────────────────────────────────────────
-
-    _NORMALISE_SEV = {"elevated": "high", "low": "medium"}
 
     findings.extend(http_section.get("findings", []))
     findings.extend(shodan_section.get("findings", []))
 
-    # Normalise to canonical vocabulary before anything else sees the list
+    # Normalise severity vocabulary
+    _NORMALISE_SEV = {"elevated": "high", "low": "medium"}
     for f in findings:
-        f["severity"] = _NORMALISE_SEV.get(f.get("severity", "info"), f.get("severity", "info"))
+        f["severity"] = _NORMALISE_SEV.get(
+            f.get("severity", "info"),
+            f.get("severity", "info"),
+        )
 
-    # De-dupe while preserving evidence quality
+    # Deduplicate — keep best-evidenced version of each finding key
     findings = _deduplicate_findings(findings)
-    
-    # 4. Compute composite score
+
+    critical = [f for f in findings if f.get("severity") == "critical"]
+    high     = [f for f in findings if f.get("severity") == "high"]
+    print(f"  Findings — {len(critical)} critical, {len(high)} high, {len(findings)} total")
+
+    # ── Step 4: Composite risk score ──────────────────────────────────────
     scorer       = DatazagCompositeScorer()
     annotation   = NormalisedAnnotation.from_raw(raw)
     domain_score = NormalisedDomainScore(
@@ -390,35 +491,38 @@ async def run(
         domain=domain,
         dns_posture_score=record.risk.score,
         email_spoof_score={
-            "critical": 100,
-            "high":      70,
-            "medium":    40,
-            "none":       5,
+            "critical": 100, "high": 70, "medium": 40, "none": 5,
         }.get(record.email_auth.spoofing_severity, 20),
         ip_score=None,
         domain_score=domain_score,
         annotation=annotation,
     )
-    print(f"  Score — {composite.composite_score}/100 "
-          f"({composite.risk_band}) | confidence: {composite.confidence}")
+    print(
+        f"  Score — {composite.composite_score}/100 "
+        f"({composite.risk_band}) | confidence: {composite.confidence}"
+    )
     print(f"  Driver — {composite.primary_driver}")
 
-    # Fetch deep infrastructure intelligence locally or from R2!
+    # ── Step 4a: DuckLake infrastructure intelligence ─────────────────────
     infra_intel = _fetch_infrastructure_intelligence(domain)
     if infra_intel:
-        print(f"  [+] Attached Gold Infrastructure Risk (Score: {infra_intel.get('domain_risk_score', 0):.2f})")
+        print(f"  [+] Gold infrastructure risk score: "
+              f"{infra_intel.get('domain_risk_score', 0):.2f}")
 
-    # 5. Assemble the FULL output dict first
-    #    Narrative needs the complete data — do this before the API call
+    # ── Step 5: Assemble output dict ──────────────────────────────────────
     output = {
+        # Identity
         "domain":       domain,
-        "subdomains":    raw.get("subdomains", []),
-        "cert_analysis": raw.get("cert_analysis", {}),
-        "rdap":          raw.get("rdap", {}),
         "scanned_at":   record.scanned_at,
         "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
         "audience":     audience,
 
+        # Subdomain and registration data
+        "subdomains":    subdomains,
+        "cert_analysis": raw.get("cert_analysis") or {},
+        "rdap":          raw.get("rdap") or {},
+
+        # Risk scoring
         "risk_score_breakdown": [
             {"rule": r.rule, "points": r.points}
             for r in record.risk.reasons
@@ -446,20 +550,12 @@ async def run(
             "bucket":         record.risk.bucket,
             "profile":        record.risk.profile,
             "config_version": record.risk.config_version,
-            "rules": [
-                {"rule": r.rule, "points": r.points}
-                for r in record.risk.reasons
-            ],
-            "trust_rules": [
-                {"rule": r.rule, "points": r.points}
-                for r in record.risk.negative_contributions
-            ],
-            "risk_rules": [
-                {"rule": r.rule, "points": r.points}
-                for r in record.risk.positive_contributions
-            ],
+            "rules": [{"rule": r.rule, "points": r.points} for r in record.risk.reasons],
+            "trust_rules": [{"rule": r.rule, "points": r.points} for r in record.risk.negative_contributions],
+            "risk_rules":  [{"rule": r.rule, "points": r.points} for r in record.risk.positive_contributions],
         },
 
+        # DNS records
         "dns_records": {
             "a":      record.a_records,
             "aaaa":   record.aaaa_records,
@@ -471,6 +567,7 @@ async def run(
             "www_a":  record.www_a_records,
         },
 
+        # Email authentication
         "email_auth": {
             "spf":                    record.email_auth.spf_all_mechanism,
             "spf_raw":                record.email_auth.spf_raw,
@@ -498,6 +595,7 @@ async def run(
             "missing_layers":         record.email_auth.missing_layers,
         },
 
+        # Technographics
         "technographics": {
             "mx_provider_name":     record.annotation.mx_provider_name,
             "mx_mbp_category":      record.annotation.mx_mbp_category,
@@ -513,41 +611,44 @@ async def run(
             "tld_country":          record.annotation.tld_country,
             "tld_risk_level":       record.annotation.tld_risk_level,
             "is_cdn_ugc":           record.annotation.is_cdn_ugc,
-            "is_hosting_cdn":       getattr(record.annotation, 'is_hosting_cdn', False),
+            "is_hosting_cdn":       getattr(record.annotation, "is_hosting_cdn", False),
             "net_trust_score":      record.annotation.net_trust_score,
         },
 
+        # Infrastructure
         "infrastructure": {
-            "cdn":         record.annotation.isp_name,
-            "isp":         record.annotation.isp_name,
-            "asn":         record.annotation.asn,
-            "dual_stack":  record.is_dual_stack,
-            "ip_int":      record.ip_int,
-            "ns_primary":  record.ns_primary,
+            "cdn":        record.annotation.isp_name,
+            "isp":        record.annotation.isp_name,
+            "asn":        record.annotation.asn,
+            "dual_stack": record.is_dual_stack,
+            "ip_int":     record.ip_int,
+            "ns_primary": record.ns_primary,
             "mx_provider": record.annotation.mx_provider_name,
             "mx_category": record.annotation.mx_mbp_category,
             "ns_provider": record.annotation.ns_provider_name,
         },
 
+        # Certificates
         "certificates": {
-            "https_ok":           record.https_cert.ok if record.https_cert else None,
-            "https_days_left":    record.https_cert.days_remaining if record.https_cert else None,
-            "https_issuer":       record.https_cert.issuer if record.https_cert else None,
-            "https_issuer_org":   record.https_cert.issuer_org if record.https_cert else None,
-            "https_san_count":    record.https_cert.san_count if record.https_cert else None,
-            "https_label":        record.https_cert.label if record.https_cert else None,
+            "https_ok":           record.https_cert.ok              if record.https_cert else None,
+            "https_days_left":    record.https_cert.days_remaining  if record.https_cert else None,
+            "https_issuer":       record.https_cert.issuer          if record.https_cert else None,
+            "https_issuer_org":   record.https_cert.issuer_org      if record.https_cert else None,
+            "https_san_count":    record.https_cert.san_count       if record.https_cert else None,
+            "https_label":        record.https_cert.label           if record.https_cert else None,
             "https_lets_encrypt": record.https_cert.is_lets_encrypt if record.https_cert else None,
             "https_expiring":     record.https_cert.is_expiring_soon if record.https_cert else None,
-            "smtp_ok":            record.smtp.cert.ok if record.smtp.cert else None,
-            "smtp_days_left":     record.smtp.cert.days_remaining if record.smtp.cert else None,
-            "smtp_issuer":        record.smtp.cert.issuer if record.smtp.cert else None,
-            "smtp_issuer_org":    record.smtp.cert.issuer_org if record.smtp.cert else None,
+            "smtp_ok":            record.smtp.cert.ok               if record.smtp.cert else None,
+            "smtp_days_left":     record.smtp.cert.days_remaining   if record.smtp.cert else None,
+            "smtp_issuer":        record.smtp.cert.issuer           if record.smtp.cert else None,
+            "smtp_issuer_org":    record.smtp.cert.issuer_org       if record.smtp.cert else None,
             "smtp_banner":        record.smtp.banner_raw,
             "smtp_banner_host":   record.smtp.banner_host,
             "smtp_banner_detail": record.smtp.banner_detail,
             "provider_live":      record.smtp.provider_confirmed,
         },
 
+        # Labels and flags
         "labels": {
             "dmarc_policy":          record.label_dmarc_policy,
             "spf_strictness":        record.label_spf_strictness,
@@ -555,7 +656,6 @@ async def run(
             "ssl_issuer":            record.label_ssl_issuer,
             "active_infrastructure": record.label_active_infrastructure,
         },
-
         "threat_flags": {
             "is_phishing":      record.is_phishing,
             "is_malware":       record.is_malware,
@@ -563,58 +663,59 @@ async def run(
             "has_security_txt": record.has_security_txt,
             "has_caa":          record.has_caa,
         },
-
         "change_signals": {
-            "ns_changed":      record.changes.ns_changed,
-            "ip_changed":      record.changes.ip_changed,
-            "country_changed": record.changes.country_changed,
-            "ttl_drop_big":    record.changes.ttl_drop_big,
-            "is_dynamic_dns":  record.changes.is_dynamic_dns,
+            "ns_changed":       record.changes.ns_changed,
+            "ip_changed":       record.changes.ip_changed,
+            "country_changed":  record.changes.country_changed,
+            "ttl_drop_big":     record.changes.ttl_drop_big,
+            "is_dynamic_dns":   record.changes.is_dynamic_dns,
             "mx_misconfigured": record.changes.mx_misconfigured_provider,
-            "parking_points":  record.changes.parking_points,
+            "parking_points":   record.changes.parking_points,
             "subdomain_points": record.changes.subdomain_points,
-            "any_change":      record.changes.any_change_signal,
-            "any_threat":      record.changes.any_threat_signal,
+            "any_change":       record.changes.any_change_signal,
+            "any_threat":       record.changes.any_threat_signal,
         },
 
-        "infrastructure_intelligence": infra_intel,
-        "bgp_routing":                  raw.get("bgp_routing") or {},
-        "ip_reputation":                raw.get("ip_reputation") or {},
-        "infrastructure_concentration": raw.get("infrastructure_concentration") or {},
-        "certificate_intelligence":     raw.get("certificate_intelligence") or {},
-        "geolocation":                  raw.get("geolocation_jurisdiction") or {},
-        "velocity":                     raw.get("historical_velocity") or {},
-        "abuse_contact":                raw.get("abuse_contact_quality") or {},
+        # Infrastructure intelligence (DuckLake + raw JSON pass-through)
+        "infrastructure_intelligence":   infra_intel,
+        "bgp_routing":                   raw.get("bgp_routing")                or {},
+        "ip_reputation":                 raw.get("ip_reputation")               or {},
+        "infrastructure_concentration":  raw.get("infrastructure_concentration") or {},
+        "certificate_intelligence":      raw.get("certificate_intelligence")     or {},
+        "geolocation":                   raw.get("geolocation_jurisdiction")     or {},
+        "velocity":                      raw.get("historical_velocity")          or {},
+        "abuse_contact":                 raw.get("abuse_contact_quality")        or {},
+        "infrastructure_correlation":    raw.get("infrastructure_correlation")   or {},
+        "blocklist_signals":             raw.get("blocklist_signals")            or {},
 
-        # Corpus intelligence — from DuckLake pipeline when available
-        "infrastructure_correlation":   raw.get("infrastructure_correlation") or {},
-        "blocklist_signals":            raw.get("blocklist_signals") or {},
-
-        # Port scan — placeholder until permission-based scanning enabled
+        # Port scan — placeholder until permission model is in place
         "port_scan": raw.get("port_scan") or {
-            "available": False,
+            "available":           False,
             "requires_permission": True,
-            "note": "Available for commissioned assessments with written authorisation"
+            "note":                "Available for commissioned assessments with written authorisation",
         },
+
+        # Enrichment sections
         "http_enrichment":   http_section,
         "shodan_enrichment": shodan_section,
-        "txt_intelligence": _extract_txt_intelligence(record),
-        "findings":  findings,
-        "narrative": {},        # Populated below after API call
+        "txt_intelligence":  _extract_txt_intelligence(record),
 
+        # Findings and narrative (narrative populated below)
+        "findings":  findings,
+        "narrative": {},
     }
-    
-    # Save the full output (JSON + domain + scanned_at + enriched subdomains + rdap)
+
+    # ── Step 5a: Persist raw output JSON if output_dir provided ───────────
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         domain_key = record.domain.replace(".", "_")
-        scanned_at = record.scanned_at.replace(":", "").replace(" ", "__")
-        path = output_dir / f"{domain_key}__{scanned_at}.json"
-        with open(path, "w") as f:
-            json.dump(output, f, indent=2)
-        print(f"  Saved: {path}")
+        scanned_ts = record.scanned_at.replace(":", "").replace(" ", "__")
+        raw_path   = output_dir / f"{domain_key}__{scanned_ts}.json"
+        with open(raw_path, "w") as fh:
+            json.dump(output, fh, indent=2, default=str)
+        print(f"  Saved raw output: {raw_path}")
 
-    # 6. Narrative enrichment — called with the FULL output dict
+    # ── Step 6: Narrative enrichment ─────────────────────────────────────
     if not skip_narrative and os.environ.get("ANTHROPIC_API_KEY"):
         print(f"  Generating narrative ({audience} audience)...")
         narrative = await enrich_with_narrative(
@@ -622,52 +723,56 @@ async def run(
             score=composite.composite_score,
             risk_band=composite.risk_band,
             findings=findings,
-            output=output,          # full dict — all fields now populated
+            output=output,
             partner_context=partner_context,
             threat_context=threat_context,
             audience=audience,
         )
         output["narrative"] = narrative
-        print(f"  Key finding: {narrative.get('key_finding','')[:80]}...")
+        print(f"  Key finding: {narrative.get('key_finding', '')[:80]}...")
     else:
         if not os.environ.get("ANTHROPIC_API_KEY"):
             print("  Skipping narrative — ANTHROPIC_API_KEY not set")
 
-    # 7. Render and write output files
+    # ── Step 7: Render reports ────────────────────────────────────────────
     all_reports = render_all(output, brand=brand)
 
     out_dir = (output_dir or DEFAULT_OUTPUT_DIR) / domain.replace(".", "_")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    html_paths = []
+    html_paths: list[tuple[Path, Path]] = []
     for aud, formats in all_reports.items():
         for fmt, content in formats.items():
-            ext = {"json": "json", "markdown": "md", "html": "html"}[fmt]
+            ext  = {"json": "json", "markdown": "md", "html": "html"}[fmt]
             path = out_dir / f"{aud}.{ext}"
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(content)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(content)
             if ext == "html":
                 html_paths.append((path, out_dir / f"{aud}.pdf"))
 
-    print(f"\n  Converting HTML reports to PDF using Playwright...")
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-        )
-        for html_path, pdf_path in html_paths:
-            print(f"  -> Generating {pdf_path.name}")
-            page = await browser.new_page()
-            abs_html_path = html_path.absolute().as_posix()
-            await page.goto(f"file:///{abs_html_path}", wait_until="networkidle")
-            await page.pdf(
-                path=str(pdf_path),
-                format="A4",
-                print_background=True,
-                prefer_css_page_size=True,
-                margin={"top": "0", "right": "0", "bottom": "0", "left": "0"}
+    # ── Step 8: PDF generation via Playwright ────────────────────────────
+    if html_paths:
+        print(f"\n  Converting {len(html_paths)} HTML reports to PDF...")
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
             )
-        await browser.close()
+            for html_path, pdf_path in html_paths:
+                print(f"  → {pdf_path.name}")
+                page = await browser.new_page()
+                await page.goto(
+                    f"file:///{html_path.absolute().as_posix()}",
+                    wait_until="networkidle",
+                )
+                await page.pdf(
+                    path=str(pdf_path),
+                    format="A4",
+                    print_background=True,
+                    prefer_css_page_size=True,
+                    margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+                )
+            await browser.close()
 
     print(f"\n  Output written to {out_dir}/")
     print("  16 files — 4 audiences × 4 formats (JSON, Markdown, HTML, PDF)")
@@ -682,20 +787,28 @@ async def run(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Datazag DNS Intelligence Engine")
 
-    # Input — mutually exclusive
     input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument("--dns_file", default=None,
-                            help="Path to pre-collected Datazag DNS JSON file")
-    input_group.add_argument("--domain",   default=None,
-                            help="Domain to scan live e.g. adaptavist.com")
+    input_group.add_argument(
+        "--dns_file", default=None,
+        help="Path to pre-collected Datazag DNS JSON file",
+    )
+    input_group.add_argument(
+        "--domain", default=None,
+        help="Domain to scan live, e.g. normcyber.com",
+    )
 
     parser.add_argument("--audience",     default="insurer",
-                        choices=["insurer","consultant","it","sales"])
-    parser.add_argument("--partner",      default=None)
-    parser.add_argument("--threat",       default=None)
-    parser.add_argument("--output-dir",   default=None)
-    parser.add_argument("--no-narrative", action="store_true")
-    parser.add_argument("--brand",        default=None)
+                        choices=["insurer", "consultant", "it", "sales"])
+    parser.add_argument("--partner",      default=None,
+                        help="Partner context e.g. 'Atlassian Platinum Partner'")
+    parser.add_argument("--threat",       default=None,
+                        help="Threat context e.g. 'Subject of ransom demand'")
+    parser.add_argument("--output-dir",   default=None,
+                        help="Output directory (overrides OUTPUT_DIR in .env)")
+    parser.add_argument("--no-narrative", action="store_true",
+                        help="Skip Claude API narrative generation")
+    parser.add_argument("--brand",        default=None,
+                        help="Brand profile name e.g. 'acme_mssp'")
 
     args = parser.parse_args()
 
