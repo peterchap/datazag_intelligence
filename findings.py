@@ -1282,16 +1282,20 @@ def passive_security_findings_v2(
 
     # Deduplicate — keep the first occurrence of each finding key,
 # preferring ones with actual evidence over n/a
-        seen = {}
+        seen: dict[str, dict] = {}
         for f in findings:
             key = f.get("finding", "")
+            if not key:
+                continue
             if key not in seen:
                 seen[key] = f
             else:
-                # Replace with this one if it has better evidence
                 existing = seen[key]
-                if (not existing.get("evidence") or existing.get("evidence") == "n/a") \
-                        and f.get("evidence") and f.get("evidence") != "n/a":
+                has_evidence = lambda x: x.get("evidence") and x.get("evidence") != "n/a"
+                if has_evidence(f) and not has_evidence(existing):
                     seen[key] = f
 
-        return [f for f in seen.values() if f.get("finding")]
+        # Preserve keyless findings (certstream injection etc.)
+        keyless = [f for f in findings if not f.get("finding")]
+
+        return [f for f in seen.values() if f.get("finding")] + keyless
