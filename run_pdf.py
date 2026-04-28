@@ -473,6 +473,7 @@ async def run(
     # ── Step 4: Composite risk score ──────────────────────────────────────
     scorer       = DatazagCompositeScorer()
     annotation   = NormalisedAnnotation.from_raw(raw)
+    print(f"  DEBUG annotation: mx={annotation.mx_provider_name}, asn_risk={annotation.asn_risk_level}")
     domain_score = NormalisedDomainScore(
         domain=domain,
         ip=record.a_records[0] if record.a_records else "",

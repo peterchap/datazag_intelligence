@@ -470,6 +470,27 @@ class BaseRenderer:
         """
 
     def _infrastructure_routing_html(self) -> str:
+        bgp   = self.o.get("bgp_routing") or {}
+        ip    = self.o.get("ip_reputation") or {}
+        infra = self.o.get("infrastructure_concentration") or {}
+        geo   = self.o.get("geolocation") or {}
+
+        # Always render — show corpus intelligence even if BGP not yet enriched
+        has_bgp_data = any([
+            bgp.get("rpki_state") not in (None, "unknown", ""),
+            bgp.get("moas_detected"),
+            ip.get("spamhaus_zen"),
+            ip.get("asn_core_risk", 0) > 0,
+        ])
+
+        if not has_bgp_data:
+            return """
+            <h2>Infrastructure &amp; routing intelligence</h2>
+            <div style="background:#f7f8f9;border-radius:8px;padding:16px;color:#666;font-size:13px">
+            BGP and routing telemetry will appear here once this domain is indexed
+            in the Datazag DuckLake pipeline. For live scans this populates automatically.
+            </div>"""
+        
         infra_intel = self.o.get("infrastructure_intelligence") or {}
         context = infra_intel.get("domain_risk_context", {})
         if isinstance(context, str):
@@ -1434,7 +1455,6 @@ class BaseRenderer:
             "|-------|--------|------------------------|",
             f"| SPF | {status(spf_ok)} {ea.get('spf') or ''} | Any server can send as this domain |",
             f"| DMARC | {status(dmarc_ok)} {'p='+ea.get('dmarc_policy') if ea.get('dmarc_policy') else ''} | Spoofed mail delivered without enforcement |",
-            f"| DMARC p=reject | {status(reject_ok)} | Quarantine/deliver depends on policy |",
             f"| MTA-STS | {status(mta_ok)} | SMTP TLS downgrade attacks possible |",
             f"| TLS-RPT | {status(tls_ok)} | No visibility into SMTP TLS failures |",
             f"| BIMI | {status(bimi_ok)} | Brand logo not shown in email clients |",
@@ -1567,7 +1587,12 @@ class InsurerRenderer(BaseRenderer):
 
     def to_markdown(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
-        exp = self._exposure_summary()
+        # Include cert expiry findings in counts
+        extra_findings = self._cert_expiry_findings()
+        original_findings = self.findings
+        self.findings = extra_findings + self.findings
+
+    exp = self._exposure_summary()
         lines = [
             f"# Cyber risk underwriting report — {self.domain}",
             f"*Generated {self.o['generated_at']}*", "",
@@ -1614,12 +1639,13 @@ class InsurerRenderer(BaseRenderer):
         lines += ["", self._risk_breakdown_md(), "", self._technographics_md()]
         lines += ["", self._certs_md(), "", self._dns_records_md()]
         lines += ["", self._changes_md(), "", self._labels_md()]
+        
         return "\n".join(lines)
 
     def to_html(self, brand: "BrandConfig" = None) -> str:
         brand = brand or BrandConfig.default()
         score_colour = RISK_BAND_COLOUR.get(self.cs["risk_band"], "#666")
-        exp = self._exposure_summary()
+        
 
         # Prepend cert expiry and subdomain risk findings
         extra_findings = self._cert_expiry_findings()
@@ -1627,7 +1653,7 @@ class InsurerRenderer(BaseRenderer):
         # Temporarily override for this render
         original_findings = self.findings
         self.findings = all_findings_combined
-
+        exp = self._exposure_summary()  
         key_finding_html = ""
         if self._key_finding():
             key_finding_html = f"""

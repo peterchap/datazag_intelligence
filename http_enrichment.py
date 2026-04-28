@@ -896,44 +896,97 @@ def build_header_report_section(df: pl.DataFrame) -> dict:
     findings = []
 
     if hsts_pct < 50:
+        no_hsts_subs = live.filter(pl.col("hsts_present").not_())["subdomain"].to_list()
         findings.append({
-            "severity": "elevated",
-            "code":     "ESTATE_HSTS_LOW",
-            "title":    f"HSTS absent on {100-hsts_pct:.0f}% of live subdomains",
-            "detail":   f"Only {hsts_pct:.0f}% of {total} live subdomains have "
-                        f"HSTS configured. Browsers connecting to unprotected subdomains "
-                        f"are susceptible to SSL stripping attacks.",
+            "severity":    "elevated",
+            "code":        "ESTATE_HSTS_LOW",
+            "title":       f"HSTS absent on {100-hsts_pct:.0f}% of live subdomains",
+            "detail":      (
+                f"Only {hsts_pct:.0f}% of {total} live subdomains have HSTS configured. "
+                f"Browsers connecting to unprotected subdomains are susceptible to "
+                f"SSL stripping — an attacker on the network can intercept HTTPS "
+                f"traffic by downgrading it to HTTP before the browser enforces TLS."
+            ),
+            "evidence":    (
+                f"{len(no_hsts_subs)} of {total} live subdomains missing "
+                f"Strict-Transport-Security header. "
+                f"Sample: {', '.join(no_hsts_subs[:4])}"
+            ),
+            "remediation": (
+                "Add 'Strict-Transport-Security: max-age=31536000; includeSubDomains' "
+                "to all web server responses. Start with max-age=86400, verify no "
+                "breakage, then extend to 31536000 (1 year)."
+            ),
         })
 
     if csp_pct < 30:
+        no_csp_subs = live.filter(pl.col("csp_present").not_())["subdomain"].to_list()
         findings.append({
-            "severity": "elevated",
-            "code":     "ESTATE_CSP_LOW",
-            "title":    f"Content Security Policy absent on {100-csp_pct:.0f}% of subdomains",
-            "detail":   f"CSP is present on only {csp_pct:.0f}% of live subdomains.",
+            "severity":    "elevated",
+            "code":        "ESTATE_CSP_LOW",
+            "title":       f"Content Security Policy absent on {100-csp_pct:.0f}% of subdomains",
+            "detail":      (
+                f"CSP is present on only {csp_pct:.0f}% of live subdomains. "
+                f"Without CSP, a successful XSS injection has unrestricted access "
+                f"to page data, session tokens, and can exfiltrate data to "
+                f"attacker-controlled servers."
+            ),
+            "evidence":    (
+                f"{len(no_csp_subs)} of {total} live subdomains missing "
+                f"Content-Security-Policy header. "
+                f"Sample: {', '.join(no_csp_subs[:4])}"
+            ),
+            "remediation": (
+                "Define a Content-Security-Policy header restricting script sources "
+                "to known origins. Use 'Content-Security-Policy-Report-Only' first "
+                "to identify breakage before enforcing."
+            ),
         })
 
     if len(sensitive_missing_hsts):
         subs = sensitive_missing_hsts["subdomain"].to_list()
         findings.append({
-            "severity": "critical",
-            "code":     "SENSITIVE_HSTS_MISSING",
-            "title":    f"HSTS absent on {len(subs)} sensitive subdomain(s)",
-            "detail":   f"Payment or authentication subdomains without HSTS: "
-                        f"{', '.join(subs[:5])}{'...' if len(subs) > 5 else ''}. "
-                        f"These handle sensitive data and must enforce HTTPS.",
+            "severity":    "critical",
+            "code":        "SENSITIVE_HSTS_MISSING",
+            "title":       f"HSTS absent on {len(subs)} sensitive subdomain(s)",
+            "detail":      (
+                f"Payment or authentication subdomains without HSTS enforcement: "
+                f"{', '.join(subs[:5])}{'...' if len(subs) > 5 else ''}. "
+                f"These handle credentials or payment data and must enforce HTTPS "
+                f"— SSL stripping on these subdomains directly enables credential theft."
+            ),
+            "evidence":    (
+                f"Sensitive subdomains missing Strict-Transport-Security: "
+                f"{', '.join(subs[:5])}"
+            ),
+            "remediation": (
+                "HSTS is mandatory on authentication and payment subdomains. "
+                "Deploy immediately with max-age=31536000; includeSubDomains."
+            ),
         })
 
     if len(disclosing):
         versions = disclosing["server_header"].drop_nulls().to_list()
+        has_version_nums = any(re.search(r'\d+\.\d+', v) for v in versions)
+        disclosing_subs  = disclosing["subdomain"].to_list()
         findings.append({
-            "severity": "elevated" if any(
-                re.search(r'\d+\.\d+', v) for v in versions
-            ) else "low",
-            "code":     "ESTATE_SERVER_DISCLOSURE",
-            "title":    f"Server version disclosed on {len(disclosing)} subdomains",
-            "detail":   f"Examples: {', '.join(versions[:3])}. "
-                        f"Version disclosure aids targeted exploitation.",
+            "severity":    "elevated" if has_version_nums else "low",
+            "code":        "ESTATE_SERVER_DISCLOSURE",
+            "title":       f"Server version disclosed on {len(disclosing)} subdomains",
+            "detail":      (
+                f"Web server version strings are exposed on {len(disclosing)} subdomains. "
+                f"Version disclosure allows attackers to identify applicable CVEs "
+                f"without active exploitation attempts — narrowing attack surface targeting."
+            ),
+            "evidence":    (
+                f"{len(disclosing)} subdomains exposing Server header. "
+                f"Values: {', '.join(versions[:3])}. "
+                f"Subdomains: {', '.join(disclosing_subs[:3])}"
+            ),
+            "remediation": (
+                "Set 'ServerTokens Prod' (Apache) or 'server_tokens off' (nginx) "
+                "to suppress version strings. Remove X-Powered-By headers too."
+            ),
         })
 
     return {

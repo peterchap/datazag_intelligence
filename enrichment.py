@@ -207,7 +207,6 @@ def _build_http_section(http_results: list) -> dict:
     # run.py uses: severity, category, label, description
     normalised_findings = []
     for f in summary.get("findings", []):
-        # Map HTTP severity to run.py severity vocabulary
         sev_map = {
             "critical": "critical",
             "elevated": "high",
@@ -215,14 +214,36 @@ def _build_http_section(http_results: list) -> dict:
             "info":     "low",
             "pass":     "low",
         }
+
+        # Build evidence from available fields
+        sub       = f.get("subdomain", "")
+        pct       = f.get("pct") or f.get("coverage_pct")
+        count     = f.get("count") or f.get("affected_count")
+        sample    = f.get("sample") or f.get("affected", [])
+        sample_str = ", ".join(sample[:3]) if isinstance(sample, list) else str(sample or "")
+
+        evidence_parts = []
+        if count is not None:
+            evidence_parts.append(f"{count} subdomains affected")
+        if pct is not None:
+            evidence_parts.append(f"{pct}% coverage")
+        if sample_str:
+            evidence_parts.append(f"Sample: {sample_str}")
+        if sub:
+            evidence_parts.append(f"Subdomain: {sub}")
+        evidence = " — ".join(evidence_parts) if evidence_parts else (f.get("detail", "") or "")[:120]
+
         normalised_findings.append({
+            # finding key is required for deduplication in run.py
+            "finding":     f.get("code", ""),
             "severity":    sev_map.get(f.get("severity", "low"), "low"),
             "category":    "http_security",
-            "label":       f.get("code", "HEADER_FINDING"),
-            "description": f.get("detail") or f.get("title", ""),
-            # Keep original fields for the report renderer
             "title":       f.get("title", ""),
-            "subdomain":   f.get("subdomain"),
+            "evidence":    evidence,
+            "detail":      f.get("detail") or f.get("description", ""),
+            "remediation": f.get("remediation") or f.get("fix", ""),
+            # Renderer extras
+            "subdomain":   sub,
             "csp_value":   f.get("csp_value"),
         })
 
