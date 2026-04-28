@@ -616,7 +616,12 @@ class DatazagCanonicalAdapter:
         }
 
 
-def passive_security_findings_v2(record, subs: dict = None, rdap: dict = None) -> list[dict]:
+def passive_security_findings_v2(
+    record,
+    subs: dict = None,
+    rdap: dict = None,
+    subdomains: list = None,
+) -> list[dict]:
     """
     Generates a finding for every security layer — both present and missing.
     Missing layers are flagged with their security implication, not just noted.
@@ -1037,7 +1042,118 @@ def passive_security_findings_v2(record, subs: dict = None, rdap: dict = None) -
             ),
             "remediation": "Enable IPv6 at your hosting provider or CDN if supported.",
         })
-    
+
+
+    # -----------------------------------------------------------------------
+    # Per-subdomain findings — from enriched subdomain resolution
+    # -----------------------------------------------------------------------
+    for sub in (subdomains or []):
+        fqdn = sub.get("dns_name", "")
+        if not fqdn:
+            continue
+
+        # Malicious IP
+        if sub.get("is_malicious_ip"):
+            feeds = sub.get("ip_malicious_feeds", [])
+            ips   = sub.get("a_records", [])
+            findings.append({
+                "finding":     "subdomain_malicious_ip",
+                "severity":    "critical",
+                "title":       f"{fqdn} resolves to known malicious IP",
+                "evidence":    (
+                    f"IP: {ips[0] if ips else '?'}, "
+                    f"Feeds: {', '.join(feeds) if feeds else 'blocklist'}"
+                ),
+                "detail":      (
+                    f"{fqdn} resolves to an IP currently listed on "
+                    f"{len(feeds) or 'active'} threat feed(s). "
+                    f"May indicate compromised subdomain, DNS hijacking, "
+                    f"or migration to malicious infrastructure."
+                ),
+                "remediation": (
+                    "Verify this DNS record is authorised. If unexpected, "
+                    "treat as active compromise — check for DNS hijacking "
+                    "and rotate credentials immediately."
+                ),
+            })
+
+        # CNAME takeover
+        if sub.get("is_takeover_vulnerable") and sub.get("is_dangling_cname"):
+            platform = sub.get("takeover_provider", "unknown platform")
+            cname    = sub.get("cname", "?")
+            findings.append({
+                "finding":     f"subdomain_takeover_{fqdn.replace('.','_')}",
+                "severity":    "critical",
+                "title":       f"Subdomain takeover risk: {fqdn} → {platform}",
+                "evidence":    f"CNAME: {cname} → target does not resolve",
+                "detail":      (
+                    f"{fqdn} has a dangling CNAME pointing to {platform}. "
+                    f"The CNAME target no longer resolves — an attacker could "
+                    f"register the {platform} resource and serve content under "
+                    f"{fqdn}, receiving cookies, sessions, and traffic "
+                    f"intended for this organisation."
+                ),
+                "remediation": (
+                    f"Remove the CNAME for {fqdn} immediately, "
+                    f"or reclaim the {platform} resource it points to."
+                ),
+            })
+        elif sub.get("is_dangling_cname") and not sub.get("is_takeover_vulnerable"):
+            findings.append({
+                "finding":     f"subdomain_dangling_cname_{fqdn.replace('.','_')}",
+                "severity":    "medium",
+                "title":       f"Dangling CNAME: {fqdn}",
+                "evidence":    f"CNAME: {sub.get('cname','?')} → does not resolve",
+                "detail":      (
+                    f"{fqdn} has a CNAME pointing to a host that does not resolve. "
+                    f"The subdomain is unreachable and the stale record should be removed."
+                ),
+                "remediation": f"Remove or update the CNAME record for {fqdn}.",
+            })
+
+        # RFC1918 internal IP in public DNS
+        if sub.get("internal_ips"):
+            findings.append({
+                "finding":     f"subdomain_internal_ip_{fqdn.replace('.','_')}",
+                "severity":    "medium",
+                "title":       f"Internal IP exposed in public DNS: {fqdn}",
+                "evidence":    f"A record: {sub['internal_ips'][0]}",
+                "detail":      (
+                    f"{fqdn} resolves to RFC1918 private address {sub['internal_ips'][0]}. "
+                    f"This reveals internal network topology and the subdomain "
+                    f"is unreachable from the internet — likely a misconfiguration."
+                ),
+                "remediation": (
+                    "Remove or correct this DNS record. "
+                    "Internal hostnames should not appear in public DNS."
+                ),
+            })
+
+        # MX PTR mismatch — from subdomain_summary
+        for mx_ptr in (subs or {}).get("mx_ptr_results", []):
+            if not mx_ptr.get("ptr_valid"):
+                findings.append({
+                    "finding":     "mx_ptr_mismatch",
+                    "severity":    "medium",
+                    "title":       f"MX PTR mismatch: {mx_ptr['mx_host']}",
+                    "evidence":    (
+                        f"MX IP: {mx_ptr['mx_ip']}, "
+                        f"PTR: {', '.join(mx_ptr['ptr_records']) or 'absent'}"
+                    ),
+                    "detail":      (
+                        f"The PTR record for MX server {mx_ptr['mx_host']} "
+                        f"({mx_ptr['mx_ip']}) does not match the forward hostname. "
+                        f"Many receiving mail servers reject or flag email from IPs "
+                        f"with mismatched PTR records — affecting deliverability "
+                        f"and spam filter trust scores."
+                    ),
+                    "remediation": (
+                        "Ask your mail provider to configure a matching PTR record "
+                        "for this IP, or contact your hosting provider."
+                    ),
+                })
+            break  # one finding covers all MX PTR mismatches
+        
     # -----------------------------------------------------------------------
     # Subdomain HTTP security headers (requires subs data from output dict)
     # -----------------------------------------------------------------------

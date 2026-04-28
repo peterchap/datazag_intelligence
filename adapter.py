@@ -190,6 +190,7 @@ class CanonicalDNSRecord:
     ns_ttl_min: int                 # New: NS TTL
     mail_a_records: list[str]       # New: mail subdomain resolution
     www_a_records: list[str]        # New: www subdomain resolution
+    
     ip_int: int
     is_dual_stack: bool
 
@@ -233,7 +234,6 @@ class CanonicalDNSRecord:
     subdomains: list[dict] = field(default_factory=list)
     cert_analysis: dict = field(default_factory=dict)
     rdap: dict = field(default_factory=dict)
-
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
@@ -255,7 +255,7 @@ class DatazagCanonicalAdapter:
             domain=self.r["domain"],
             subdomains=self.r.get("subdomains", []),
             cert_analysis=self.r.get("cert_analysis", {}),
-            rdap=self.r.get("rdap", {}),    
+            
             scanned_at=self.r.get("scanned_at_utc", ""),
             a_records=self._get_raw("A"),
             aaaa_records=self._get_raw("AAAA"),
@@ -287,6 +287,7 @@ class DatazagCanonicalAdapter:
             has_security_txt=bool(self.r.get("has_security_txt")),
             has_caa=bool(self._get_raw("CAA")),
             caa_records=self._get_raw("CAA"),
+            rdap=self.r.get("rdap") or {},
         )
 
     # --- Record getters -----------------------------------------------------

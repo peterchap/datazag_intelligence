@@ -658,25 +658,52 @@ class BaseRenderer:
             "info":     ("#F9FAFB", "#E2E8F0", "#374151"),
         }
 
+        # Summary stats
+        total     = len(self.subdomains)
+        ca        = self.cert_analysis.get("summary", {})
+        counts    = {
+            "critical":   sum(1 for s in self.subdomains if s.get("risk_level") == "critical"),
+            "high":       sum(1 for s in self.subdomains if s.get("risk_level") == "high"),
+            "dangling":   sum(1 for s in self.subdomains if s.get("is_dangling_cname") or s.get("ns_delegation_risk") == "dangling_ns_delegation"),
+            "takeover":   sum(1 for s in self.subdomains if s.get("is_takeover_vulnerable")),
+            "malicious":  sum(1 for s in self.subdomains if s.get("is_malicious_ip")),
+            "delegated":  sum(1 for s in self.subdomains if s.get("is_delegated")),
+            "missed":     ca.get("missed_renewals", 0),
+            "expiring30": ca.get("expiring_within_30d", 0),
+        }
+
+        stat_cards = f"""
+        <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin:12px 0">
+        {''.join(
+            f'<div style="background:{bg};border-radius:6px;padding:8px;text-align:center">'
+            f'<div style="font-size:18px;font-weight:700;color:{col}">{val}</div>'
+            f'<div style="font-size:9px;color:{col};opacity:.8;text-transform:uppercase;'
+            f'letter-spacing:.04em;margin-top:2px">{label}</div></div>'
+            for label, val, bg, col in [
+                ("Total",         total,              "#f7f8f9", "#374151"),
+                ("Critical",      counts["critical"], "#FCEBEB", "#A32D2D"),
+                ("High",          counts["high"],     "#FAEEDA", "#854F0B"),
+                ("Dangling",      counts["dangling"], "#FCEBEB", "#A32D2D"),
+                ("Takeover risk", counts["takeover"], "#FCEBEB", "#A32D2D"),
+                ("Malicious IP",  counts["malicious"],"#FCEBEB", "#A32D2D"),
+                ("Missed renew",  counts["missed"],   "#FCEBEB" if counts["missed"] else "#f7f8f9",
+                                "#A32D2D" if counts["missed"] else "#374151"),
+                ("Expiring 30d",  counts["expiring30"],"#FAEEDA" if counts["expiring30"] else "#f7f8f9",
+                                "#854F0B" if counts["expiring30"] else "#374151"),
+            ]
+        )}
+        </div>"""
+
         rows = ""
-        counts = {"critical": 0, "high": 0, "medium": 0, "info": 0}
-
-        for s in self.subdomains[:limit]:
-            fqdn    = s.get("dns_name", "")
-            expired = s.get("is_expired", False)
-            days    = s.get("days_remaining")
-
-            # Derive risk from keyword if not provided
-            risk = s.get("risk_level", "")
-            if not risk or risk == "other":
-                risk = self._derive_subdomain_risk(fqdn)
-
-            counts[risk] = counts.get(risk, 0) + 1
+        for s in sorted(
+            self.subdomains[:limit],
+            key=lambda x: ["critical","high","medium","info"].index(x.get("risk_level","info"))
+        ):
+            fqdn     = s.get("dns_name", "")
+            risk     = s.get("risk_level", "info")
             bg, border, text = RISK_COLOURS_SUB.get(risk, RISK_COLOURS_SUB["info"])
 
-            cert_colour = "#A32D2D" if expired else "#854F0B" if days is not None and days < 30 else "#3B6D11"
-            days_label  = "EXPIRED ⚠" if expired else f"{days}d" if days is not None else "—"
-
+            # Risk badge
             risk_badge = (
                 f'<span style="background:{bg};color:{text};border:1px solid {border};'
                 f'padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;'
@@ -684,86 +711,99 @@ class BaseRenderer:
                 if risk != "info" else ""
             )
 
-            # Risk reasons from keyword
-            reasons = s.get("risk_reasons", [])
-            if not reasons and risk in ("critical", "high"):
-                sub = fqdn.split(".")[0].lower()
-                if any(k in sub for k in ("vpn","remote","citrix","rdp","ssh","bastion")):
-                    reasons = ["Remote access endpoint — primary ransomware vector"]
-                elif any(k in sub for k in ("staging","stage","dev","test","qa","uat","sandbox","preprod")):
-                    reasons = ["Development/staging environment — typically less hardened"]
-                elif any(k in sub for k in ("admin","portal","dashboard","console","panel")):
-                    reasons = ["Admin panel keyword — high-value target"]
+            # A records
+            a_recs = s.get("a_records", [])
+            a_html = (
+                f'<span style="font-family:monospace;font-size:10px">'
+                + "<br>".join(a_recs[:2])
+                + ("..." if len(a_recs) > 2 else "")
+                + "</span>"
+            ) if a_recs else '<span style="color:#aaa;font-size:10px">—</span>'
 
+            # PTR / provider
+            provider = s.get("ptr_reveals_provider") or ""
+            ptr_html = (
+                f'<span style="font-size:11px;color:#555">{provider}</span>'
+                if provider else
+                '<span style="font-size:10px;color:#aaa">no PTR</span>'
+                if s.get("ptr_is_absent") else
+                '<span style="font-size:10px;color:#888">—</span>'
+            )
+
+            # CNAME / NS indicators
+            flags = []
+            if s.get("is_takeover_vulnerable"):
+                flags.append(f'<span style="background:#FCEBEB;color:#A32D2D;padding:1px 5px;'
+                            f'border-radius:3px;font-size:10px;font-weight:600">'
+                            f'TAKEOVER: {s.get("takeover_provider","?")}</span>')
+            elif s.get("is_dangling_cname"):
+                flags.append('<span style="background:#FCEBEB;color:#A32D2D;padding:1px 5px;'
+                            'border-radius:3px;font-size:10px;font-weight:600">DANGLING</span>')
+            if s.get("ns_delegation_risk") == "dangling_ns_delegation":
+                flags.append('<span style="background:#FCEBEB;color:#A32D2D;padding:1px 5px;'
+                            'border-radius:3px;font-size:10px;font-weight:600">NS TAKEOVER</span>')
+            elif s.get("is_delegated"):
+                flags.append('<span style="background:#E6F1FB;color:#185FA5;padding:1px 5px;'
+                            'border-radius:3px;font-size:10px">DELEGATED</span>')
+            if s.get("is_malicious_ip"):
+                flags.append('<span style="background:#FCEBEB;color:#A32D2D;padding:1px 5px;'
+                            'border-radius:3px;font-size:10px;font-weight:600">MALICIOUS IP</span>')
+            if s.get("internal_ips"):
+                flags.append('<span style="background:#FAEEDA;color:#854F0B;padding:1px 5px;'
+                            'border-radius:3px;font-size:10px">INTERNAL IP</span>')
+
+            flags_html = " ".join(flags) if flags else ""
+
+            # Cert expiry
+            days       = s.get("days_remaining")
+            expired    = s.get("is_expired", False)
+            cert_col   = "#A32D2D" if expired else "#854F0B" if days is not None and days < 30 else "#3B6D11"
+            days_label = "EXPIRED ⚠" if expired else f"{days}d" if days is not None else "—"
+
+            # Risk reasons
+            reasons = s.get("risk_reasons", [])
             reason_html = (
                 f'<div style="font-size:10px;color:{text};margin-top:2px">'
                 + "; ".join(reasons[:1])
                 + "</div>"
             ) if reasons else ""
 
-            rows += (
-                f"<tr style='background:{bg};border-bottom:1px solid {border}22'>"
-                f"<td style='padding:6px 10px;font-family:monospace;font-size:11px;color:#222'>"
-                f"{fqdn}</td>"
-                f"<td style='padding:6px 10px'>{risk_badge}</td>"
-                f"<td style='padding:6px 10px;font-size:11px;color:#666'>"
-                f"{s.get('issuer_category', '—')}</td>"
-                f"<td style='padding:6px 10px;font-size:11px;font-weight:500;color:{cert_colour}'>"
-                f"{days_label}</td>"
-                f"<td style='padding:6px 10px;font-size:11px;color:#555'>"
-                f"{reason_html}</td>"
-                f"</tr>"
-            )
-
-        # Summary stats
-        stats = f"""
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0">
-        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:700">{len(self.subdomains)}</div>
-            <div style="font-size:10px;color:#888;text-transform:uppercase">Total</div>
-        </div>
-        <div style="background:#FCEBEB;border-radius:6px;padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:700;color:#A32D2D">{counts['critical']}</div>
-            <div style="font-size:10px;color:#A32D2D;text-transform:uppercase">Critical</div>
-        </div>
-        <div style="background:#FAEEDA;border-radius:6px;padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:700;color:#854F0B">{counts['high']}</div>
-            <div style="font-size:10px;color:#854F0B;text-transform:uppercase">High</div>
-        </div>
-        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:700;color:#A32D2D">
-            {self.cert_analysis.get('summary',{}).get('missed_renewals',0)}</div>
-            <div style="font-size:10px;color:#A32D2D;text-transform:uppercase">Missed renewals</div>
-        </div>
-        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:700;color:#A32D2D">
-            {self.cert_analysis.get('summary',{}).get('expiring_within_30d',0)}</div>
-            <div style="font-size:10px;color:#A32D2D;text-transform:uppercase">Expiring 30d</div>
-        </div>
-        <div style="background:#f7f8f9;border-radius:6px;padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:700">
-            {self.cert_analysis.get('summary',{}).get('cross_domain_sans',0)}</div>
-            <div style="font-size:10px;color:#888;text-transform:uppercase">Cross-domain SANs</div>
-        </div>
-        </div>"""
+            rows += f"""
+            <tr style="background:{bg};border-bottom:1px solid {border}22">
+            <td style="padding:5px 8px;font-family:monospace;font-size:11px;color:#222">
+                {fqdn}
+                {reason_html}
+                {f'<div style="margin-top:2px">{flags_html}</div>' if flags_html else ''}
+            </td>
+            <td style="padding:5px 8px;white-space:nowrap">{risk_badge}</td>
+            <td style="padding:5px 8px">{a_html}</td>
+            <td style="padding:5px 8px">{ptr_html}</td>
+            <td style="padding:5px 8px;font-size:11px;color:#666">
+                {s.get("issuer_category","—")}
+            </td>
+            <td style="padding:5px 8px;font-size:11px;font-weight:500;color:{cert_col}">
+                {days_label}
+            </td>
+            </tr>"""
 
         overflow = (
             f'<p style="font-size:11px;color:#888;margin:6px 0">'
-            f'+ {len(self.subdomains) - limit} more subdomains</p>'
+            f'+ {len(self.subdomains) - limit} more subdomains not shown</p>'
             if len(self.subdomains) > limit else ""
         )
 
         return f"""
-        <h2>Subdomain inventory ({len(self.subdomains)} subdomains)</h2>
-        {stats}
+        <h2>Subdomain inventory ({total})</h2>
+        {stat_cards}
         <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:#f5f5f5">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase">Subdomain</th>
-            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Risk</th>
-            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Issuer</th>
-            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Cert expiry</th>
-            <th style="padding:6px 10px;font-size:11px;text-transform:uppercase">Signal</th>
+            <th style="padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Subdomain</th>
+            <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Risk</th>
+            <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">A records</th>
+            <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">PTR / provider</th>
+            <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Issuer</th>
+            <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Cert</th>
         </tr></thead>
         <tbody>{rows}</tbody>
         </table>

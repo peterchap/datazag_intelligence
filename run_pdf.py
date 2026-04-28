@@ -30,6 +30,7 @@ from fingerprints import TXT_FINGERPRINTS, ADDITIONAL_TXT_FINGERPRINTS
 from scorer import DatazagCompositeScorer, NormalisedAnnotation, NormalisedDomainScore
 from narrative_pdf import enrich_with_narrative
 from renderers_pdf import render_all
+from cyber_risk_scores import CyberRiskScorer
 from playwright.async_api import async_playwright
 from branding import BrandConfig
 
@@ -157,7 +158,7 @@ def _ns_delegation_findings(subdomains: list[dict], primary_ns_provider: str | N
 
 
 # ---------------------------------------------------------------------------
-# DuckLake — Infrastructure Intelligence
+# Infrastructure Intelligence
 # ---------------------------------------------------------------------------
 
 def _fetch_infrastructure_intelligence(domain: str) -> dict:
@@ -209,7 +210,7 @@ def _fetch_infrastructure_intelligence(domain: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# DuckLake — CertStream IP intelligence
+# CertStream IP intelligence
 # ---------------------------------------------------------------------------
 
 def _fetch_certstream_ip_intel(raw_json: dict) -> dict:
@@ -394,7 +395,12 @@ async def run(
         }
 
     # ── Step 3a: Core passive findings ───────────────────────────────────
-    findings = passive_security_findings_v2(record, subs=subs_summary, rdap=rdap_data)
+    findings = passive_security_findings_v2(
+        record,
+        subs=subs_summary,
+        rdap=rdap_data,
+        subdomains=subdomains,
+    )
 
     # ── Step 3b: NS delegation findings (require resolved subdomain data) ─
     # Derive parent NS provider from raw NS records
@@ -508,6 +514,64 @@ async def run(
     if infra_intel:
         print(f"  [+] Gold infrastructure risk score: "
               f"{infra_intel.get('domain_risk_score', 0):.2f}")
+
+
+        # ── Step 4b: Run CyberRiskScorer for comprehensive scoring ────────
+        # ── Six-dimension cyber risk profile ──────────────────────────────────
+    # Must run after output dict exists but before narrative
+    # Build a minimal output preview for the scorer
+    _score_input = {
+        "domain":          domain,
+        "email_auth":      {
+            "spf":            record.email_auth.spf_all_mechanism,
+            "spf_raw":        record.email_auth.spf_raw,
+            "aspf":           record.email_auth.dmarc_aspf,
+            "adkim":          record.email_auth.dmarc_adkim,
+            "dmarc_policy":   record.email_auth.dmarc_policy,
+            "dmarc_rua":      record.email_auth.dmarc_rua,
+            "mta_sts":        record.email_auth.mta_sts_status,
+            "mta_sts_mode":   record.email_auth.mta_sts_mode,
+            "tls_rpt":        record.email_auth.tls_rpt_status,
+            "bimi":           record.email_auth.bimi_status,
+            "dnssec":         record.email_auth.dnssec_enabled,
+            "is_spoofable":   record.email_auth.is_spoofable,
+        },
+        "technographics":   {
+            "mx_provider_name": record.annotation.mx_provider_name,
+            "asn_risk_level":   record.annotation.asn_risk_level,
+            "is_cdn_ugc":       record.annotation.is_cdn_ugc,
+        },
+        "txt_intelligence": _extract_txt_intelligence(record),
+        "certificates": {
+            "https_ok":           record.https_cert.ok if record.https_cert else None,
+            "https_days_left":    record.https_cert.days_remaining if record.https_cert else None,
+            "https_lets_encrypt": record.https_cert.is_lets_encrypt if record.https_cert else None,
+            "provider_live":      record.smtp.provider_confirmed,
+        },
+        "threat_flags": {
+            "is_new_domain":    record.is_new_domain,
+            "has_security_txt": record.has_security_txt,
+            "has_caa":          record.has_caa,
+        },
+        "change_signals": {
+            "any_change":      record.changes.any_change_signal,
+            "is_dynamic_dns":  record.changes.is_dynamic_dns,
+        },
+        "labels": {
+            "ttl_bucket": record.label_ttl_bucket,
+        },
+        "dns_records": {
+            "aaaa": record.aaaa_records,
+        },
+    }
+
+    cyber_scorer  = CyberRiskScorer()
+    cyber_profile = cyber_scorer.score(_score_input, partner_context=partner_context)
+    print(
+        f"  Cyber risk — underwriting score: {cyber_profile.underwriting_score}/100 "
+        f"({cyber_profile.premium_signal}), "
+        f"primary vector: {cyber_profile.primary_claim_vector}"
+    )
 
     # ── Step 5: Assemble output dict ──────────────────────────────────────
     output = {
