@@ -1592,7 +1592,7 @@ class InsurerRenderer(BaseRenderer):
         original_findings = self.findings
         self.findings = extra_findings + self.findings
 
-    exp = self._exposure_summary()
+        exp = self._exposure_summary()
         lines = [
             f"# Cyber risk underwriting report — {self.domain}",
             f"*Generated {self.o['generated_at']}*", "",
