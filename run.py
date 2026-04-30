@@ -772,6 +772,7 @@ async def run(
         "findings":  findings,
         "narrative": {},
     }
+    print("cert_analysis sample:", output.get("cert_analysis", [{}])[0] if isinstance(output.get("cert_analysis"), list) else output.get("cert_analysis"))
     # ── Step 5a: Persist raw output JSON if output_dir provided ───────────
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
