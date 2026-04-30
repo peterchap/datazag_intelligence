@@ -198,7 +198,36 @@ class CertAnalysis:
             ):
                 latest_map[name] = r
 
-        self._latest = list(latest_map.values())
+        # Find all valid wildcards to apply coverage
+        valid_wildcards = [
+            r for r in self._deduped
+            if r["is_wildcard"] and not r["is_expired"]
+        ]
+
+        def get_covering_wildcard(subdomain: str) -> Optional[dict]:
+            best_w = None
+            for w in valid_wildcards:
+                wildcard_base = w["dns_name"][2:] # Remove '*.'
+                if subdomain.endswith("." + wildcard_base):
+                    prefix = subdomain[:-(len(wildcard_base)+1)]
+                    if "." not in prefix: # Must be exactly one level deep
+                        if not best_w or (w["not_after"] and w["not_after"] > best_w["not_after"]):
+                            best_w = w
+            return best_w
+
+        self._latest = []
+        for name, r in latest_map.items():
+            if r["is_expired"] or (r["days_remaining"] is not None and r["days_remaining"] <= 60):
+                covering_w = get_covering_wildcard(name)
+                if covering_w and (not r["not_after"] or covering_w["not_after"] > r["not_after"]):
+                    # Inherit the valid wildcard's properties
+                    r = dict(r)
+                    r["is_expired"] = False
+                    r["days_remaining"] = covering_w["days_remaining"]
+                    r["not_after"] = covering_w["not_after"]
+                    r["issuer_category"] = covering_w["issuer_category"]
+                    r["issuer_cn"] = covering_w["issuer_cn"]
+            self._latest.append(r)
 
     def subdomain_corpus(self) -> list[dict]:
         results = [

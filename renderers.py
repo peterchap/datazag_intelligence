@@ -924,17 +924,13 @@ class BaseRenderer:
           </tr></thead>
           <tbody>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">SPF</td>
-              <td style="padding:6px 10px">{status_pill(spf_ok, ea.get('spf') or 'present', 'MISSING')}</td>
+              <td style="padding:6px 10px">{status_pill(spf_ok, ea.get('spf') or 'present', 'WEAK' if ea.get('spf_raw') else 'MISSING')}</td>
               <td style="padding:6px 10px;color:#555">{ea.get('spf_raw','Not found')[:80]}</td>
               <td style="padding:6px 10px;color:#888">Any server can send email as this domain</td></tr>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DMARC</td>
-              <td style="padding:6px 10px">{status_pill(dmarc_ok, f"p={ea.get('dmarc_policy')}", 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">{f"pct={ea.get('dmarc_pct',0)} · aspf={ea.get('aspf','?')} · adkim={ea.get('adkim','?')}" if dmarc_ok else 'No DMARC record found'}</td>
-              <td style="padding:6px 10px;color:#888">Spoofed mail delivered without policy enforcement</td></tr>
-            <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DMARC p=reject</td>
-              <td style="padding:6px 10px">{status_pill(reject_ok, 'p=reject', 'not reject')}</td>
-              <td style="padding:6px 10px;color:#555">{'Full enforcement — spoofed mail rejected' if reject_ok else f"Currently p={ea.get('dmarc_policy','missing')} — upgrade to reject"}</td>
-              <td style="padding:6px 10px;color:#888">Spoofed mail quarantined or delivered depending on policy</td></tr>
+              <td style="padding:6px 10px">{status_pill(reject_ok, 'p=reject', f"p={ea.get('dmarc_policy')}" if ea.get('dmarc_policy') else 'MISSING')}</td>
+              <td style="padding:6px 10px;color:#555">{f"pct={ea.get('dmarc_pct',0)} · aspf={ea.get('aspf','?')} · adkim={ea.get('adkim','?')}" if ea.get('dmarc_policy') else 'No DMARC record found'}</td>
+              <td style="padding:6px 10px;color:#888">{'Full enforcement — spoofed mail rejected' if reject_ok else 'Spoofed mail quarantined or delivered depending on policy' if ea.get('dmarc_policy') else 'Spoofed mail delivered without policy enforcement'}</td></tr>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">MTA-STS</td>
               <td style="padding:6px 10px">{status_pill(mta_ok, 'configured', 'MISSING')}</td>
               <td style="padding:6px 10px;color:#555">{'Mode: ' + (ea.get('mta_sts_mode') or 'unknown') if mta_ok else 'NXDOMAIN — policy not published'}</td>
@@ -1438,8 +1434,8 @@ class BaseRenderer:
         flags = self.flags
         certs = self.certs
 
-        def status(ok):
-            return "✓" if ok else "✗ MISSING"
+        def status(ok, is_weak=False):
+            return "✓" if ok else "✗ WEAK" if is_weak else "✗ MISSING"
 
         spf_ok    = ea.get("spf") in ("-all", "~all")
         dmarc_ok  = ea.get("dmarc_policy") in ("reject", "quarantine")
@@ -1456,8 +1452,8 @@ class BaseRenderer:
             "## Security layer checklist", "",
             "| Layer | Status | Attack risk if missing |",
             "|-------|--------|------------------------|",
-            f"| SPF | {status(spf_ok)} {ea.get('spf') or ''} | Any server can send as this domain |",
-            f"| DMARC | {status(dmarc_ok)} {'p='+ea.get('dmarc_policy') if ea.get('dmarc_policy') else ''} | Spoofed mail delivered without enforcement |",
+            f"| SPF | {status(spf_ok, bool(ea.get('spf_raw')))} {ea.get('spf') or ''} | Any server can send as this domain |",
+            f"| DMARC | {status(reject_ok, bool(ea.get('dmarc_policy')))} {'p='+ea.get('dmarc_policy') if ea.get('dmarc_policy') else ''} | {'Full enforcement' if reject_ok else 'Spoofed mail quarantined or delivered depending on policy' if ea.get('dmarc_policy') else 'Spoofed mail delivered without enforcement'} |",
             f"| MTA-STS | {status(mta_ok)} | SMTP TLS downgrade attacks possible |",
             f"| TLS-RPT | {status(tls_ok)} | No visibility into SMTP TLS failures |",
             f"| BIMI | {status(bimi_ok)} | Brand logo not shown in email clients |",
