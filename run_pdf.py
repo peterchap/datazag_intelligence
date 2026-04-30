@@ -523,6 +523,9 @@ async def run(
     # Build a minimal output preview for the scorer
     _score_input = {
         "domain":          domain,
+        "subdomains":    subdomains,          # ← ADD: takeover data for floor overrides
+        "findings":      findings,            # ← ADD: HSTS/CSP coverage parsing
+        "cert_analysis": raw.get("cert_analysis") or {},   # ← ADD: missed renewals
         "email_auth":      {
             "spf":            record.email_auth.spf_all_mechanism,
             "spf_raw":        record.email_auth.spf_raw,
@@ -787,8 +790,8 @@ async def run(
         print(f"  Generating narrative ({audience} audience)...")
         narrative = await enrich_with_narrative(
             domain=domain,
-            score=composite.composite_score,
-            risk_band=composite.risk_band,
+            score=cyber_profile.underwriting_score,
+            risk_band=cyber_profile.underwriting_band,
             findings=findings,
             output=output,
             partner_context=partner_context,
