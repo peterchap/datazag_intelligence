@@ -286,13 +286,23 @@ class CyberRiskScorer:
         # ── Cert missed renewal from cert_analysis ────────────────────────
         cert_analysis = output.get("cert_analysis") or {}
         if isinstance(cert_analysis, list):
-            # cert_analysis is a list of cert dicts — count missed renewals directly
             missed_renewals = sum(
                 1 for c in cert_analysis
                 if c.get("missed_renewal") or c.get("is_missed_renewal")
             )
+        elif isinstance(cert_analysis, dict):
+            raw_mr = cert_analysis.get("missed_renewals", 0)
+            # Guard against the field itself being a list of domain names
+            missed_renewals = len(raw_mr) if isinstance(raw_mr, list) else int(raw_mr or 0)
         else:
-            missed_renewals = cert_analysis.get("missed_renewals", 0)
+            missed_renewals = 0
+
+        # Also check certificate_intelligence as fallback
+        if missed_renewals == 0:
+            cert_intel = output.get("certificate_intelligence") or {}
+            if isinstance(cert_intel, dict):
+                raw_mr = cert_intel.get("missed_renewals", 0)
+                missed_renewals = len(raw_mr) if isinstance(raw_mr, list) else int(raw_mr or 0)
 
         # ── Dimension scores ──────────────────────────────────────────────
         bec        = self._score_bec(ea, tech)
