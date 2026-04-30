@@ -28,8 +28,8 @@ from enrichment import enrich_http_and_shodan
 from findings import passive_security_findings_v2
 from fingerprints import TXT_FINGERPRINTS, ADDITIONAL_TXT_FINGERPRINTS
 from scorer import DatazagCompositeScorer, NormalisedAnnotation, NormalisedDomainScore
-from narrative_pdf import enrich_with_narrative
-from renderers_pdf import render_all
+from narrative import enrich_with_narrative
+from renderers import render_all
 from cyber_risk_scores import CyberRiskScorer
 from playwright.async_api import async_playwright
 from branding import BrandConfig
@@ -772,9 +772,6 @@ async def run(
         "findings":  findings,
         "narrative": {},
     }
-    print("DEBUG output keys:", list(output.keys()))
-    print("DEBUG findings:", output.get("findings"))
-    print("DEBUG subdomains:", output.get("subdomains"))
     # ── Step 5a: Persist raw output JSON if output_dir provided ───────────
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)

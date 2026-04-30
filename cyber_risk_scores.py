@@ -284,8 +284,15 @@ class CyberRiskScorer:
         hsts_coverage, csp_coverage = self._parse_http_coverage(findings_map, subs)
 
         # ── Cert missed renewal from cert_analysis ────────────────────────
-        cert_analysis   = output.get("cert_analysis") or output.get("certificate_intelligence") or {}
-        missed_renewals = cert_analysis.get("missed_renewals", 0) if isinstance(cert_analysis, dict) else 0
+        cert_analysis = output.get("cert_analysis") or {}
+        if isinstance(cert_analysis, list):
+            # cert_analysis is a list of cert dicts — count missed renewals directly
+            missed_renewals = sum(
+                1 for c in cert_analysis
+                if c.get("missed_renewal") or c.get("is_missed_renewal")
+            )
+        else:
+            missed_renewals = cert_analysis.get("missed_renewals", 0)
 
         # ── Dimension scores ──────────────────────────────────────────────
         bec        = self._score_bec(ea, tech)

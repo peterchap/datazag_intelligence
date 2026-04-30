@@ -39,7 +39,7 @@ async def enrich_with_narrative(
     cs          = cs_raw if isinstance(cs_raw, dict) else {"score": cs_raw}
     infra_intel = output.get("infrastructure_intelligence", {})
 
-    # ── Must be assigned BEFORE the f-string opens ────────────────────────
+    # ── Risk engine ───────────────────────────────────────────────────────
 
     risk_eng = output.get("risk_score_engine") or {
         "score":          0,
@@ -109,6 +109,104 @@ async def enrich_with_narrative(
         "- NO SECURITY.TXT: No responsible disclosure policy"
             if not flags.get("has_security_txt") else "",
     ]))
+
+    # ── Subdomain intelligence ────────────────────────────────────────────
+
+    subs_list = output.get("subdomains") or []
+    subs_sum  = output.get("subdomain_summary") or {}
+    mx_ptr    = subs_sum.get("mx_ptr_results") or []
+
+    high_risk_subs = [
+        s for s in subs_list
+        if s.get("risk_level") in ("critical", "high")
+    ][:8]
+
+    dangling_subs = [
+        s for s in subs_list
+        if s.get("is_dangling_cname") or
+           s.get("ns_delegation_risk") == "dangling_ns_delegation"
+    ][:5]
+
+    takeover_subs = [
+        s for s in subs_list
+        if s.get("is_takeover_vulnerable")
+    ][:5]
+
+    malicious_subs = [
+        s for s in subs_list
+        if s.get("is_malicious_ip")
+    ][:5]
+
+    mx_ptr_invalid = [r for r in mx_ptr if not r.get("ptr_valid")]
+
+    def _sub_line(s: dict) -> str:
+        a   = s.get("a_records", [])
+        ptr = s.get("ptr_reveals_provider", "") or "no PTR"
+        rsn = "; ".join(s.get("risk_reasons", [])[:1])
+        return (
+            f"  {s.get('dns_name','')} — {s.get('risk_level','')} — "
+            f"A:{a[0] if a else '?'} — PTR:{ptr}"
+            + (f" — {rsn}" if rsn else "")
+        )
+
+    subdomain_section = ""
+    if subs_list:
+        lines = [
+            f"=== SUBDOMAIN INTELLIGENCE ({len(subs_list)} subdomains) ===",
+            f"Total subdomains: {subs_sum.get('total', len(subs_list))}",
+            f"High/critical risk: {subs_sum.get('high_risk_count', 0)}",
+            f"Dangling CNAMEs: {subs_sum.get('dangling_cname_count', 0)}",
+            f"Takeover vulnerable: {subs_sum.get('takeover_vulnerable_count', 0)}",
+            f"Malicious IP co-location: {subs_sum.get('malicious_ip_count', 0)}",
+            f"Internal IPs in public DNS: {subs_sum.get('internal_ip_count', 0)}",
+            f"Delegated zones: {subs_sum.get('delegated_zone_count', 0)}",
+            f"MX PTR mismatches: {len(mx_ptr_invalid)}",
+            "",
+        ]
+
+        if high_risk_subs:
+            lines.append("High-risk subdomains:")
+            lines.extend(_sub_line(s) for s in high_risk_subs)
+            lines.append("")
+
+        if takeover_subs:
+            lines.append("Takeover-vulnerable subdomains:")
+            lines.extend(
+                f"  {s.get('dns_name','')} → {s.get('takeover_provider','?')} "
+                f"(CNAME: {s.get('cname','?')})"
+                for s in takeover_subs
+            )
+            lines.append("")
+
+        if malicious_subs:
+            lines.append("Subdomains resolving to malicious IPs:")
+            lines.extend(
+                f"  {s.get('dns_name','')} → "
+                f"{s.get('a_records',['?'])[0]} "
+                f"({', '.join(s.get('ip_malicious_feeds',[]) or ['blocklist'])})"
+                for s in malicious_subs
+            )
+            lines.append("")
+
+        if dangling_subs:
+            lines.append("Dangling subdomains (CNAME or NS target does not resolve):")
+            lines.extend(
+                f"  {s.get('dns_name','')} — "
+                f"{'NS takeover' if s.get('ns_delegation_risk') == 'dangling_ns_delegation' else 'CNAME dangling'}"
+                for s in dangling_subs
+            )
+            lines.append("")
+
+        if mx_ptr_invalid:
+            lines.append("MX PTR mismatches (affects mail deliverability):")
+            lines.extend(
+                f"  {r['mx_host']} ({r['mx_ip']}) — "
+                f"PTR: {', '.join(r.get('ptr_records', [])) or 'absent'}"
+                for r in mx_ptr_invalid
+            )
+            lines.append("")
+
+        subdomain_section = "\n".join(lines)
 
     # ── Prompt ────────────────────────────────────────────────────────────
 
@@ -214,6 +312,8 @@ Dynamic DNS: {changes.get('is_dynamic_dns', False)}
 MX misconfigured: {changes.get('mx_misconfigured', False)}
 Parking points: {changes.get('parking_points', 0)}
 
+{subdomain_section}
+
 === MISSING SECURITY LAYERS — DISCUSS EACH IN NARRATIVE ===
 {missing_layers_prompt}
 
@@ -223,7 +323,7 @@ For each missing layer above, explain:
 3. The specific DNS record needed to fix it
 
 === DATAZAG GLOBAL INFRASTRUCTURE INTELLIGENCE ===
-This is high-fidelity telemetry derived directly from the DuckLake Medallion Architecture mathematically compiling 1.8 billion external BGP and DNS events:
+High-fidelity telemetry from the DuckLake Medallion Architecture (1.8B BGP and DNS events):
 - Infrastructure Risk Score: {infra_intel.get('domain_risk_score', 'NO_DATA')}/100
 - Detected Risk Vectors: {json.dumps(infra_intel.get('domain_risk_context', []), indent=2)}
 
@@ -234,12 +334,12 @@ This is high-fidelity telemetry derived directly from the DuckLake Medallion Arc
 Return ONLY a valid JSON object with exactly these fields:
 
 {{
-  "key_finding": "The single most important finding in one precise sentence. Reference specific evidence.",
-  "executive_summary": "3-4 sentences. Lead with composite score and primary driver. Name specific services and risk signals.",
-  "threat_narrative": "5-8 sentences of deep interpretive analysis connecting findings to real threat scenarios. CRITICALLY: Interweave the 'Datazag Global Infrastructure Intelligence' flags (e.g. MOAS anomalies, Fast Flux, Dangling CNAMEs) into this section if present.",
+  "key_finding": "The single most important finding in one precise sentence. Reference specific evidence. If a subdomain takeover, dangling CNAME, or malicious IP co-location is present, lead with that.",
+  "executive_summary": "3-4 sentences. Lead with composite score and primary driver. Name specific services and risk signals. Mention subdomain count and any critical subdomain findings if present.",
+  "threat_narrative": "5-8 sentences of deep interpretive analysis. Reference specific DNS evidence throughout. If high-risk subdomains exist (VPN endpoints, staging, admin panels), explain the specific attack scenario each enables and name the subdomain. If takeover-vulnerable CNAMEs exist, explain what an attacker gains by claiming the target resource. If malicious IPs are present on subdomains, explain the contagion and trust risk. Interweave DuckLake Infrastructure Intelligence flags (MOAS anomalies, Fast Flux, Dangling CNAMEs) if present.",
   "positive_signals": "2-3 sentences identifying what this domain does well. Name specific providers, policies, and score contributions.",
-  "remediation_priority": "For each critical or high finding, one sentence with the specific fix and expected impact. Numbered list.",
-  "insurer_signals": "3-4 sentences translating technical findings into policy risk language. EXPLICITLY reference how the Datazag Infrastructure Telemetry (BGP routing strangeness, infrastructure scores) impacts actuarial cyber risk premiums and likelihood of a claim.",
+  "remediation_priority": "For each critical or high finding, one sentence with the specific fix and expected impact. Numbered list. Lead with subdomain takeover or malicious IP findings if present.",
+  "insurer_signals": "3-4 sentences translating technical findings into policy risk language. Mention attack vectors and likely claim types. Reference how Datazag Infrastructure Telemetry (BGP routing, infrastructure scores, subdomain exposure) impacts actuarial cyber risk premiums. Note any subdomain takeover or malicious co-location as direct premium loading signals.",
   "saas_stack_analysis": "2-3 sentences on the SaaS stack breadth, any high-risk services, what it reveals about the organisation, supply chain implications."
 }}"""
 
@@ -294,20 +394,19 @@ def _safe_parse_narrative(raw: str) -> dict:
     """
     Parse narrative JSON response defensively.
     Handles: empty string, markdown fences, error messages.
-    Takes the raw text string from the API — not a pre-parsed dict.
     """
     if not raw or not raw.strip():
         return _empty_narrative()
 
     text = raw.strip()
 
-    # Strip markdown code fences — ```json ... ``` or ``` ... ```
+    # Strip markdown code fences
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
         text = text.strip()
 
-    # If it still doesn't start with { it's an error message not JSON
+    # Non-JSON response — error message from model
     if not text.startswith("{"):
         return {
             **_empty_narrative(),
@@ -317,7 +416,6 @@ def _safe_parse_narrative(raw: str) -> dict:
 
     try:
         parsed = json.loads(text)
-        # Ensure all expected keys are present even if the model omitted some
         return {**_empty_narrative(), **parsed}
     except json.JSONDecodeError as e:
         return {
