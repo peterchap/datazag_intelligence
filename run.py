@@ -590,12 +590,12 @@ async def run(
         "cert_analysis": raw.get("cert_analysis") or {},
         "rdap":          raw.get("rdap") or {},
 
-        # Risk scoring
+        # Risk scoring — rule engine (technical posture, always preserved)
         "risk_score_breakdown": [
             {"rule": r.rule, "points": r.points}
             for r in record.risk.reasons
         ],
-
+ 
         "composite_score": {
             "score":          composite.composite_score,
             "risk_band":      composite.risk_band,
@@ -612,16 +612,67 @@ async def run(
                 "asn_risk_level": record.annotation.asn_risk_level,
             },
         },
-
+ 
         "risk_score_engine": {
             "score":          record.risk.score,
             "bucket":         record.risk.bucket,
             "profile":        record.risk.profile,
             "config_version": record.risk.config_version,
-            "rules": [{"rule": r.rule, "points": r.points} for r in record.risk.reasons],
+            "rules":       [{"rule": r.rule, "points": r.points} for r in record.risk.reasons],
             "trust_rules": [{"rule": r.rule, "points": r.points} for r in record.risk.negative_contributions],
             "risk_rules":  [{"rule": r.rule, "points": r.points} for r in record.risk.positive_contributions],
         },
+ 
+        # Six-dimension underwriting profile (CyberRiskScorer)
+        # This is the authoritative score for insurer, sales, and consultant audiences.
+        # IT audience uses composite_score (technical posture) instead.
+        "cyber_risk_profile": {
+            "underwriting_score":   cyber_profile.underwriting_score,
+            "underwriting_band":    cyber_profile.underwriting_band,
+            "premium_signal":       cyber_profile.premium_signal,
+            "primary_claim_vector": cyber_profile.primary_claim_vector,
+            "floor_override":       cyber_profile.floor_override,
+            "score_breakdown": {
+                "bec":               cyber_profile.score_breakdown["bec"],
+                "ransomware":        cyber_profile.score_breakdown["ransomware"],
+                "data_breach":       cyber_profile.score_breakdown["data_breach"],
+                "supply_chain":      cyber_profile.score_breakdown["supply_chain"],
+                "phishing_platform": cyber_profile.score_breakdown["phishing_platform"],
+                "maturity_offset":   cyber_profile.score_breakdown["maturity_offset"],
+            },
+            "dimension_narratives": {
+                "bec":               cyber_profile.bec.narrative,
+                "ransomware":        cyber_profile.ransomware.narrative,
+                "data_breach":       cyber_profile.data_breach.narrative,
+                "supply_chain":      cyber_profile.supply_chain.narrative,
+                "phishing_platform": cyber_profile.phishing_platform.narrative,
+                "maturity":          cyber_profile.maturity.narrative,
+            },
+            "subdomain_risk": {
+                "total":              cyber_profile.subdomains.total,
+                "has_takeover":       cyber_profile.subdomains.has_takeover,
+                "has_auth_takeover":  cyber_profile.subdomains.has_auth_takeover,
+                "takeover_providers": cyber_profile.subdomains.takeover_providers,
+                "takeover_count":     len(cyber_profile.subdomains.takeover_vulnerable),
+            },
+        },
+ 
+        # Audience-appropriate display score — used by renderers and narrative
+        # insurer / sales / consultant → underwriting score (floor overrides applied)
+        # it → technical posture score (maps to fixable controls)
+        "display_score": {
+            "insurer":    cyber_profile.underwriting_score,
+            "sales":      cyber_profile.underwriting_score,
+            "consultant": cyber_profile.underwriting_score,
+            "it":         composite.composite_score,
+        }.get(audience, composite.composite_score),
+ 
+        "display_risk_band": {
+            "insurer":    cyber_profile.underwriting_band,
+            "sales":      cyber_profile.underwriting_band,
+            "consultant": cyber_profile.underwriting_band,
+            "it":         composite.risk_band,
+        }.get(audience, composite.risk_band),
 
         # DNS records
         "dns_records": {
@@ -788,8 +839,8 @@ async def run(
         print(f"  Generating narrative ({audience} audience)...")
         narrative = await enrich_with_narrative(
             domain=domain,
-            score=cyber_profile.underwriting_score,
-            risk_band=cyber_profile.underwriting_band,
+            score=output["display_score"],
+            risk_band=output["display_risk_band"],
             findings=findings,
             output=output,
             partner_context=partner_context,
