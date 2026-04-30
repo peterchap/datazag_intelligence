@@ -770,6 +770,8 @@ async def run(
         "narrative": {},
     }
     print("DEBUG output keys:", list(output.keys()))
+    print("DEBUG findings:", output.get("findings"))
+    print("DEBUG subdomains:", output.get("subdomains"))
     # ── Step 5a: Persist raw output JSON if output_dir provided ───────────
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
