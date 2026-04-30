@@ -112,6 +112,9 @@ class BaseRenderer:
         self.flags       = output.get("threat_flags", {})
         self.txt_intel   = output.get("txt_intelligence", {})
         self.risk_engine = output.get("risk_score_engine", {})
+        self.display_score     = output.get("display_score", self.cs["score"])
+        self.display_risk_band = output.get("display_risk_band", self.cs["risk_band"])
+        self.cyber_profile     = output.get("cyber_risk_profile", {})
 
     # --- Branding -----------------------------------------------------------
 
@@ -436,9 +439,9 @@ class BaseRenderer:
     # --- Shared HTML builders -----------------------------------------------
 
     def _html_score_ring_layout(self, grid_cards: str) -> str:
-        score = self.cs['score']
-        risk_band = self.cs['risk_band'].replace("_", " ").title()
-        color = RISK_BAND_COLOUR.get(self.cs['risk_band'], "#666")
+        score = self.display_score
+        risk_band = self.display_risk_band.replace("_", " ").title()
+        color = RISK_BAND_COLOUR.get(self.display_risk_band, "#666")
         
         return f"""
         <div style="display: flex; gap: 24px; margin: 16px 0 24px; align-items: stretch;">
@@ -1600,8 +1603,8 @@ class InsurerRenderer(BaseRenderer):
         if self._key_finding():
             lines += [f"> **Key finding:** {self._key_finding()}", ""]
         lines += [
-            f"## Risk score: {self.cs['score']}/100 — {self.cs['risk_band'].upper()}",
-            f"Confidence: {self.cs['confidence']} · Primary driver: {self.cs['primary_driver']}",
+            f"## Risk score: {self.display_score}/100 — {self.display_risk_band.upper()}",
+f"Confidence: {self.cs['confidence']} · Primary driver: {self.cyber_profile.get('primary_claim_vector', self.cs['primary_driver'])}"
             "", "## Exposure summary", "",
             "| Metric | Value |", "|--------|-------|",
             f"| Critical findings | {exp['critical']} |",
