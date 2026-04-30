@@ -13,6 +13,10 @@ Dimensions:
     5. Phishing platform risk              —  5% weight
     6. Infrastructure maturity (offset)    —  5% weight (reduces composite)
 
+Floor overrides (bypass weighted model for binary critical findings):
+    subdomain_takeover                     → floor 65
+    cert_missed_renewal                    → floor 40
+
 Usage:
     from cyber_risk_scores import CyberRiskScorer
 
@@ -50,6 +54,47 @@ MX_SECURITY_GATEWAYS = {
     "google workspace", "abnormal", "agari", "fortinet",
 }
 
+# Subdomain keywords that indicate customer/employee-facing auth systems
+AUTH_SUBDOMAIN_KEYWORDS = {
+    "portal", "login", "auth", "sso", "signin", "account",
+    "secure", "access", "id", "identity", "vpn", "remote",
+}
+
+
+# ---------------------------------------------------------------------------
+# Subdomain risk summary — parsed once, shared across dimension scorers
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SubdomainRiskSummary:
+    """Parsed subdomain intelligence — built once in score() and passed around."""
+    total:                  int
+    takeover_vulnerable:    list[dict]   # subdomains with is_takeover_vulnerable=True
+    high_risk:              list[dict]   # subdomains with risk_level="high"
+    auth_surface_takeovers: list[dict]   # takeovers on auth-keyword subdomains
+    has_takeover:           bool
+    has_auth_takeover:      bool         # portal/login/sso subdomain taken over
+    takeover_providers:     list[str]    # e.g. ["Azure Cloud"]
+
+    @classmethod
+    def from_raw(cls, subdomains: list[dict]) -> "SubdomainRiskSummary":
+        takeovers  = [s for s in subdomains if s.get("is_takeover_vulnerable")]
+        high_risk  = [s for s in subdomains if s.get("risk_level") == "high"]
+        auth_tko   = [
+            s for s in takeovers
+            if any(kw in s.get("dns_name", "").lower() for kw in AUTH_SUBDOMAIN_KEYWORDS)
+        ]
+        providers  = list({s.get("takeover_provider") for s in takeovers if s.get("takeover_provider")})
+        return cls(
+            total=len(subdomains),
+            takeover_vulnerable=takeovers,
+            high_risk=high_risk,
+            auth_surface_takeovers=auth_tko,
+            has_takeover=bool(takeovers),
+            has_auth_takeover=bool(auth_tko),
+            takeover_providers=providers,
+        )
+
 
 # ---------------------------------------------------------------------------
 # Score dataclasses — one per dimension
@@ -57,33 +102,24 @@ MX_SECURITY_GATEWAYS = {
 
 @dataclass
 class BECRiskScore:
-    """
-    Business Email Compromise risk.
-    Highest-frequency cyber claim globally — average £125k per incident.
-    Derived from email authentication posture.
-    """
-    score: int                      # 0–100, higher = more risk
-    band: str                       # critical / high / medium / low
+    score: int
+    band: str
     spoofing_possible: bool
     dmarc_enforcing: bool
     spf_hard_fail: bool
-    strict_alignment: bool          # aspf=s AND adkim=s
-    mx_security_gateway: bool       # dedicated email security product detected
+    strict_alignment: bool
+    mx_security_gateway: bool
     mta_sts_enforcing: bool
-    has_reporting: bool             # dmarc_rua present
+    has_reporting: bool
     key_gaps: list[str]
     narrative: str
 
 
 @dataclass
 class RansomwareExposureScore:
-    """
-    Ransomware susceptibility based on infrastructure signals
-    that correlate with initial access vectors.
-    """
     score: int
     band: str
-    short_ttl_flag: bool            # fast-flux pattern
+    short_ttl_flag: bool
     dynamic_dns: bool
     new_domain: bool
     infrastructure_change_signals: bool
@@ -95,26 +131,20 @@ class RansomwareExposureScore:
 
 @dataclass
 class DataBreachExposureScore:
-    """
-    Likelihood and potential severity of a data breach.
-    Derived from infrastructure signals and SaaS stack.
-    """
     score: int
     band: str
-    credential_risk_saas: list[str]  # known-breached SaaS in stack
+    credential_risk_saas: list[str]
     no_dnssec: bool
     no_mta_sts: bool
     spoofable: bool
+    subdomain_takeover: bool
+    auth_surface_takeover: bool
     key_gaps: list[str]
     narrative: str
 
 
 @dataclass
 class SupplyChainRiskScore:
-    """
-    Risk posed to the domain's customers and partners.
-    Scaled by SaaS breadth and partner trust level.
-    """
     score: int
     band: str
     saas_count: int
@@ -129,10 +159,6 @@ class SupplyChainRiskScore:
 
 @dataclass
 class PhishingPlatformScore:
-    """
-    Risk that THIS domain is used as a phishing platform against others.
-    Especially relevant for ESPs, MSSPs, and supply chain partners.
-    """
     score: int
     band: str
     spoofable: bool
@@ -140,18 +166,16 @@ class PhishingPlatformScore:
     shared_hosting: bool
     high_asn_abuse: bool
     no_security_txt: bool
+    subdomain_takeover: bool
+    auth_surface_takeover: bool
     key_gaps: list[str]
     narrative: str
 
 
 @dataclass
 class InfrastructureMaturityScore:
-    """
-    Overall infrastructure hygiene — higher = more mature.
-    Used as an offset against the composite risk score.
-    """
-    score: int                      # 0–100, higher = more mature
-    band: str                       # exemplary / advanced / intermediate / basic
+    score: int
+    band: str
     dual_stack_ipv6: bool
     has_caa: bool
     has_dnssec: bool
@@ -159,33 +183,32 @@ class InfrastructureMaturityScore:
     has_tls_rpt: bool
     has_bimi: bool
     has_security_txt: bool
-    cert_health: bool               # > 30 days, not self-signed
+    cert_health: bool
     smtp_banner_confirmed: bool
     dmarc_reporting: bool
+    hsts_coverage: float          # 0.0–1.0 fraction of subdomains with HSTS
+    csp_coverage: float           # 0.0–1.0 fraction of subdomains with CSP
     maturity_level: str
     narrative: str
 
 
 @dataclass
 class CyberRiskProfile:
-    """
-    Complete six-dimension cyber risk profile.
-    Maps directly to insurance claim categories.
-    """
     domain: str
-
     bec:               BECRiskScore
     ransomware:        RansomwareExposureScore
     data_breach:       DataBreachExposureScore
     supply_chain:      SupplyChainRiskScore
     phishing_platform: PhishingPlatformScore
     maturity:          InfrastructureMaturityScore
+    subdomains:        SubdomainRiskSummary
 
     # Composite underwriting output
-    underwriting_score:    int     # 0–100
-    underwriting_band:     str     # critical / high / medium / low
-    premium_signal:        str     # standard / loading / heavy_loading / decline
+    underwriting_score:    int
+    underwriting_band:     str
+    premium_signal:        str
     primary_claim_vector:  str
+    floor_override:        Optional[str]   # None or name of finding that set the floor
     score_breakdown:       dict
 
 
@@ -196,14 +219,18 @@ class CyberRiskProfile:
 class CyberRiskScorer:
     """
     Derives a six-dimension cyber risk profile from Datazag output dict.
-    Weights reflect relative insurance claim frequency and severity.
 
+    Weights reflect relative insurance claim frequency and severity:
         BEC              35%  — highest frequency
         Ransomware       25%  — highest severity
         Data breach      20%
         Supply chain     10%
         Phishing platform 5%
         Maturity offset  -5%  — good maturity reduces composite
+
+    Floor overrides ensure the weighted model cannot under-score binary
+    critical findings that are immediately exploitable regardless of
+    overall posture quality.
     """
 
     WEIGHTS = {
@@ -212,8 +239,15 @@ class CyberRiskScorer:
         "data_breach":       0.20,
         "supply_chain":      0.10,
         "phishing_platform": 0.05,
-        "maturity_offset":   0.05,  # subtracted
+        "maturity_offset":   0.05,
     }
+
+    # Binary critical findings → minimum composite score
+    FLOOR_OVERRIDES: list[tuple[str, int]] = [
+        ("auth_subdomain_takeover",  75),   # portal/login/sso taken over → heavy loading
+        ("subdomain_takeover",       65),   # any subdomain takeover → loading
+        ("cert_missed_renewal",      40),   # missed auto-renewal → loading
+    ]
 
     # -----------------------------------------------------------------------
     # Public API
@@ -224,10 +258,6 @@ class CyberRiskScorer:
         output: dict,
         partner_context: Optional[str] = None,
     ) -> CyberRiskProfile:
-        """
-        Score a domain from the run.py output dict.
-        Returns a CyberRiskProfile with all six dimensions populated.
-        """
         ea      = output.get("email_auth", {})
         tech    = output.get("technographics", {})
         ti      = output.get("txt_intelligence", {})
@@ -238,15 +268,37 @@ class CyberRiskScorer:
         dns     = output.get("dns_records", {})
         domain  = output.get("domain", "")
 
+        # ── Parse subdomain intelligence ─────────────────────────────────
+        raw_subdomains = output.get("subdomains") or []
+        subs = SubdomainRiskSummary.from_raw(raw_subdomains)
+
+        # ── Parse findings into { finding_code: finding_dict } ───────────
+        # Gives O(1) lookup instead of scanning the list in every scorer
+        raw_findings = output.get("findings") or []
+        findings_map: dict[str, dict] = {
+            f["finding"]: f for f in raw_findings if f.get("finding")
+        }
+
+        # ── HSTS / CSP coverage from findings ────────────────────────────
+        # findings carry the parsed pct — extract for maturity scoring
+        hsts_coverage, csp_coverage = self._parse_http_coverage(findings_map, subs)
+
+        # ── Cert missed renewal from cert_analysis ────────────────────────
+        cert_analysis   = output.get("cert_analysis") or output.get("certificate_intelligence") or {}
+        missed_renewals = cert_analysis.get("missed_renewals", 0) if isinstance(cert_analysis, dict) else 0
+
+        # ── Dimension scores ──────────────────────────────────────────────
         bec        = self._score_bec(ea, tech)
         ransomware = self._score_ransomware(flags, changes, labels, tech)
-        breach     = self._score_data_breach(ti, ea, flags)
+        breach     = self._score_data_breach(ti, ea, flags, subs)
         supply     = self._score_supply_chain(ti, partner_context)
-        phishing   = self._score_phishing_platform(ea, flags, tech, dns)
-        maturity   = self._score_maturity(ea, flags, certs, dns)
+        phishing   = self._score_phishing_platform(ea, flags, tech, dns, subs)
+        maturity   = self._score_maturity(ea, flags, certs, dns, hsts_coverage, csp_coverage)
 
-        underwriting, band, premium, primary = self._composite(
-            bec, ransomware, breach, supply, phishing, maturity
+        underwriting, band, premium, primary, floor_override = self._composite(
+            bec, ransomware, breach, supply, phishing, maturity,
+            subs=subs,
+            missed_renewals=missed_renewals,
         )
 
         return CyberRiskProfile(
@@ -257,10 +309,12 @@ class CyberRiskScorer:
             supply_chain=supply,
             phishing_platform=phishing,
             maturity=maturity,
+            subdomains=subs,
             underwriting_score=underwriting,
             underwriting_band=band,
             premium_signal=premium,
             primary_claim_vector=primary,
+            floor_override=floor_override,
             score_breakdown={
                 "bec":               bec.score,
                 "ransomware":        ransomware.score,
@@ -270,6 +324,58 @@ class CyberRiskScorer:
                 "maturity_offset":   maturity.score,
             },
         )
+
+    # -----------------------------------------------------------------------
+    # Helpers
+    # -----------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_http_coverage(
+        findings_map: dict[str, dict],
+        subs: SubdomainRiskSummary,
+    ) -> tuple[float, float]:
+        """
+        Derive HSTS and CSP subdomain coverage fractions from findings.
+        Returns (hsts_coverage, csp_coverage) as 0.0–1.0.
+        """
+        hsts_coverage = 1.0
+        csp_coverage  = 1.0
+
+        if subs.total == 0:
+            return hsts_coverage, csp_coverage
+
+        # hsts_absent_majority: "3 of 3 subdomains missing HSTS header"
+        if "hsts_absent_majority" in findings_map:
+            ev = findings_map["hsts_absent_majority"].get("evidence", "")
+            # e.g. "3 of 3 subdomains missing HSTS header"
+            try:
+                parts = ev.split()
+                missing = int(parts[0])
+                total   = int(parts[2])
+                hsts_coverage = max(0.0, (total - missing) / total)
+            except (ValueError, IndexError):
+                hsts_coverage = 0.0
+
+        # ESTATE_HSTS_LOW: "Only 33% of 3 live subdomains have HSTS configured"
+        elif "ESTATE_HSTS_LOW" in findings_map:
+            ev = findings_map["ESTATE_HSTS_LOW"].get("evidence", "")
+            try:
+                pct = float(ev.split("%")[0].split()[-1])
+                hsts_coverage = pct / 100.0
+            except (ValueError, IndexError):
+                hsts_coverage = 0.5
+
+        if "csp_absent_majority" in findings_map:
+            ev = findings_map["csp_absent_majority"].get("evidence", "")
+            try:
+                parts = ev.split()
+                missing = int(parts[0])
+                total   = int(parts[2])
+                csp_coverage = max(0.0, (total - missing) / total)
+            except (ValueError, IndexError):
+                csp_coverage = 0.0
+
+        return hsts_coverage, csp_coverage
 
     # -----------------------------------------------------------------------
     # Dimension scorers
@@ -328,10 +434,9 @@ class CyberRiskScorer:
 
         if score >= 80:
             narrative = (
-                f"BEC risk is low. SPF hard-fail and DMARC p=reject are both enforced"
-                + (f" with strict alignment." if strict_align else ".")
-                + (f" {tech.get('mx_provider_name', 'Email gateway')} provides gateway security."
-                   if mx_secure else "")
+                "BEC risk is low. SPF hard-fail and DMARC p=reject are both enforced"
+                + (" with strict alignment." if strict_align else ".")
+                + (f" {tech.get('mx_provider_name', 'Email gateway')} provides gateway security." if mx_secure else "")
                 + " Spoofed email would be rejected before reaching any employee."
             )
         elif score >= 50:
@@ -414,21 +519,18 @@ class CyberRiskScorer:
         elif score < 30:
             narrative = (
                 f"Low ransomware infrastructure risk. Minor signals present: "
-                f"{gaps[0].lower() if gaps else 'none significant'}. "
-                f"These may reflect legitimate CDN or cloud hosting patterns."
+                f"{gaps[0].lower() if gaps else 'none significant'}."
             )
         elif score < 60:
             narrative = (
                 f"Moderate ransomware exposure signals. {len(gaps)} indicators present. "
                 f"These patterns appear in ransomware delivery and C2 infrastructure "
-                f"but are context-dependent — may be legitimate for this organisation type."
+                f"but are context-dependent."
             )
         else:
             narrative = (
                 f"Elevated ransomware infrastructure signals. {len(gaps)} risk factors "
-                f"including {gaps[0].lower()}. "
-                f"These DNS patterns are commonly associated with malicious infrastructure. "
-                f"Manual investigation recommended before binding."
+                f"including {gaps[0].lower()}. Manual investigation recommended before binding."
             )
 
         return RansomwareExposureScore(
@@ -447,15 +549,13 @@ class CyberRiskScorer:
         ti: dict,
         ea: dict,
         flags: dict,
+        subs: SubdomainRiskSummary,
     ) -> DataBreachExposureScore:
         score = 0
         gaps  = []
 
         all_saas   = ti.get("all_identified", [])
-        cred_risk  = [
-            s for s in all_saas
-            if any(k in s.lower() for k in HIGH_RISK_SAAS)
-        ]
+        cred_risk  = [s for s in all_saas if any(k in s.lower() for k in HIGH_RISK_SAAS)]
         no_dnssec  = not ea.get("dnssec")
         no_mta_sts = ea.get("mta_sts") not in ("NOERROR",)
         spoofable  = ea.get("is_spoofable", False)
@@ -463,9 +563,7 @@ class CyberRiskScorer:
 
         if cred_risk:
             score += min(40, len(cred_risk) * 15)
-            gaps.append(
-                f"Breached credential stores in stack: {', '.join(cred_risk[:2])}"
-            )
+            gaps.append(f"Breached credential stores in stack: {', '.join(cred_risk[:2])}")
         if no_dnssec:
             score += 15
             gaps.append("No DNSSEC — DNS hijacking could redirect traffic and email")
@@ -478,6 +576,24 @@ class CyberRiskScorer:
         if new_domain:
             score += 10
             gaps.append("New domain — limited breach history baseline")
+
+        # ── Subdomain takeover contribution ──────────────────────────────
+        # A takeover on an auth-surface subdomain is a direct credential
+        # harvesting vector — material data breach risk
+        if subs.has_auth_takeover:
+            score += 30
+            names = [s["dns_name"] for s in subs.auth_surface_takeovers]
+            gaps.append(
+                f"Auth-surface subdomain takeover: {', '.join(names)} — "
+                f"attacker can serve credential-harvesting pages from legitimate namespace"
+            )
+        elif subs.has_takeover:
+            score += 15
+            names = [s["dns_name"] for s in subs.takeover_vulnerable]
+            gaps.append(
+                f"Subdomain takeover: {', '.join(names)} — "
+                f"attacker controls content under this domain"
+            )
 
         score = min(100, score)
         band  = self._risk_band(score)
@@ -498,6 +614,12 @@ class CyberRiskScorer:
                     f"credentials from known breaches may already be in threat actor hands. "
                     if cred_risk else ""
                 )
+                + (
+                    f"Subdomain takeover on {subs.auth_surface_takeovers[0]['dns_name']} "
+                    f"via {subs.auth_surface_takeovers[0].get('takeover_provider', 'cloud provider')} "
+                    f"enables high-fidelity credential harvesting with no phishing infrastructure required. "
+                    if subs.has_auth_takeover else ""
+                )
                 + "Data breach probability is elevated above baseline."
             )
 
@@ -507,6 +629,8 @@ class CyberRiskScorer:
             no_dnssec=no_dnssec,
             no_mta_sts=no_mta_sts,
             spoofable=spoofable,
+            subdomain_takeover=subs.has_takeover,
+            auth_surface_takeover=subs.has_auth_takeover,
             key_gaps=gaps, narrative=narrative,
         )
 
@@ -520,10 +644,7 @@ class CyberRiskScorer:
 
         all_saas   = ti.get("all_identified", [])
         saas_count = len(all_saas)
-        high_risk  = [
-            s for s in all_saas
-            if any(k in s.lower() for k in HIGH_RISK_SAAS)
-        ]
+        high_risk  = [s for s in all_saas if any(k in s.lower() for k in HIGH_RISK_SAAS)]
         ai_infra   = bool(ti.get("ai_infrastructure"))
         payments   = len(ti.get("payment_processors", []))
         identity   = len(ti.get("identity_providers", []))
@@ -541,24 +662,19 @@ class CyberRiskScorer:
         if high_risk:
             score += min(30, len(high_risk) * 15)
             gaps.append(f"Known-breached SaaS in stack: {', '.join(high_risk[:3])}")
-
         if ai_infra:
             score += 10
-            gaps.append("AI infrastructure (MCP/Claude/OpenAI) — new attack surface category")
-
+            gaps.append("AI infrastructure — new attack surface category")
         if payments >= 5:
             score += 10
             gaps.append(f"{payments} payment integrations — high-value fraud target")
-
         if identity >= 3:
             score += 10
             gaps.append(f"{identity} identity providers — credential aggregation risk")
-
         if email_mktg >= 2:
             score += 5
             gaps.append(f"{email_mktg} email marketing platforms — outbound spoofing surface")
 
-        # Partner trust multiplier
         multiplier = 1.0
         if partner_context:
             ctx = partner_context.lower()
@@ -573,10 +689,7 @@ class CyberRiskScorer:
         band  = self._risk_band(score)
 
         if score < 20:
-            narrative = (
-                f"Minimal supply chain risk. Lean SaaS stack with "
-                f"{saas_count} identified service{'s' if saas_count != 1 else ''}."
-            )
+            narrative = f"Minimal supply chain risk. Lean SaaS stack with {saas_count} identified service{'s' if saas_count != 1 else ''}."
         elif score < 50:
             narrative = (
                 f"Moderate supply chain exposure. {saas_count} SaaS services identified. "
@@ -586,14 +699,8 @@ class CyberRiskScorer:
         else:
             narrative = (
                 f"Significant supply chain risk. {saas_count} SaaS platforms"
-                + (
-                    f" including known-breached services ({', '.join(high_risk[:2])})."
-                    if high_risk else "."
-                )
-                + (
-                    f" AI infrastructure confirms production AI agent access to business systems."
-                    if ai_infra else ""
-                )
+                + (f" including known-breached services ({', '.join(high_risk[:2])})." if high_risk else ".")
+                + (f" AI infrastructure confirms production AI agent access to business systems." if ai_infra else "")
                 + f" A breach at any vendor could expose this organisation's data."
             )
 
@@ -614,6 +721,7 @@ class CyberRiskScorer:
         flags: dict,
         tech: dict,
         dns: dict,
+        subs: SubdomainRiskSummary,
     ) -> PhishingPlatformScore:
         score = 0
         gaps  = []
@@ -640,27 +748,60 @@ class CyberRiskScorer:
             score += 5
             gaps.append("No security.txt — no responsible disclosure channel for researchers")
 
+        # ── Subdomain takeover — legitimate namespace hijack ──────────────
+        # An attacker controlling a subdomain can serve convincing phishing
+        # pages under the target's own domain — higher fidelity than spoofing
+        if subs.has_auth_takeover:
+            score += 40
+            tko  = subs.auth_surface_takeovers[0]
+            name = tko["dns_name"]
+            prov = tko.get("takeover_provider", "cloud provider")
+            gaps.insert(0,
+                f"Auth-surface subdomain takeover ({name} via {prov}) — attacker can serve "
+                f"phishing pages within the legitimate {name.split('.', 1)[-1]} namespace"
+            )
+        elif subs.has_takeover:
+            score += 25
+            tko  = subs.takeover_vulnerable[0]
+            name = tko["dns_name"]
+            prov = tko.get("takeover_provider", "cloud provider")
+            gaps.insert(0,
+                f"Subdomain takeover ({name} via {prov}) — content served under legitimate domain namespace"
+            )
+
         score = min(100, score)
         band  = self._risk_band(score)
 
-        if score < 20:
+        if subs.has_auth_takeover:
+            tko  = subs.auth_surface_takeovers[0]
             narrative = (
-                "Low phishing platform risk. Strong email authentication prevents "
-                "spoofing of this domain against third parties."
+                f"Critical phishing platform risk. {tko['dns_name']} is vulnerable to "
+                f"takeover via a dangling CNAME to {tko.get('cname', tko.get('takeover_provider', 'cloud resource'))}. "
+                f"An attacker claiming this {tko.get('takeover_provider', 'cloud')} resource can serve "
+                f"credential-harvesting pages under the legitimate domain — "
+                f"bypassing browser warnings and anti-phishing controls entirely. "
+                + ("The domain is also spoofable, enabling parallel email-based attacks. " if spoofable else "")
             )
+        elif subs.has_takeover:
+            tko  = subs.takeover_vulnerable[0]
+            narrative = (
+                f"High phishing platform risk. {tko['dns_name']} is vulnerable to subdomain takeover "
+                f"via {tko.get('takeover_provider', 'cloud provider')}. "
+                f"An attacker can serve malicious content under this organisation's domain namespace."
+                + (" Domain is also spoofable." if spoofable else "")
+            )
+        elif score < 20:
+            narrative = "Low phishing platform risk. Strong email authentication prevents spoofing of this domain."
         elif score < 50:
             narrative = (
                 f"Moderate phishing platform risk. {gaps[0] if gaps else 'Some gaps present'}. "
-                f"This domain could be used as a launchpad for attacks against "
-                f"the organisation's customers or partners."
+                f"This domain could be used as a launchpad for attacks against customers or partners."
             )
         else:
             narrative = (
                 f"High phishing platform risk. This domain can be trivially spoofed, "
-                f"making it a viable tool for attacking "
-                f"{tech.get('mx_provider_name', '') or 'the'} customer base. "
-                f"Attackers can send email appearing to be from this organisation "
-                f"with zero infrastructure access."
+                f"making it a viable tool for attacking the customer base. "
+                f"Attackers can send email appearing to be from this organisation with zero infrastructure access."
             )
 
         return PhishingPlatformScore(
@@ -670,6 +811,8 @@ class CyberRiskScorer:
             shared_hosting=cdn_ugc,
             high_asn_abuse=high_asn,
             no_security_txt=no_sec_txt,
+            subdomain_takeover=subs.has_takeover,
+            auth_surface_takeover=subs.has_auth_takeover,
             key_gaps=gaps, narrative=narrative,
         )
 
@@ -679,6 +822,8 @@ class CyberRiskScorer:
         flags: dict,
         certs: dict,
         dns: dict,
+        hsts_coverage: float = 1.0,
+        csp_coverage: float  = 1.0,
     ) -> InfrastructureMaturityScore:
         score = 0
 
@@ -692,7 +837,7 @@ class CyberRiskScorer:
         cert_ok   = (
             bool(certs.get("https_ok")) and
             (certs.get("https_days_left") or 0) > 30 and
-            not certs.get("https_lets_encrypt")   # OV/EV = more mature
+            not certs.get("https_lets_encrypt")
         )
         smtp_ok   = certs.get("provider_live", False)
         reporting = bool(ea.get("dmarc_rua"))
@@ -707,6 +852,16 @@ class CyberRiskScorer:
         if cert_ok:   score += 10
         if smtp_ok:   score += 5
         if reporting: score += 5
+
+        # ── HSTS / CSP coverage deductions ───────────────────────────────
+        # Full coverage = no penalty. Partial/zero coverage reduces maturity.
+        # Max deduction: 10pts HSTS + 5pts CSP = 15pts
+        if hsts_coverage < 1.0:
+            deduction = round((1.0 - hsts_coverage) * 10)
+            score = max(0, score - deduction)
+        if csp_coverage < 1.0:
+            deduction = round((1.0 - csp_coverage) * 5)
+            score = max(0, score - deduction)
 
         score = min(100, score)
 
@@ -734,6 +889,8 @@ class CyberRiskScorer:
             cert_health=cert_ok,
             smtp_banner_confirmed=smtp_ok,
             dmarc_reporting=reporting,
+            hsts_coverage=hsts_coverage,
+            csp_coverage=csp_coverage,
             maturity_level=level,
             narrative=narratives[level],
         )
@@ -750,10 +907,15 @@ class CyberRiskScorer:
         supply: SupplyChainRiskScore,
         phishing: PhishingPlatformScore,
         maturity: InfrastructureMaturityScore,
-    ) -> tuple[int, str, str, str]:
+        subs: SubdomainRiskSummary,
+        missed_renewals: int = 0,
+    ) -> tuple[int, str, str, str, Optional[str]]:
         """
-        Weighted composite underwriting score.
-        Maturity score offsets the composite — good hygiene reduces risk.
+        Weighted composite + floor overrides.
+
+        Floor overrides ensure binary critical findings cannot be
+        averaged away by a clean posture elsewhere. Applied after the
+        weighted calculation — the highest applicable floor wins.
         """
         raw = (
             bec.score        * self.WEIGHTS["bec"] +
@@ -764,14 +926,37 @@ class CyberRiskScorer:
             maturity.score   * self.WEIGHTS["maturity_offset"]
         )
         composite = max(0, min(100, round(raw)))
-        band      = self._risk_band(composite)
+
+        # ── Floor overrides ───────────────────────────────────────────────
+        floor_override: Optional[str] = None
+        floor_applied  = composite
+
+        if subs.has_auth_takeover:
+            floor = 75
+            if floor > floor_applied:
+                floor_applied    = floor
+                floor_override   = "auth_subdomain_takeover"
+        elif subs.has_takeover:
+            floor = 65
+            if floor > floor_applied:
+                floor_applied    = floor
+                floor_override   = "subdomain_takeover"
+
+        if missed_renewals > 0:
+            floor = 40
+            if floor > floor_applied:
+                floor_applied    = floor
+                floor_override   = "cert_missed_renewal"
+
+        composite = floor_applied
+
+        band = self._risk_band(composite)
 
         if composite >= 80:   premium = "decline"
         elif composite >= 65: premium = "heavy_loading"
         elif composite >= 45: premium = "loading"
         else:                 premium = "standard"
 
-        # Primary claim vector — highest weighted contribution
         scores = {
             "Business Email Compromise": bec.score        * self.WEIGHTS["bec"],
             "Ransomware":                ransomware.score * self.WEIGHTS["ransomware"],
@@ -781,7 +966,11 @@ class CyberRiskScorer:
         }
         primary = max(scores, key=scores.get)
 
-        return composite, band, premium, primary
+        # If floor override is active, it's the primary driver
+        if floor_override:
+            primary = floor_override.replace("_", " ").title()
+
+        return composite, band, premium, primary, floor_override
 
     # -----------------------------------------------------------------------
     # Utilities
@@ -789,7 +978,6 @@ class CyberRiskScorer:
 
     @staticmethod
     def _risk_band(score: int) -> str:
-        """Higher score = higher risk band."""
         if score >= 75: return "critical"
         if score >= 50: return "high"
         if score >= 25: return "medium"
