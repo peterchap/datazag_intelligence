@@ -360,7 +360,7 @@ class DatazagCanonicalAdapter:
                     dmarc_parts[k.strip().lower()] = v.strip()
 
         dmarc_policy = dmarc_parts.get("p")
-        dmarc_pct    = int(dmarc_parts.get("pct", 100))
+        dmarc_pct    = int(dmarc_parts.get("pct", 100)) if dmarc_policy else None
 
         # MTA-STS
         mta_sts  = self.dns_profile.get("mta_sts_auth", {})

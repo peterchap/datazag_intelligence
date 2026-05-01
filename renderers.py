@@ -473,132 +473,343 @@ class BaseRenderer:
         """
 
     def _infrastructure_routing_html(self) -> str:
-        bgp   = self.o.get("bgp_routing") or {}
-        ip    = self.o.get("ip_reputation") or {}
-        infra = self.o.get("infrastructure_concentration") or {}
-        geo   = self.o.get("geolocation") or {}
+    bgp   = self.o.get("bgp_routing") or {}
+    ip    = self.o.get("ip_reputation") or {}
+    infra = self.o.get("infrastructure_concentration") or {}
+    geo   = self.o.get("geolocation") or self.o.get("geolocation_jurisdiction") or {}
 
-        # Render if any routing/reputation data is present, including DuckLake or technographics
-        has_bgp_data = any([
-            bgp.get("rpki_state") not in (None, "unknown", ""),
-            bgp.get("moas_detected"),
-            ip.get("spamhaus_zen"),
-            ip.get("asn_core_risk", 0) > 0,
-            bool(self.o.get("infrastructure_intelligence")),
-            bool(self.tech.get("asn")),
-        ])
+    has_bgp_data = any([
+        bgp.get("rpki_state") not in (None, "unknown", ""),
+        bgp.get("moas_detected"),
+        ip.get("spamhaus_zen"),
+        ip.get("asn_core_risk", 0) > 0,
+        ip.get("feodo_listed"),
+        ip.get("threatfox_listed"),
+        bool(self.tech.get("asn")),
+    ])
 
-        if not has_bgp_data:
-            return """
-            <h2>Infrastructure &amp; routing intelligence</h2>
-            <div style="background:#f7f8f9;border-radius:8px;padding:16px;color:#666;font-size:13px">
-            BGP and routing telemetry will appear here once this domain is indexed
-            in the Datazag DuckLake pipeline. For live scans this populates automatically.
-            </div>"""
-        
-        infra_intel = self.o.get("infrastructure_intelligence") or {}
-        context = infra_intel.get("domain_risk_context", {})
-        if isinstance(context, str):
-            import json
-            try:
-                context = json.loads(context)
-            except Exception:
-                context = {}
-                
-        domain_details = context.get("domain_details", context)
-        
-        rpki = str(domain_details.get("rpki_status", "unknown")).upper()
-        rpki_color = "#3B6D11" if rpki == "VALID" else "#A32D2D" if rpki == "INVALID" else "#64748B"
-        
-        hijack = domain_details.get("asn_hijack_history", False)
-        hijack_val = "Detected" if hijack else "None"
-        hijack_color = "#A32D2D" if hijack else "#3B6D11"
-        
-        moas = domain_details.get("moas_risk", "none")
-        moas_color = "#A32D2D" if str(moas).lower() != "none" and moas else "#64748B"
-        
-        churn = domain_details.get("bgp_strangeness", "stable")
-        
-        ff = domain_details.get("fast_flux_risk", 0.0)
+    if not has_bgp_data:
+        return """
+        <h2>Infrastructure &amp; routing intelligence</h2>
+        <div style="background:#f7f8f9;border-radius:8px;padding:16px;color:#666;font-size:13px">
+        BGP and routing telemetry will appear here once this domain is indexed
+        in the Datazag DuckLake pipeline. For live scans this populates automatically.
+        </div>"""
+
+    # ── Read from correct output dict keys ────────────────────────────────
+
+    # BGP / RPKI
+    rpki_state  = str(bgp.get("rpki_state", "unknown")).upper()
+    rpki_colour = (
+        "#3B6D11" if rpki_state == "VALID" else
+        "#A32D2D" if rpki_state == "INVALID" else
+        "#64748B"
+    )
+    moas         = bgp.get("moas_detected", False)
+    moas_origins = bgp.get("moas_origins", [])
+    prefix       = bgp.get("prefix", "—")
+    churn_rate   = bgp.get("churn_rate", 0.0)
+    path_len     = bgp.get("as_path_length", 0)
+    is_manrs     = bgp.get("is_manrs_member", False)
+    hijack_score = bgp.get("route_hijack_score", 0.0)
+    churn_label  = "High" if churn_rate > 0.3 else "Low"
+
+    # IP reputation
+    asn_core         = ip.get("asn_core_risk", 0.0)
+    ip_threat        = ip.get("ip_direct_threat_score", 0.0)
+    prefix_infra     = ip.get("prefix_infra_score", 0.0)
+    neighbourhood    = ip.get("neighbourhood_density_risk", 0.0)
+    spamhaus         = ip.get("spamhaus_zen", False)
+    urlhaus          = ip.get("urlhaus_listed", False)
+    feodo            = ip.get("feodo_listed", False)
+    feodo_malware    = ip.get("feodo_malware", "")
+    sslbl            = ip.get("sslbl_listed", False)
+    threatfox        = ip.get("threatfox_listed", False)
+    threatfox_mal    = ip.get("threatfox_malware", "")
+    certstream_hits  = ip.get("certstream_hits", 0)
+    is_bulletproof   = ip.get("is_bulletproof", False)
+    is_residential   = ip.get("is_residential", False)
+    is_cloud         = ip.get("is_cloud", False)
+    brands_hit       = ip.get("certstream_brands_hit", [])
+    abuse_score      = ip.get("abuse_ch_score", 0.0)
+
+    # Concentration
+    domains_on_ip    = infra.get("domains_on_ip", 0)
+    domains_on_asn   = infra.get("domains_on_asn", 0)
+    ip_dedicated     = infra.get("ip_is_dedicated", False)
+
+    # Geo
+    ip_country       = geo.get("ip_country", "")
+    country_risk     = geo.get("ip_country_risk_level", "unknown")
+    alloc_age        = geo.get("allocation_age_days", 0)
+    rir              = geo.get("rir", "")
+
+    # ASN / ISP from technographics
+    isp = self.tech.get("isp_name", "") or ""
+    asn = self.tech.get("asn", "") or ""
+
+    # ── Blocklist feed pills ──────────────────────────────────────────────
+    feed_pills = ""
+    for listed, label, detail in [
+        (feodo,    "Feodo",     feodo_malware or "C2 infrastructure"),
+        (sslbl,    "SSLBL",     "Malicious SSL certificate"),
+        (urlhaus,  "URLhaus",   "Malware distribution"),
+        (threatfox, "ThreatFox", threatfox_mal or "IOC match"),
+        (spamhaus, "Spamhaus DROP", "DROP listed"),
+    ]:
+        if listed:
+            feed_pills += (
+                f'<span title="{detail}" style="background:#FCEBEB;color:#A32D2D;'
+                f'padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;'
+                f'display:inline-block;margin:2px 3px">{label}</span>'
+            )
+
+    if brands_hit:
+        feed_pills += (
+            f'<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;'
+            f'border-radius:4px;font-size:11px;font-weight:600;'
+            f'display:inline-block;margin:2px 3px">'
+            f'Certstream: {", ".join(brands_hit[:2])}</span>'
+        )
+
+    # ── IP type pills ─────────────────────────────────────────────────────
+    ip_type_pills = ""
+    for flag, label, style in [
+        (is_bulletproof, "Bulletproof",   "background:#FCEBEB;color:#A32D2D"),
+        (is_residential, "Residential",   "background:#FAEEDA;color:#854F0B"),
+        (is_cloud,       "Cloud/CDN",     "background:#E6F1FB;color:#185FA5"),
+        (ip_dedicated,   "Dedicated",     "background:#EAF3DE;color:#3B6D11"),
+        (is_manrs,       "MANRS member",  "background:#EAF3DE;color:#3B6D11"),
+    ]:
+        if flag:
+            ip_type_pills += (
+                f'<span style="{style};padding:2px 8px;border-radius:4px;'
+                f'font-size:11px;font-weight:500;display:inline-block;margin:2px 3px">'
+                f'{label}</span>'
+            )
+
+    # ── Domain-level signals from scenario_domain_intel ──────────────────
+    domain_intel = self.o.get("infrastructure_intelligence") or {}
+    context      = domain_intel.get("domain_risk_context") or {}
+    if isinstance(context, str):
+        import json as _json
         try:
-            ff_label = "Elevated" if float(ff) > 0.5 else "Low"
-        except (ValueError, TypeError):
-            ff_label = "Low"
-            
-        dga = domain_details.get("dga_risk", 0.0)
-        try:
-            dga_label = "Elevated" if float(dga) > 0.5 else "Low"
-        except (ValueError, TypeError):
-            dga_label = "Low"
-            
-        isp = self.tech.get("isp_name", "Unknown ISP") or "Unknown ISP"
-        asn = self.tech.get("asn", "Unknown ASN") or "Unknown ASN"
-        asn_risk = str(self.tech.get("asn_risk_level", "medium")).upper()
-        trust = self.tech.get("net_trust_score", 50)
-        
-        return f"""
-        <h2>Infrastructure & Routing Analysis</h2>
-        <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:16px;margin-bottom:24px;box-shadow: 0 1px 2px rgba(0,0,0,0.02); break-inside: avoid;">
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #F1F5F9; padding-bottom: 12px; margin-bottom: 12px;">
-                <div style="flex: 1;">
-                    <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Primary ASN</div>
-                    <div style="font-size:13px;font-weight:600;color:#0F172A">{asn}</div>
-                </div>
-                <div style="flex: 1.5;">
-                    <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Hosting Network</div>
-                    <div style="font-size:13px;font-weight:600;color:#0F172A">{isp}</div>
-                </div>
-                <div style="flex: 1;">
-                    <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Network Trust Score</div>
-                    <div style="font-size:13px;font-weight:600;color:#0F172A">{trust}/100</div>
-                </div>
-            </div>
-            
-            <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:16px;margin-top:16px;">
-                <!-- Column 1: Routing -->
-                <div>
-                    <h3 style="font-size:12px;color:#334155;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.02em;">BGP Routing Posture</h3>
-                    <table style="width:100%;border-collapse:collapse;">
-                        <tr>
-                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">RPKI State</td>
-                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{rpki_color};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{rpki}</span></td>
-                        </tr>
-                        <tr>
-                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">Hijack History</td>
-                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{hijack_color};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{hijack_val}</span></td>
-                        </tr>
-                        <tr>
-                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">MOAS Risk</td>
-                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{moas_color};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{str(moas).title()}</span></td>
-                        </tr>
-                        <tr>
-                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">BGP Stability</td>
-                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:#64748B;background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{str(churn).title()}</span></td>
-                        </tr>
-                    </table>
-                </div>
-                
-                <!-- Column 2: Threat Modeling -->
-                <div>
-                    <h3 style="font-size:12px;color:#334155;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.02em;">Threat Intelligence</h3>
-                    <table style="width:100%;border-collapse:collapse;">
-                        <tr>
-                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">Fast Flux Risk</td>
-                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{'#A32D2D' if ff_label == 'Elevated' else '#3B6D11'};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{ff_label}</span></td>
-                        </tr>
-                        <tr>
-                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">DGA Entropy Risk</td>
-                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:{'#A32D2D' if dga_label == 'Elevated' else '#3B6D11'};background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{dga_label}</span></td>
-                        </tr>
-                        <tr>
-                            <td style="padding:6px 0;font-size:12px;color:#475569;border-bottom:1px solid #F8FAFC;">ASN Risk Tier</td>
-                            <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC;"><span style="font-size:11px;font-weight:600;color:#64748B;background:#F8FAFC;padding:2px 6px;border-radius:4px;border:1px solid #E2E8F0;">{asn_risk}</span></td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
+            context = _json.loads(context)
+        except Exception:
+            context = {}
+    domain_details = context.get("domain_details") or context
+    ff_score  = float(domain_details.get("fast_flux_risk", 0.0) or 0.0)
+    dga_score = float(domain_details.get("dga_risk", 0.0) or 0.0)
+    ff_label  = "Elevated" if ff_score > 0.5 else "Low"
+    dga_label = "Elevated" if dga_score > 0.5 else "Low"
+    domain_risk_score = float(domain_intel.get("domain_risk_score", 0.0) or 0.0)
+
+    def _risk_badge(val: float, label: str) -> str:
+        col = "#A32D2D" if val > 0.5 else "#854F0B" if val > 0.25 else "#3B6D11"
+        bg  = "#FCEBEB" if val > 0.5 else "#FAEEDA" if val > 0.25 else "#EAF3DE"
+        return (
+            f'<span style="background:{bg};color:{col};font-size:11px;'
+            f'font-weight:600;padding:2px 6px;border-radius:4px;'
+            f'border:1px solid {col}33">{label}</span>'
+        )
+
+    return f"""
+    <h2>Infrastructure &amp; routing intelligence</h2>
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;
+                padding:16px;margin-bottom:24px;
+                box-shadow:0 1px 2px rgba(0,0,0,0.02)">
+
+      <!-- Row 1: ASN / Network overview -->
+      <div style="display:flex;justify-content:space-between;
+                  border-bottom:1px solid #F1F5F9;padding-bottom:12px;margin-bottom:16px">
+        <div style="flex:1">
+          <div style="font-size:10px;color:#64748B;text-transform:uppercase;
+                      letter-spacing:.05em;margin-bottom:2px">ASN</div>
+          <div style="font-size:14px;font-weight:700;color:#0F172A">AS{asn}</div>
         </div>
-        """
+        <div style="flex:2">
+          <div style="font-size:10px;color:#64748B;text-transform:uppercase;
+                      letter-spacing:.05em;margin-bottom:2px">Hosting network</div>
+          <div style="font-size:14px;font-weight:700;color:#0F172A">{isp or "—"}</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:#64748B;text-transform:uppercase;
+                      letter-spacing:.05em;margin-bottom:2px">Country</div>
+          <div style="font-size:14px;font-weight:700;color:#0F172A">
+            {ip_country or "—"}
+            {f'<span style="font-size:11px;color:#A32D2D;margin-left:4px">⚠ {country_risk}</span>'
+             if country_risk in ("high","medium") else ""}
+          </div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:#64748B;text-transform:uppercase;
+                      letter-spacing:.05em;margin-bottom:2px">Announced prefix</div>
+          <div style="font-size:12px;font-weight:600;font-family:monospace;color:#0F172A">
+            {prefix}
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Two-column BGP + Reputation -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+        <!-- BGP / RPKI column -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#334155;text-transform:uppercase;
+                      letter-spacing:.04em;margin-bottom:10px">BGP routing posture</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">RPKI state</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                <span style="font-size:11px;font-weight:700;color:{rpki_colour};
+                             background:{rpki_colour}15;padding:2px 8px;
+                             border-radius:4px;border:1px solid {rpki_colour}33">
+                  {rpki_state}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">MOAS detection</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                <span style="font-size:11px;font-weight:700;
+                             color:{'#A32D2D' if moas else '#3B6D11'}">
+                  {'⚠ DETECTED — ' + ', '.join(moas_origins[:2]) if moas else '✓ None'}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">Route hijack score</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                {_risk_badge(hijack_score, f"{hijack_score:.2f}")}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">Prefix churn</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                <span style="font-size:11px;color:#555">{churn_label} ({churn_rate:.3f})</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">MANRS member</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                <span style="font-size:11px;color:{'#3B6D11' if is_manrs else '#888'}">
+                  {'✓ Yes' if is_manrs else 'No'}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569">
+                Allocation age</td>
+              <td style="padding:6px 0;text-align:right">
+                <span style="font-size:11px;color:#555">
+                  {f"{alloc_age:,} days" if alloc_age else "—"}
+                  {f" ({rir})" if rir else ""}
+                </span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- IP reputation column -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#334155;text-transform:uppercase;
+                      letter-spacing:.04em;margin-bottom:10px">IP &amp; ASN reputation</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">ASN core risk</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                {_risk_badge(asn_core, f"{asn_core:.2f}")}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">IP threat score</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                {_risk_badge(ip_threat, f"{ip_threat:.2f}")}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">Prefix infra score</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                {_risk_badge(prefix_infra, f"{prefix_infra:.2f}")}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">Neighbourhood density</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                {_risk_badge(neighbourhood, f"{neighbourhood:.2f}")}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569;
+                         border-bottom:1px solid #F8FAFC">CertStream hits</td>
+              <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
+                <span style="font-size:11px;
+                             color:{'#A32D2D' if certstream_hits > 0 else '#3B6D11'}">
+                  {certstream_hits:,}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#475569">
+                Domains on IP / ASN</td>
+              <td style="padding:6px 0;text-align:right">
+                <span style="font-size:11px;color:#555">
+                  {_fmt_int(domains_on_ip)} / {_fmt_int(domains_on_asn)}
+                </span>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Row 3: Domain intelligence scores -->
+      {f'''
+      <div style="border-top:1px solid #F1F5F9;margin-top:16px;padding-top:14px">
+        <div style="font-size:11px;font-weight:700;color:#334155;text-transform:uppercase;
+                    letter-spacing:.04em;margin-bottom:10px">Domain intelligence</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+          <div>
+            <span style="font-size:11px;color:#64748B;margin-right:6px">Fast-flux risk</span>
+            {_risk_badge(ff_score, f"{ff_label} ({ff_score:.2f})")}
+          </div>
+          <div>
+            <span style="font-size:11px;color:#64748B;margin-right:6px">DGA entropy</span>
+            {_risk_badge(dga_score, f"{dga_label} ({dga_score:.2f})")}
+          </div>
+          <div>
+            <span style="font-size:11px;color:#64748B;margin-right:6px">Domain risk score</span>
+            {_risk_badge(domain_risk_score / 3, f"{domain_risk_score:.2f}")}
+          </div>
+        </div>
+      </div>
+      ''' if (ff_score or dga_score or domain_risk_score) else ""}
+
+      <!-- Row 4: Blocklist feeds + IP type pills -->
+      {f'''
+      <div style="border-top:1px solid #F1F5F9;margin-top:14px;padding-top:12px">
+        <div style="font-size:11px;font-weight:700;color:#A32D2D;text-transform:uppercase;
+                    letter-spacing:.04em;margin-bottom:8px">Active threat feed listings</div>
+        <div>{feed_pills}</div>
+      </div>
+      ''' if feed_pills else ""}
+
+      {f'''
+      <div style="margin-top:10px">
+        <div style="font-size:11px;color:#64748B;margin-bottom:6px">Infrastructure classification</div>
+        <div>{ip_type_pills}</div>
+      </div>
+      ''' if ip_type_pills else ""}
+
+    </div>"""
 
     def _rdap_html(self) -> str:
         rdap = self.rdap
@@ -932,7 +1143,7 @@ class BaseRenderer:
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DMARC</td>
               <td style="padding:6px 10px">{status_pill(reject_ok, 'p=reject', f"p={ea.get('dmarc_policy')}" if ea.get('dmarc_policy') else 'MISSING')}</td>
               <td style="padding:6px 10px;color:#555">{f"pct={ea.get('dmarc_pct',0)} · aspf={ea.get('aspf','?')} · adkim={ea.get('adkim','?')}" if ea.get('dmarc_policy') else 'No DMARC record found'}</td>
-              <td style="padding:6px 10px;color:#888">{'Full enforcement — spoofed mail rejected' if reject_ok else 'Spoofed mail quarantined or delivered depending on policy' if ea.get('dmarc_policy') else 'Spoofed mail delivered without policy enforcement'}</td></tr>
+              <td style="padding:6px 10px;color:#888">{'Full enforcement — spoofed mail rejected' if reject_ok else 'Spoofed mail quarantined — partial enforcement in place' if ea.get('dmarc_policy') == 'quarantine' else 'Monitoring only — p=none provides no enforcement, spoofed mail is delivered' if ea.get('dmarc_policy') == 'none' else 'Spoofed mail delivered without policy enforcement'}</td></tr>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">MTA-STS</td>
               <td style="padding:6px 10px">{status_pill(mta_ok, 'configured', 'MISSING')}</td>
               <td style="padding:6px 10px;color:#555">{'Mode: ' + (ea.get('mta_sts_mode') or 'unknown') if mta_ok else 'NXDOMAIN — policy not published'}</td>
@@ -1455,7 +1666,7 @@ class BaseRenderer:
             "| Layer | Status | Attack risk if missing |",
             "|-------|--------|------------------------|",
             f"| SPF | {status(spf_ok, bool(ea.get('spf_raw')))} {ea.get('spf') or ''} | Any server can send as this domain |",
-            f"| DMARC | {status(reject_ok, bool(ea.get('dmarc_policy')))} {'p='+ea.get('dmarc_policy') if ea.get('dmarc_policy') else ''} | {'Full enforcement' if reject_ok else 'Spoofed mail quarantined or delivered depending on policy' if ea.get('dmarc_policy') else 'Spoofed mail delivered without enforcement'} |",
+            f"| DMARC | {status(reject_ok, bool(ea.get('dmarc_policy')))} {'p='+ea.get('dmarc_policy') if ea.get('dmarc_policy') else 'MISSING'} | {'Full enforcement' if reject_ok else 'Spoofed mail quarantined — partial enforcement' if ea.get('dmarc_policy') == 'quarantine' else 'Monitoring only — p=none provides no enforcement' if ea.get('dmarc_policy') == 'none' else 'Spoofed mail delivered without enforcement'} |",
             f"| MTA-STS | {status(mta_ok)} | SMTP TLS downgrade attacks possible |",
             f"| TLS-RPT | {status(tls_ok)} | No visibility into SMTP TLS failures |",
             f"| BIMI | {status(bimi_ok)} | Brand logo not shown in email clients |",
@@ -2089,6 +2300,8 @@ class ITRenderer(BaseRenderer):
     }
 
     OWNER_MAP = {
+        "no_dmarc":                          "DNS / email team",
+        "dmarc_policy_none":                 "DNS / email team",
         "no_mta_sts":                        "Email / platform team",
         "no_tls_rpt":                        "Email / platform team",
         "no_bimi":                           "Marketing + email team",
