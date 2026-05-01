@@ -478,12 +478,14 @@ class BaseRenderer:
         infra = self.o.get("infrastructure_concentration") or {}
         geo   = self.o.get("geolocation") or {}
 
-        # Always render — show corpus intelligence even if BGP not yet enriched
+        # Render if any routing/reputation data is present, including DuckLake or technographics
         has_bgp_data = any([
             bgp.get("rpki_state") not in (None, "unknown", ""),
             bgp.get("moas_detected"),
             ip.get("spamhaus_zen"),
             ip.get("asn_core_risk", 0) > 0,
+            bool(self.o.get("infrastructure_intelligence")),
+            bool(self.tech.get("asn")),
         ])
 
         if not has_bgp_data:
