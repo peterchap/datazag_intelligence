@@ -27,6 +27,7 @@ from dnsproject.scripts.dns_generator import compile_pure_dns_report
 from enrichment import enrich_http_and_shodan
 from findings import passive_security_findings_v2
 from fingerprints import TXT_FINGERPRINTS, ADDITIONAL_TXT_FINGERPRINTS
+from dnsproject.scripts.ip_intelligence import fetch_ip_intelligence, fetch_domain_intelligence, fetch_registrar_tld_risk
 from scorer import DatazagCompositeScorer, NormalisedAnnotation, NormalisedDomainScore
 from narrative import enrich_with_narrative
 from renderers import render_all

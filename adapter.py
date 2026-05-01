@@ -339,10 +339,12 @@ class DatazagCanonicalAdapter:
                 elif t in ("-all","~all","+all","?all"): all_mech = t
 
         # Parse DMARC
-        dmarc_raw_list = self.dns_profile.get("dmarc_auth", {}).get("raw", [])
+        dmarc_auth_section = self.dns_profile.get("dmarc_auth", {})
+        dmarc_raw_list = dmarc_auth_section.get("raw", [])
         dmarc_str = dmarc_raw_list[0] if dmarc_raw_list else None
-        # Also handle stringified list from flat fields
-        if not dmarc_str:
+        # Flat-field fallback only for old-format files that pre-date dmarc_auth section.
+        # If dmarc_auth is present (even empty), the lookup ran — never override with stale data.
+        if not dmarc_str and "dmarc_auth" not in self.dns_profile:
             dmarc_flat = self.r.get("dmarc", "")
             try:
                 parsed = ast.literal_eval(dmarc_flat) if isinstance(dmarc_flat, str) and dmarc_flat.startswith("[") else None
