@@ -208,6 +208,135 @@ def _fetch_infrastructure_intelligence(domain: str) -> dict:
     finally:
         db.close()
 
+def _fetch_domain_intel_findings(domain: str) -> list[dict]:
+    """
+    Pulls pre-scored domain risk signals from scenario_domain_intel
+    and converts them to findings. Called in run() step 3c.
+    """
+    local_path  = "/root/asn_data_v3/ducklake/gold/scenario_domain_intel.parquet"
+    target_path = os.environ.get("DUCKLAKE_DOMAIN_INTEL_PATH", local_path)
+
+    if not os.path.exists(target_path):
+        return []
+
+    db = duckdb.connect()
+    try:
+        row = db.execute(f"""
+            SELECT dangling_cname_risk, fast_flux_risk, tld_registrar_risk,
+                   dga_risk, concentration_risk, certstream_risk, details
+            FROM read_parquet('{target_path}')
+            WHERE domain = '{domain}'
+            LIMIT 1
+        """).fetchone()
+
+        if not row:
+            return []
+
+        dangling, fast_flux, tld_reg, dga, concentration, certstream_risk, details = row
+        findings = []
+
+        def _f(val) -> float:
+            try:
+                return float(val or 0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        if _f(fast_flux) > 0.6:
+            findings.append({
+                "finding":     "fast_flux_detected",
+                "severity":    "critical" if _f(fast_flux) > 0.8 else "high",
+                "title":       f"Fast-flux DNS pattern detected (score: {_f(fast_flux):.2f})",
+                "evidence":    f"Datazag corpus fast-flux score: {_f(fast_flux):.2f}/1.0",
+                "detail":      (
+                    "This domain exhibits fast-flux DNS patterns — rapid rotation of A "
+                    "records across multiple IPs. Fast-flux is a strong indicator of "
+                    "botnet C2 infrastructure or bulletproof hosting used to evade takedown."
+                ),
+                "remediation": (
+                    "Investigate whether this domain is under external DNS manipulation. "
+                    "Check for unauthorised NS or glue record changes at your registrar."
+                ),
+                "category":    "infrastructure_intelligence",
+            })
+
+        if _f(dga) > 0.6:
+            findings.append({
+                "finding":     "dga_pattern_detected",
+                "severity":    "high",
+                "title":       f"Domain generation algorithm pattern (score: {_f(dga):.2f})",
+                "evidence":    f"DGA risk score: {_f(dga):.2f}/1.0",
+                "detail":      (
+                    "The domain name exhibits characteristics associated with algorithmically "
+                    "generated domains — a technique used by malware families to generate "
+                    "C2 rendezvous points that are difficult to blocklist en masse."
+                ),
+                "remediation": "Verify domain ownership and registration intent.",
+                "category":    "infrastructure_intelligence",
+            })
+
+        if _f(concentration) > 0.7:
+            findings.append({
+                "finding":     "malicious_concentration",
+                "severity":    "high",
+                "title":       f"High malicious neighbour concentration (score: {_f(concentration):.2f})",
+                "evidence":    f"Concentration risk score: {_f(concentration):.2f}/1.0",
+                "detail":      (
+                    "This domain's infrastructure is co-located with a high density of "
+                    "domains associated with malicious activity in the Datazag corpus "
+                    "of 320M domains. Shared infrastructure increases cross-contamination "
+                    "risk and signals poor hosting neighbourhood quality."
+                ),
+                "remediation": (
+                    "Consider migrating to dedicated infrastructure with a lower-risk "
+                    "hosting provider. Review co-hosted domains for malicious activity."
+                ),
+                "category":    "infrastructure_intelligence",
+            })
+
+        if _f(certstream_risk) > 0.5:
+            findings.append({
+                "finding":     "certstream_domain_risk",
+                "severity":    "high",
+                "title":       f"CertStream threat activity on domain infrastructure (score: {_f(certstream_risk):.2f})",
+                "evidence":    f"CertStream risk score: {_f(certstream_risk):.2f}/1.0",
+                "detail":      (
+                    "Infrastructure hosting this domain is associated with active malicious "
+                    "certificate issuance in the Datazag CertStream BGP feed. This indicates "
+                    "the IP or ASN is being used to issue certificates for phishing or "
+                    "malware delivery domains."
+                ),
+                "remediation": (
+                    "Investigate co-hosted infrastructure for malicious certificate activity. "
+                    "Consider migrating to dedicated infrastructure."
+                ),
+                "category":    "infrastructure_intelligence",
+            })
+
+        if _f(dangling) > 0.7:
+            findings.append({
+                "finding":     "corpus_dangling_cname_risk",
+                "severity":    "medium",
+                "title":       f"Dangling CNAME risk flagged in Datazag corpus (score: {_f(dangling):.2f})",
+                "evidence":    f"Corpus dangling CNAME risk: {_f(dangling):.2f}/1.0",
+                "detail":      (
+                    "The Datazag corpus has flagged elevated dangling CNAME risk for this "
+                    "domain based on historical DNS patterns across 320M domains. "
+                    "This may indicate previously unresolved CNAME targets or "
+                    "infrastructure instability."
+                ),
+                "remediation": (
+                    "Audit all CNAME records for this domain and remove any pointing "
+                    "to unregistered or expired targets."
+                ),
+                "category":    "infrastructure_intelligence",
+            })
+
+        return findings
+
+    except Exception as e:
+        return []
+    finally:
+        db.close()
 
 # ---------------------------------------------------------------------------
 # CertStream IP intelligence
@@ -444,6 +573,8 @@ async def run(
             "category": "threat_intelligence",
         })
 
+    findings.extend(_fetch_domain_intel_findings(domain))
+
     # ── Step 3d: HTTP + Shodan enrichment ─────────────────────────────────
     http_section, shodan_section = await enrich_http_and_shodan(
         domain=domain,
@@ -576,7 +707,7 @@ async def run(
         f"({cyber_profile.premium_signal}), "
         f"primary vector: {cyber_profile.primary_claim_vector}"
     )
-
+    print("DEBUG: infraIntel: ", infra_intel.get("domain_risk_context"))
     # ── Step 5: Assemble output dict ──────────────────────────────────────
     output = {
         # Identity

@@ -1,5 +1,5 @@
 .env
-venv/
+cert_cache/
 output/
-dist/
 __pycache__/
+*.pyc
