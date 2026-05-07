@@ -27,7 +27,7 @@ from dnsproject.scripts.dns_generator import compile_pure_dns_report
 from enrichment import enrich_http_and_shodan
 from findings import passive_security_findings_v2
 from fingerprints import TXT_FINGERPRINTS, ADDITIONAL_TXT_FINGERPRINTS
-from dnsproject.scripts.ip_intelligence import fetch_ip_intelligence
+from dnsproject.riskscore.infrastructure.domain_intelligence_api import DomainIntelligenceAPI
 from scorer import DatazagCompositeScorer, NormalisedAnnotation, NormalisedDomainScore
 from narrative import enrich_with_narrative
 from renderers import render_all
@@ -159,232 +159,100 @@ def _ns_delegation_findings(subdomains: list[dict], primary_ns_provider: str | N
 
 
 # ---------------------------------------------------------------------------
-# Infrastructure Intelligence
+# Medallion Intelligence Extraction
 # ---------------------------------------------------------------------------
 
-def _fetch_infrastructure_intelligence(domain: str) -> dict:
+def _derive_findings_from_medallion(api_payload: dict, domain: str) -> list[dict]:
     """
-    Queries the DuckLake Gold layer for domain-level risk vectors
-    (Fast Flux, MOAS, DGA, etc.). Silently degrades on any failure.
+    Pulls pre-scored domain risk signals from the Medallion intelligence payload
+    and converts them to findings.
     """
-    local_path  = "/root/asn_data_v3/ducklake/gold/gold_risk_domain_latest.parquet"
-    target_path = os.environ.get("DUCKLAKE_GOLD_PATH", local_path)
-    db = duckdb.connect()
-    try:
-        if target_path.startswith("r2://"):
-            access_key = os.environ.get("R2_ACCESS_KEY", "")
-            secret_key = os.environ.get("R2_SECRET_KEY", "")
-            account_id = os.environ.get("R2_ACCOUNT_ID", "")
-            if not (access_key and secret_key and account_id):
-                return {}
-            db.execute("INSTALL httpfs; LOAD httpfs;")
-            db.execute(f"""
-                CREATE OR REPLACE SECRET r2_creds (
-                    TYPE r2, KEY_ID '{access_key}',
-                    SECRET '{secret_key}', ACCOUNT_ID '{account_id}'
-                );
-            """)
-
-        df = db.execute(f"""
-            SELECT domain_risk_score, domain_risk_context
-            FROM read_parquet('{target_path}')
-            WHERE domain = '{domain}'
-            LIMIT 1
-        """).df()
-
-        if df.empty:
-            return {}
-
-        result = df.to_dict(orient="records")[0]
-        ctx = result.get("domain_risk_context")
-        if isinstance(ctx, str):
-            try:
-                result["domain_risk_context"] = json.loads(ctx)
-            except Exception:
-                pass
-        return result
-
-    except Exception:
-        return {}
-    finally:
-        db.close()
-
-def _fetch_domain_intel_findings(domain: str) -> list[dict]:
-    """
-    Pulls pre-scored domain risk signals from scenario_domain_intel
-    and converts them to findings. Called in run() step 3c.
-    """
-    local_path  = "/root/asn_data_v3/ducklake/gold/scenario_domain_intel.parquet"
-    target_path = os.environ.get("DUCKLAKE_DOMAIN_INTEL_PATH", local_path)
-
-    if not os.path.exists(target_path):
-        return []
-
-    db = duckdb.connect()
-    try:
-        row = db.execute(f"""
-            SELECT dangling_cname_risk, fast_flux_risk, tld_registrar_risk,
-                   dga_risk, concentration_risk, certstream_risk, details
-            FROM read_parquet('{target_path}')
-            WHERE domain = '{domain}'
-            LIMIT 1
-        """).fetchone()
-
-        if not row:
-            return []
-
-        dangling, fast_flux, tld_reg, dga, concentration, certstream_risk, details = row
-        findings = []
-
-        def _f(val) -> float:
-            try:
-                return float(val or 0)
-            except (TypeError, ValueError):
-                return 0.0
-
-        if _f(fast_flux) > 0.6:
-            findings.append({
-                "finding":     "fast_flux_detected",
-                "severity":    "critical" if _f(fast_flux) > 0.8 else "high",
-                "title":       f"Fast-flux DNS pattern detected (score: {_f(fast_flux):.2f})",
-                "evidence":    f"Datazag corpus fast-flux score: {_f(fast_flux):.2f}/1.0",
-                "detail":      (
-                    "This domain exhibits fast-flux DNS patterns — rapid rotation of A "
-                    "records across multiple IPs. Fast-flux is a strong indicator of "
-                    "botnet C2 infrastructure or bulletproof hosting used to evade takedown."
-                ),
-                "remediation": (
-                    "Investigate whether this domain is under external DNS manipulation. "
-                    "Check for unauthorised NS or glue record changes at your registrar."
-                ),
-                "category":    "infrastructure_intelligence",
-            })
-
-        if _f(dga) > 0.6:
-            findings.append({
-                "finding":     "dga_pattern_detected",
-                "severity":    "high",
-                "title":       f"Domain generation algorithm pattern (score: {_f(dga):.2f})",
-                "evidence":    f"DGA risk score: {_f(dga):.2f}/1.0",
-                "detail":      (
-                    "The domain name exhibits characteristics associated with algorithmically "
-                    "generated domains — a technique used by malware families to generate "
-                    "C2 rendezvous points that are difficult to blocklist en masse."
-                ),
-                "remediation": "Verify domain ownership and registration intent.",
-                "category":    "infrastructure_intelligence",
-            })
-
-        if _f(concentration) > 0.7:
-            findings.append({
-                "finding":     "malicious_concentration",
-                "severity":    "high",
-                "title":       f"High malicious neighbour concentration (score: {_f(concentration):.2f})",
-                "evidence":    f"Concentration risk score: {_f(concentration):.2f}/1.0",
-                "detail":      (
-                    "This domain's infrastructure is co-located with a high density of "
-                    "domains associated with malicious activity in the Datazag corpus "
-                    "of 320M domains. Shared infrastructure increases cross-contamination "
-                    "risk and signals poor hosting neighbourhood quality."
-                ),
-                "remediation": (
-                    "Consider migrating to dedicated infrastructure with a lower-risk "
-                    "hosting provider. Review co-hosted domains for malicious activity."
-                ),
-                "category":    "infrastructure_intelligence",
-            })
-
-        if _f(certstream_risk) > 0.5:
-            findings.append({
-                "finding":     "certstream_domain_risk",
-                "severity":    "high",
-                "title":       f"CertStream threat activity on domain infrastructure (score: {_f(certstream_risk):.2f})",
-                "evidence":    f"CertStream risk score: {_f(certstream_risk):.2f}/1.0",
-                "detail":      (
-                    "Infrastructure hosting this domain is associated with active malicious "
-                    "certificate issuance in the Datazag CertStream BGP feed. This indicates "
-                    "the IP or ASN is being used to issue certificates for phishing or "
-                    "malware delivery domains."
-                ),
-                "remediation": (
-                    "Investigate co-hosted infrastructure for malicious certificate activity. "
-                    "Consider migrating to dedicated infrastructure."
-                ),
-                "category":    "infrastructure_intelligence",
-            })
-
-        if _f(dangling) > 0.7:
-            findings.append({
-                "finding":     "corpus_dangling_cname_risk",
-                "severity":    "medium",
-                "title":       f"Dangling CNAME risk flagged in Datazag corpus (score: {_f(dangling):.2f})",
-                "evidence":    f"Corpus dangling CNAME risk: {_f(dangling):.2f}/1.0",
-                "detail":      (
-                    "The Datazag corpus has flagged elevated dangling CNAME risk for this "
-                    "domain based on historical DNS patterns across 320M domains. "
-                    "This may indicate previously unresolved CNAME targets or "
-                    "infrastructure instability."
-                ),
-                "remediation": (
-                    "Audit all CNAME records for this domain and remove any pointing "
-                    "to unregistered or expired targets."
-                ),
-                "category":    "infrastructure_intelligence",
-            })
-
+    findings = []
+    if not api_payload or "risk_assessment" not in api_payload:
         return findings
 
-    except Exception as e:
-        return []
-    finally:
-        db.close()
+    risk = api_payload["risk_assessment"]
 
-# ---------------------------------------------------------------------------
-# CertStream IP intelligence
-# ---------------------------------------------------------------------------
+    def _f(val) -> float:
+        try:
+            return float(val or 0)
+        except (TypeError, ValueError):
+            return 0.0
 
-def _fetch_certstream_ip_intel(raw_json: dict) -> dict:
-    """
-    Extracts all IPs from the raw JSON and checks whether they appear in
-    the CertStream threat parquet — indicating malicious certificate activity
-    on co-hosted infrastructure.
-    """
-    raw_str = json.dumps(raw_json)
-    ips = list(set(re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', raw_str)))
-    if not ips:
-        return {}
+    fast_flux = _f(risk.get("fast_flux_risk", 0))
+    dga = _f(risk.get("dga_risk", 0))
+    concentration = _f(risk.get("concentration_risk", 0))
+    certstream_risk = _f(risk.get("certstream_risk", 0))
+    dangling = _f(risk.get("dangling_cname_risk", 0))
 
-    certstream_path = "/root/asn_data_v3/cache/certstream/certstream.parquet"
-    if not os.path.exists(certstream_path):
-        return {}
+    if fast_flux > 0.6:
+        findings.append({
+            "finding":     "fast_flux_detected",
+            "severity":    "critical" if fast_flux > 0.8 else "high",
+            "title":       f"Fast-flux DNS pattern detected (score: {fast_flux:.2f})",
+            "evidence":    f"Datazag corpus fast-flux score: {fast_flux:.2f}/1.0",
+            "detail":      "This domain exhibits fast-flux DNS patterns — rapid rotation of A records across multiple IPs. Fast-flux is a strong indicator of botnet C2 infrastructure or bulletproof hosting used to evade takedown.",
+            "remediation": "Investigate whether this domain is under external DNS manipulation. Check for unauthorised NS or glue record changes at your registrar.",
+            "category":    "infrastructure_intelligence",
+        })
 
-    db = duckdb.connect()
-    try:
-        ip_list = "['" + "', '".join(ips) + "']"
-        df = db.execute(f"""
-            SELECT
-                SUM(certstream_hits)    AS total_threat_hits,
-                SUM(a_certstream_hits)  AS a_hits,
-                SUM(ns_certstream_hits) AS ns_hits,
-                SUM(mx_certstream_hits) AS mx_hits
-            FROM read_parquet('{certstream_path}')
-            WHERE ip IN (SELECT * FROM UNNEST({ip_list}))
-        """).df()
+    if dga > 0.6:
+        findings.append({
+            "finding":     "dga_pattern_detected",
+            "severity":    "high",
+            "title":       f"Domain generation algorithm pattern (score: {dga:.2f})",
+            "evidence":    f"DGA risk score: {dga:.2f}/1.0",
+            "detail":      "The domain name exhibits characteristics associated with algorithmically generated domains — a technique used by malware families to generate C2 rendezvous points that are difficult to blocklist en masse.",
+            "remediation": "Verify domain ownership and registration intent.",
+            "category":    "infrastructure_intelligence",
+        })
 
-        if not df.empty and df["total_threat_hits"].iloc[0] is not None:
-            hits = int(df["total_threat_hits"].iloc[0])
-            if hits > 0:
-                return {
-                    "certstream_anomalies": hits,
-                    "certstream_a_risk":   int(df["a_hits"].iloc[0] or 0),
-                    "certstream_ns_risk":  int(df["ns_hits"].iloc[0] or 0),
-                    "certstream_mx_risk":  int(df["mx_hits"].iloc[0] or 0),
-                }
-    except Exception:
-        pass
-    finally:
-        db.close()
-    return {}
+    if concentration > 0.7:
+        findings.append({
+            "finding":     "malicious_concentration",
+            "severity":    "high",
+            "title":       f"High malicious neighbour concentration (score: {concentration:.2f})",
+            "evidence":    f"Concentration risk score: {concentration:.2f}/1.0",
+            "detail":      "This domain's infrastructure is co-located with a high density of domains associated with malicious activity in the Datazag corpus of 320M domains. Shared infrastructure increases cross-contamination risk and signals poor hosting neighbourhood quality.",
+            "remediation": "Consider migrating to dedicated infrastructure with a lower-risk hosting provider. Review co-hosted domains for malicious activity.",
+            "category":    "infrastructure_intelligence",
+        })
+
+    if certstream_risk > 0.5:
+        findings.append({
+            "finding":     "certstream_domain_risk",
+            "severity":    "high",
+            "title":       f"CertStream threat activity on domain infrastructure (score: {certstream_risk:.2f})",
+            "evidence":    f"CertStream risk score: {certstream_risk:.2f}/1.0",
+            "detail":      "Infrastructure hosting this domain is associated with active malicious certificate issuance in the Datazag CertStream BGP feed. This indicates the IP or ASN is being used to issue certificates for phishing or malware delivery domains.",
+            "remediation": "Investigate co-hosted infrastructure for malicious certificate activity. Consider migrating to dedicated infrastructure.",
+            "category":    "infrastructure_intelligence",
+        })
+
+    if dangling > 0.7:
+        findings.append({
+            "finding":     "corpus_dangling_cname_risk",
+            "severity":    "medium",
+            "title":       f"Dangling CNAME risk flagged in Datazag corpus (score: {dangling:.2f})",
+            "evidence":    f"Corpus dangling CNAME risk: {dangling:.2f}/1.0",
+            "detail":      "The Datazag corpus has flagged elevated dangling CNAME risk for this domain based on historical DNS patterns across 320M domains. This may indicate previously unresolved CNAME targets or infrastructure instability.",
+            "remediation": "Audit all CNAME records for this domain and remove any pointing to unregistered or expired targets.",
+            "category":    "infrastructure_intelligence",
+        })
+
+    certstream_hits = api_payload.get("certstream", {}).get("hits", 0)
+    if certstream_hits > 0:
+        findings.append({
+            "finding":  "certstream_infra_hit",
+            "severity": "high",
+            "title":    f"Infrastructure serving {certstream_hits} malicious certificates in Datazag BGP feed",
+            "evidence": f"certstream_hits: {certstream_hits}",
+            "detail":   "This domain's infrastructure is co-located with infrastructure currently serving distinct malicious certificates in the Datazag CertStream BGP feed. This indicates active malicious certificate issuance on shared infrastructure.",
+            "remediation": "Investigate co-hosted infrastructure for malicious activity. Consider migrating to dedicated infrastructure if malicious neighbours are confirmed.",
+            "category": "threat_intelligence",
+        })
+
+    return findings
 
 
 # ---------------------------------------------------------------------------
@@ -524,6 +392,14 @@ async def run(
             "no_csp_pct":              round(sum(1 for s in subdomains if not s.get("csp")) / total * 100),
         }
 
+    # Fetch Medallion Intelligence Snapshot
+    print("  Fetching Medallion infrastructure intelligence...")
+    api = DomainIntelligenceAPI(db_path="/root/asn_data_v3/ducklake/infrastructure_operations_snapshot.duckdb")
+    medallion_intel = api.get_domain_intelligence(domain, profile=None)
+    if "error" in medallion_intel:
+        print(f"  [!] Medallion API returned error: {medallion_intel['error']}")
+        medallion_intel = {}
+
     # ── Step 3a: Core passive findings ───────────────────────────────────
     findings = passive_security_findings_v2(
         record,
@@ -543,38 +419,8 @@ async def run(
     if isinstance(subdomains, list):
         findings.extend(_ns_delegation_findings(subdomains, primary_ns_provider))
 
-    # ── Step 3c: CertStream infrastructure hit injection ─────────────────
-    certstream_intel = _fetch_certstream_ip_intel(raw)
-    if certstream_intel.get("certstream_anomalies"):
-        findings.append({
-            "finding":  "certstream_infra_hit",
-            "severity": "high",
-            "title":    (
-                f"Infrastructure serving "
-                f"{certstream_intel['certstream_anomalies']} "
-                f"malicious certificates in Datazag BGP feed"
-            ),
-            "evidence": (
-                f"certstream_hits: {certstream_intel['certstream_anomalies']}, "
-                f"A-hits: {certstream_intel.get('certstream_a_risk', 0)}, "
-                f"NS-hits: {certstream_intel.get('certstream_ns_risk', 0)}, "
-                f"MX-hits: {certstream_intel.get('certstream_mx_risk', 0)}"
-            ),
-            "detail": (
-                f"This domain's infrastructure is co-located with infrastructure "
-                f"currently serving {certstream_intel['certstream_anomalies']} "
-                f"distinct malicious certificates in the Datazag CertStream BGP feed. "
-                f"This indicates active malicious certificate issuance on shared infrastructure."
-            ),
-            "remediation": (
-                "Investigate co-hosted infrastructure for malicious activity. "
-                "Consider migrating to dedicated infrastructure if malicious "
-                "neighbours are confirmed."
-            ),
-            "category": "threat_intelligence",
-        })
-
-    findings.extend(_fetch_domain_intel_findings(domain))
+    # ── Step 3c: Infrastructure & Medallion hit injection ─────────────────
+    findings.extend(_derive_findings_from_medallion(medallion_intel, domain))
 
     # ── Step 3d: HTTP + Shodan enrichment ─────────────────────────────────
     http_section, shodan_section = await enrich_http_and_shodan(
@@ -642,11 +488,10 @@ async def run(
     )
     print(f"  Driver — {composite.primary_driver}")
 
-    # ── Step 4a: DuckLake infrastructure intelligence ─────────────────────
-    infra_intel = _fetch_infrastructure_intelligence(domain)
-    if infra_intel:
-        print(f"  [+] Gold infrastructure risk score: "
-              f"{infra_intel.get('domain_risk_score', 0):.2f}")
+    # ── Step 4a: Medallion infrastructure intelligence ─────────────────────
+    if medallion_intel.get("risk_assessment"):
+        print(f"  [+] Medallion infrastructure risk score: "
+              f"{medallion_intel['risk_assessment'].get('infra_score', 0):.2f}")
 
 
         # ── Step 4b: Run CyberRiskScorer for comprehensive scoring ────────
@@ -708,7 +553,6 @@ async def run(
         f"({cyber_profile.premium_signal}), "
         f"primary vector: {cyber_profile.primary_claim_vector}"
     )
-    print("DEBUG: infraIntel: ", infra_intel.get("domain_risk_context"))
     # ── Step 5: Assemble output dict ──────────────────────────────────────
     output = {
         # Identity
@@ -927,17 +771,17 @@ async def run(
             "any_threat":       record.changes.any_threat_signal,
         },
 
-        # Infrastructure intelligence (DuckLake + raw JSON pass-through)
-        "infrastructure_intelligence":   infra_intel,
-        "bgp_routing":                   raw.get("bgp_routing")                or {},
-        "ip_reputation":                 raw.get("ip_reputation")               or {},
-        "infrastructure_concentration":  raw.get("infrastructure_concentration") or {},
+        # Infrastructure intelligence (Medallion Snapshot + raw JSON pass-through)
+        "infrastructure_intelligence":   medallion_intel,
+        "bgp_routing":                   medallion_intel.get("routing") or raw.get("bgp_routing") or {},
+        "ip_reputation":                 medallion_intel.get("risk_assessment") or raw.get("ip_reputation") or {},
+        "infrastructure_concentration":  medallion_intel.get("concentration") or raw.get("infrastructure_concentration") or {},
         "certificate_intelligence":      raw.get("certificate_intelligence")     or {},
         "geolocation":                   raw.get("geolocation_jurisdiction")     or {},
-        "velocity":                      raw.get("historical_velocity")          or {},
+        "velocity":                      medallion_intel.get("historical_velocity") or raw.get("historical_velocity") or {},
         "abuse_contact":                 raw.get("abuse_contact_quality")        or {},
         "infrastructure_correlation":    raw.get("infrastructure_correlation")   or {},
-        "blocklist_signals":             raw.get("blocklist_signals")            or {},
+        "blocklist_signals":             medallion_intel.get("threat_feeds") or raw.get("blocklist_signals") or {},
 
         # Port scan — placeholder until permission model is in place
         "port_scan": raw.get("port_scan") or {
