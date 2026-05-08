@@ -394,11 +394,8 @@ async def run(
 
     # Fetch Medallion Intelligence Snapshot
     print("  Fetching Medallion infrastructure intelligence...")
-    
-    fallback_asn = getattr(record.annotation, "asn", None) if hasattr(record, "annotation") and record.annotation else None
-    
     api = DomainIntelligenceAPI(db_path="/root/asn_data_v3/ducklake/infrastructure_operations_snapshot.duckdb")
-    medallion_intel = api.get_domain_intelligence(domain, profile=None, fallback_asn=fallback_asn)
+    medallion_intel = api.get_domain_intelligence(domain, profile=None)
     if "error" in medallion_intel:
         print(f"  [!] Medallion API returned error: {medallion_intel['error']}")
         medallion_intel = {}
