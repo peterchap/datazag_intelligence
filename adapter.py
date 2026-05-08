@@ -509,9 +509,9 @@ class DatazagCanonicalAdapter:
     # --- Annotation ---------------------------------------------------------
 
     def _parse_annotation(self) -> InfrastructureAnnotation:
-        mx_trust    = float(self.r.get("mx_trust_nudge", 0))
-        mx_risk     = float(self.r.get("mx_risk_bias", 0))
-        prov_trust  = float(self.r.get("provider_trust_nudge", 0))
+        mx_trust    = float(self.r.get("mx_trust_nudge") or 0.0)
+        mx_risk     = float(self.r.get("mx_risk_bias") or 0.0)
+        prov_trust  = float(self.r.get("provider_trust_nudge") or 0.0)
         ns_risk     = self.r.get("ns_risk_bias")
 
         return InfrastructureAnnotation(
@@ -526,7 +526,7 @@ class DatazagCanonicalAdapter:
             provider_trust_nudge=prov_trust,
             is_cdn_ugc=bool(self.r.get("is_cdn_ugc")),
             is_hosting_cdn=bool(self.r.get("is_hosting_cdn")),
-            asn=int(self.r.get("asn", 0)),
+            asn=int(self.r.get("asn") or 0),
             isp_name=self.r.get("isp_name"),
             isp_country=self.r.get("isp_country"),
             asn_risk_level=self.r.get("asn_risk_level", "unknown"),
@@ -565,7 +565,7 @@ class DatazagCanonicalAdapter:
         net_trust = sum(r.points for r in negative)
 
         return ComputedRiskProfile(
-            score=int(self.r.get("risk_score", 0)),
+            score=int(self.r.get("risk_score") or 0),
             bucket=self.r.get("risk_bucket", "unknown"),
             reasons=reasons,
             profile=self.r.get("risk_profile", "default"),
@@ -585,8 +585,8 @@ class DatazagCanonicalAdapter:
             ttl_drop_big=bool(self.r.get("ttl_drop_big")),
             is_dynamic_dns=bool(self.r.get("is_dynamic_dns")),
             mx_misconfigured_provider=bool(self.r.get("mx_misconfigured_provider")),
-            parking_points=int(self.r.get("parking_points", 0)),
-            subdomain_points=int(self.r.get("subdomain_points", 0)),
+            parking_points=int(self.r.get("parking_points") or 0),
+            subdomain_points=int(self.r.get("subdomain_points") or 0),
             any_change_signal=any([
                 self.r.get("ns_changed"),
                 self.r.get("ip_changed"),
