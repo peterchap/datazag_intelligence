@@ -1138,7 +1138,7 @@ class BaseRenderer:
           <tbody>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">SPF</td>
               <td style="padding:6px 10px">{status_pill(spf_ok, ea.get('spf') or 'present', 'WEAK' if ea.get('spf_raw') else 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">{ea.get('spf_raw','Not found')[:80]}</td>
+              <td style="padding:6px 10px;color:#555">{(ea.get('spf_raw') or 'Not found')[:80]}</td>
               <td style="padding:6px 10px;color:#888">Any server can send email as this domain</td></tr>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DMARC</td>
               <td style="padding:6px 10px">{status_pill(reject_ok, 'p=reject', f"p={ea.get('dmarc_policy')}" if ea.get('dmarc_policy') else 'MISSING')}</td>
