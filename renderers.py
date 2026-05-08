@@ -478,23 +478,7 @@ class BaseRenderer:
         infra = self.o.get("infrastructure_concentration") or {}
         geo   = self.o.get("geolocation") or self.o.get("geolocation_jurisdiction") or {}
 
-        has_bgp_data = any([
-            bgp.get("rpki_state") not in (None, "unknown", ""),
-            bgp.get("moas_detected"),
-            ip.get("spamhaus_zen"),
-            ip.get("asn_core_risk", 0) > 0,
-            ip.get("feodo_listed"),
-            ip.get("threatfox_listed"),
-            bool(self.tech.get("asn")),
-        ])
-
-        if not has_bgp_data:
-            return """
-            <h2>Infrastructure &amp; routing intelligence</h2>
-            <div style="background:#f7f8f9;border-radius:8px;padding:16px;color:#666;font-size:13px">
-            BGP and routing telemetry will appear here once this domain is indexed
-            in the Datazag DuckLake pipeline. For live scans this populates automatically.
-            </div>"""
+        # Remove has_bgp_data guard to always render the table for NXDOMAINs
 
         # ── Read from correct output dict keys ────────────────────────────────
 
