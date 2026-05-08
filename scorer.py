@@ -60,10 +60,10 @@ class NormalisedIPScore:
         return cls(
             ip=raw["ip"],
             prefix=raw.get("prefix", ""),
-            asn=int(raw.get("asn", 0)),
-            prefix_infra_score=float(raw.get("prefix_infra_score", 0)),
-            asn_core_risk=float(raw.get("asn_core_risk", 0)),
-            ip_direct_threat_score=float(raw.get("ip_direct_threat_score", 0)),
+            asn=int(raw.get("asn") or 0),
+            prefix_infra_score=float(raw.get("prefix_infra_score") or 0.0),
+            asn_core_risk=float(raw.get("asn_core_risk") or 0.0),
+            ip_direct_threat_score=float(raw.get("ip_direct_threat_score") or 0.0),
             final_ip_risk_score=final,
             reason_codes=codes,
             score_pct=round(final * 100),
@@ -165,14 +165,14 @@ class NormalisedAnnotation:
 
     @classmethod
     def from_raw(cls, raw: dict) -> "NormalisedAnnotation":
-        mx_trust    = float(raw.get("mx_trust_nudge", 0))
-        mx_risk     = float(raw.get("mx_risk_bias", 0))
-        prov_trust  = float(raw.get("provider_trust_nudge", 0))
+        mx_trust    = float(raw.get("mx_trust_nudge") or 0.0)
+        mx_risk     = float(raw.get("mx_risk_bias") or 0.0)
+        prov_trust  = float(raw.get("provider_trust_nudge") or 0.0)
         net_trust   = mx_trust + prov_trust + mx_risk   # mx_risk is negative when trusted
 
         return cls(
             domain=raw.get("domain", ""),
-            ip_int=int(raw.get("ip_int", 0)),
+            ip_int=int(raw.get("ip_int") or 0),
             mx_provider_name=raw.get("mx_provider_name"),
             mx_mbp_category=raw.get("mx_mbp_category"),
             mx_risk_bias=mx_risk,
@@ -181,7 +181,7 @@ class NormalisedAnnotation:
             ns_provider_category=raw.get("ns_provider_category"),
             ns_brand_hit=bool(raw.get("ns_brand_hit", False)),
             provider_trust_nudge=prov_trust,
-            asn=int(raw.get("asn", 0)),
+            asn=int(raw.get("asn") or 0),
             isp_name=raw.get("isp_name"),
             isp_country=raw.get("isp_country"),
             asn_risk_level=raw.get("asn_risk_level", "unknown"),
