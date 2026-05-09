@@ -394,8 +394,14 @@ async def run(
 
     # Fetch Medallion Intelligence Snapshot
     print("  Fetching Medallion infrastructure intelligence...")
-    api = DomainIntelligenceAPI(db_path="/root/asn_data_v3/ducklake/infrastructure_operations_snapshot.duckdb")
-    medallion_intel = api.get_domain_intelligence(domain, profile=None)
+    
+    fallback_asn = getattr(record.annotation, "asn", None) if hasattr(record, "annotation") and record.annotation else None
+    fallback_ip = None
+    if getattr(record, "a_records", None) and record.a_records:
+        fallback_ip = str(record.a_records[0])
+    
+    api = DomainIntelligenceAPI(db_path="/root/asn_data_v3/reporting_snapshot.duckdb")
+    medallion_intel = api.get_domain_intelligence(domain, profile=None, fallback_asn=fallback_asn, fallback_ip=fallback_ip)
     if "error" in medallion_intel:
         print(f"  [!] Medallion API returned error: {medallion_intel['error']}")
         medallion_intel = {}
@@ -774,8 +780,17 @@ async def run(
         # Infrastructure intelligence (Medallion Snapshot + raw JSON pass-through)
         "infrastructure_intelligence":   medallion_intel,
         "bgp_routing":                   medallion_intel.get("routing") or raw.get("bgp_routing") or {},
-        "ip_reputation":                 medallion_intel.get("risk_assessment") or raw.get("ip_reputation") or {},
         "infrastructure_concentration":  medallion_intel.get("concentration") or raw.get("infrastructure_concentration") or {},
+        "ip_reputation":                 {
+            **raw.get("ip_reputation", {}),
+            "asn_core_risk": medallion_intel.get("risk_assessment", {}).get("infra_score", 0.0),
+            "ip_direct_threat_score": medallion_intel.get("risk_assessment", {}).get("ip_direct_threat_score", 0.0),
+            "spamhaus_zen": medallion_intel.get("threat_feeds", {}).get("spamhaus", {}).get("listed", False),
+            "urlhaus_listed": medallion_intel.get("threat_feeds", {}).get("urlhaus", {}).get("listed", False),
+            "feodo_listed": medallion_intel.get("threat_feeds", {}).get("feodo", {}).get("listed", False),
+            "sslbl_listed": medallion_intel.get("threat_feeds", {}).get("sslbl", {}).get("listed", False),
+            "threatfox_listed": medallion_intel.get("threat_feeds", {}).get("threatfox", {}).get("listed", False),
+        },
         "certificate_intelligence":      raw.get("certificate_intelligence")     or {},
         "geolocation":                   raw.get("geolocation_jurisdiction")     or {},
         "velocity":                      medallion_intel.get("historical_velocity") or raw.get("historical_velocity") or {},
