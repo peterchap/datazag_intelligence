@@ -83,6 +83,116 @@ PLATFORM_DESIRABILITY: dict[str, dict[str, Any]] = {
     "email signatures":   {"weight": 15, "tier": "low",
                            "role": "Email signature management",
                            "why": "Lower-value target; signature infrastructure rather than identity."},
+
+    # ── Ticketing / ITSM / helpdesk — detected via CNAME ─────────────────
+    "zoho desk":          {"weight": 50, "tier": "med",
+                           "role": "Helpdesk · client-facing ticket workflow",
+                           "why": "Ticketing platforms carry customer correspondence and access "
+                                  "controls. A fake login captures support agent credentials and "
+                                  "exposes client interactions."},
+    "zoho crm":           {"weight": 60, "tier": "med-high",
+                           "role": "CRM · sales pipeline and customer records",
+                           "why": "CRM credentials unlock customer lists, sales opportunities, "
+                                  "and contact data. Used for downstream phishing of those "
+                                  "customers in your name."},
+    "zoho mail":          {"weight": 70, "tier": "med-high",
+                           "role": "Business email · primary correspondence",
+                           "why": "Email credentials unlock most other access. Zoho Mail is an "
+                                  "increasingly common target as adoption grows."},
+    "zoho generic":       {"weight": 35, "tier": "med",
+                           "role": "Zoho platform (specific module not identified)",
+                           "why": "Zoho ecosystem account — full platform scope depends on "
+                                  "which modules are licensed."},
+    "zendesk":            {"weight": 55, "tier": "med",
+                           "role": "Helpdesk · customer ticket workflow",
+                           "why": "Zendesk credentials unlock customer interaction history and "
+                                  "support workflows. Frequently impersonated."},
+    "freshservice":       {"weight": 50, "tier": "med",
+                           "role": "ITSM · internal IT service management",
+                           "why": "Freshservice access controls internal IT processes and "
+                                  "service desk operations."},
+    "freshdesk":          {"weight": 50, "tier": "med",
+                           "role": "Helpdesk · customer support workflow",
+                           "why": "Freshdesk credentials unlock customer support history."},
+    "servicenow":         {"weight": 60, "tier": "med-high",
+                           "role": "Enterprise ITSM platform",
+                           "why": "ServiceNow handles change management, incidents, and approvals. "
+                                  "High-value target for ransomware-precursor reconnaissance."},
+    "atlassian":          {"weight": 65, "tier": "med-high",
+                           "role": "Jira · Confluence · code and process tooling",
+                           "why": "Atlassian credentials unlock issue trackers and wikis that "
+                                  "often contain credentials, infrastructure detail, and "
+                                  "operational secrets."},
+    "help scout":         {"weight": 40, "tier": "med",
+                           "role": "Helpdesk · customer support workflow",
+                           "why": "Smaller-scale helpdesk; lower impersonation volume but still active."},
+    "intercom":           {"weight": 45, "tier": "med",
+                           "role": "Customer messaging platform",
+                           "why": "Intercom credentials unlock customer conversation history and "
+                                  "outbound messaging."},
+    "salesforce":         {"weight": 80, "tier": "high",
+                           "role": "Enterprise CRM · sales and customer-data system of record",
+                           "why": "Salesforce holds the customer list of record for many "
+                                  "businesses. A compromise enables downstream customer phishing "
+                                  "at scale. Heavily impersonated in our certificate-issuance data."},
+    "hubspot":            {"weight": 65, "tier": "med-high",
+                           "role": "CRM and marketing automation",
+                           "why": "HubSpot credentials unlock customer lists and marketing "
+                                  "send infrastructure; used to send phishing from your real domain."},
+    "pipedrive":          {"weight": 45, "tier": "med",
+                           "role": "Sales CRM · pipeline management",
+                           "why": "Pipedrive access exposes sales pipeline and contact data."},
+    "connectwise":        {"weight": 70, "tier": "med-high",
+                           "role": "MSP PSA · IT-services-firm operations",
+                           "why": "ConnectWise holds the client list for IT-services firms. A "
+                                  "compromise gives downstream access into every customer the "
+                                  "firm serves — high-value lateral pathway."},
+    "autotask":           {"weight": 65, "tier": "med-high",
+                           "role": "MSP PSA · IT-services operations",
+                           "why": "Autotask holds client and ticket data for IT-services firms; "
+                                  "similar threat model to ConnectWise."},
+    "cloudflare":         {"weight": 25, "tier": "low",
+                           "role": "CDN · edge network",
+                           "why": "Cloudflare itself is rarely the lure; sub-credentials are "
+                                  "low-tier impersonation targets."},
+    "aws":                {"weight": 30, "tier": "low",
+                           "role": "Cloud infrastructure",
+                           "why": "AWS console credentials are high-value but rarely the "
+                                  "front-line lure; targeting tends to be via the user's own apps."},
+    "azure":              {"weight": 30, "tier": "low",
+                           "role": "Cloud infrastructure",
+                           "why": "Azure portal credentials are similar in profile to AWS — "
+                                  "high impact when compromised, but not a typical phishing lure."},
+    "vercel":             {"weight": 20, "tier": "low",
+                           "role": "Frontend hosting platform",
+                           "why": "Vercel deployments — lower impersonation volume."},
+    "netlify":            {"weight": 20, "tier": "low",
+                           "role": "Frontend hosting platform",
+                           "why": "Netlify deployments — lower impersonation volume."},
+    "statuspage":         {"weight": 15, "tier": "low",
+                           "role": "Operational status page",
+                           "why": "Statuspage credentials are low-value compared to identity platforms."},
+    "betterstack":        {"weight": 15, "tier": "low",
+                           "role": "Operational monitoring · status page",
+                           "why": "Operational monitoring tool — low impersonation appeal."},
+    "notion":             {"weight": 45, "tier": "med",
+                           "role": "Knowledge base · documentation platform",
+                           "why": "Notion workspaces often contain internal secrets, credentials, "
+                                  "and operational detail. Worth phishing if scope is known."},
+    "gitbook":            {"weight": 30, "tier": "med",
+                           "role": "Documentation platform",
+                           "why": "Docs platform — moderate impersonation appeal."},
+    "shopify":            {"weight": 70, "tier": "med-high",
+                           "role": "E-commerce platform",
+                           "why": "Shopify admin credentials unlock payment configuration, "
+                                  "customer data, and order workflow. Active impersonation target."},
+    "sendgrid":           {"weight": 35, "tier": "med",
+                           "role": "Transactional email infrastructure",
+                           "why": "SendGrid credentials unlock outbound mail sending — "
+                                  "infrastructure for high-volume phishing campaigns."},
+    "wordpress engine":   {"weight": 30, "tier": "med",
+                           "role": "Managed WordPress hosting",
+                           "why": "WP-Engine credentials unlock content management on hosted sites."},
     # additions can be appended; the lookup uses substring matching
 }
 
@@ -90,6 +200,69 @@ DEFAULT_PLATFORM_ENTRY = {
     "weight": 30, "tier": "med",
     "role": "SaaS platform",
     "why": "Identity platform — credentials may unlock account access.",
+}
+
+
+# Patterns to match TXT records back to their owning vendor.
+# Each pattern is a lowercase substring that, when found in a TXT record,
+# attributes that record to the named vendor.
+_VENDOR_TXT_PATTERNS: dict[str, list[str]] = {
+    "microsoft 365":    ["ms=", "ms84", "exchange", "outlook", "microsoftonline", "msrnp"],
+    "google workspace": ["google-site-verification", "_spf.google", "googlemail"],
+    "mailchimp":        ["mcsv.net", "mailchimp", "mandrill"],
+    "apple":            ["apple-domain-verification", "icloud"],
+    "zoho":             ["zoho-verification", "zb"],
+    "citrix":           ["citrix"],
+    "mailgun":          ["mailgun"],
+    "email signatures": ["emailsignatures365"],
+}
+
+# Patterns to match subdomain CNAME targets back to their owning vendor.
+# These give Tier-1 (direct evidence) detection — much higher confidence than
+# TXT-record verification tokens, which only prove domain ownership at some
+# point in the past.
+_VENDOR_CNAME_PATTERNS: dict[str, list[str]] = {
+    # Microsoft / Google — confirm the same platforms TXT records detected
+    "microsoft 365":     ["clientconfig.microsoftonline-p.net", "outlook.com", "office.com",
+                          "msappproxy.net", "sharepointonline.com"],
+    "google workspace":  ["googlemail.l.google.com", "ghs.googlehosted.com", "ghs.google.com"],
+    # Zoho family — Peter's example use case
+    "zoho desk":         ["desk.zoho.com", "desk.zoho.eu", "desk.zoho.in", "deskcdn.com"],
+    "zoho crm":          ["crm.zoho.com", "crm.zoho.eu", "crm.zoho.in"],
+    "zoho mail":         ["zoho-mail.com", "zohomail.com"],
+    "zoho generic":      ["zoho.com", "zohopublic.com", "zohostatic.com", "zohohost.com"],
+    # Ticketing / ITSM / helpdesk
+    "zendesk":           ["zendesk.com"],
+    "freshservice":      ["freshservice.com"],
+    "freshdesk":         ["freshdesk.com"],
+    "servicenow":        ["service-now.com", "servicenow.com"],
+    "atlassian":         ["atlassian.net", "atlassian.com", "jira-saas.com", "jira.com"],
+    "help scout":        ["helpscoutdocs.com", "helpscout.net"],
+    "intercom":          ["intercom.io", "intercom.com", "intercomcdn.com"],
+    # CRM / Marketing
+    "salesforce":        ["salesforce.com", "force.com", "lightning.force.com", "exacttarget.com"],
+    "hubspot":           ["hubspot.com", "hubspotemail.net", "hsforms.com", "hs-sites.com", "hubspotpagebuilder.com"],
+    "pipedrive":         ["pipedrive.com"],
+    # MSP / IT-services PSA
+    "connectwise":       ["connectwise.com", "myconnectwise.net"],
+    "autotask":          ["autotask.net"],
+    # Hosting / CDN / edge
+    "cloudflare":        ["cloudflare.net", "pages.dev"],
+    "aws":               ["amazonaws.com", "cloudfront.net", "elasticbeanstalk.com"],
+    "azure":             ["azurewebsites.net", "azureedge.net", "azurefd.net"],
+    "vercel":            ["vercel.app", "vercel-dns.com"],
+    "netlify":           ["netlify.app", "netlify.com"],
+    # Operational / docs
+    "statuspage":        ["statuspage.io"],
+    "betterstack":       ["betterstack.com", "betteruptime.com"],
+    "notion":            ["notion.so"],
+    "gitbook":           ["gitbook.io", "gitbook.com"],
+    # Other commonly observed
+    "shopify":           ["shopify.com", "myshopify.com"],
+    "mailchimp":         ["mcsv.net", "list-manage.com"],
+    "mailgun":           ["mailgun.org"],
+    "sendgrid":          ["sendgrid.net"],
+    "wordpress engine":  ["wpengine.com"],
 }
 
 
@@ -156,7 +329,65 @@ HEALTH_REPORT_TEMPLATE = r"""
   .hero .lead-out { display: block; font-weight: 600; color: var(--white-2); font-size: 32px; letter-spacing: -0.02em; margin-top: 14px; line-height: 1.15; }
   .deck { font-size: 14px; line-height: 1.65; color: var(--white-2); max-width: 600px; margin-bottom: 36px; }
   .deck strong { color: var(--white); font-weight: 600; }
-  /* Trust grade block */
+
+  /* New cover (v8.4) — descriptive title + dual-score panel */
+  .cover-title { font-size: 26px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.22; color: var(--white); margin-bottom: 14px; max-width: 660px; }
+  .cover-title .cover-domain { color: var(--cyan); font-weight: 800; }
+  .cover-deck { font-size: 13px; line-height: 1.65; color: var(--white-2); max-width: 620px; margin-bottom: 22px; }
+  .cover-deck strong { color: var(--white); font-weight: 600; }
+
+  .dual-score { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .dual-score-card { background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%); border: 1px solid var(--rule-dark); border-radius: 14px; padding: 16px 18px 14px; position: relative; overflow: hidden; }
+  .dual-score-card::before { content: ''; position: absolute; top: -40px; right: -40px; width: 140px; height: 140px; border-radius: 50%; pointer-events: none; opacity: 0.4; }
+  .dual-score-card.platform::before { background: radial-gradient(circle, rgba(255,107,107,0.18) 0%, transparent 70%); }
+  .dual-score-card.infra::before    { background: radial-gradient(circle, rgba(0,194,255,0.18) 0%, transparent 70%); }
+  .dsc-label { position: relative; z-index: 1; font-size: 9.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--white-3); margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+  .dual-score-card.platform .dsc-label { color: var(--bad); }
+  .dual-score-card.infra    .dsc-label { color: var(--cyan); }
+  .dsc-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; color: var(--ink); font-size: 9px; font-weight: 800; }
+  .dual-score-card.platform .dsc-icon { background: var(--bad); }
+  .dual-score-card.infra    .dsc-icon { background: var(--cyan); }
+  .dsc-grade-ref { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--white-3); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; padding: 2px 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--rule-soft); border-radius: 100px; }
+  .dsc-state { position: relative; z-index: 1; font-size: 19px; font-weight: 800; color: var(--white); letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 5px; }
+  .dsc-qualifier { position: relative; z-index: 1; font-size: 11.5px; color: var(--white-2); line-height: 1.5; margin: 0 0 12px; }
+
+  /* Platform list — surfaces the actual vendor names so the customer sees what we found */
+  .dsc-platform-list { position: relative; z-index: 1; padding: 9px 0 9px; margin: 0 0 8px; border-top: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); font-size: 10.5px; line-height: 1.65; color: var(--white-2); }
+  .dsc-platform-name { color: var(--white); font-weight: 600; letter-spacing: -0.005em; white-space: nowrap; }
+  .dsc-platform-name.cname-only { color: var(--cyan); }
+  .dsc-platform-marker { font-size: 7.5px; color: var(--cyan); margin-left: 1px; vertical-align: super; }
+  .dsc-platform-sep { color: var(--white-4); margin: 0 1px; }
+  .dsc-platform-footnote { position: relative; z-index: 1; font-size: 9.5px; color: var(--white-3); line-height: 1.5; margin: 0 0 10px; font-style: italic; }
+  .dsc-platform-footnote .dsc-platform-marker { font-style: normal; }
+  .dsc-actions { position: relative; z-index: 1; padding-top: 10px; border-top: 1px solid var(--rule-soft); margin-bottom: 10px; }
+  .dsc-actions-label { font-size: 9px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--white-4); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .dsc-actions-caption { font-weight: 500; letter-spacing: 0.02em; text-transform: none; font-size: 9px; color: var(--white-4); font-style: italic; }
+  .dsc-actions-list { list-style: none; margin: 0; padding: 0; }
+  .dsc-actions-list li { font-size: 11px; color: var(--white-2); line-height: 1.5; padding: 3px 0 3px 16px; position: relative; }
+  .dsc-actions-list li::before { content: '→'; position: absolute; left: 0; color: var(--cyan); font-weight: 700; }
+  .dsc-actions-list.compact li { padding: 1px 0 1px 14px; }
+  .dsc-actions-list.compact li::before { content: '·'; color: var(--white-4); top: -2px; }
+  .dsc-context { position: relative; z-index: 1; font-size: 10.5px; color: var(--white-3); line-height: 1.55; border-top: 1px dashed var(--rule-soft); padding-top: 8px; margin: 0; font-style: italic; }
+  .dsc-context strong { color: var(--cyan); font-weight: 700; font-style: normal; }
+
+  /* legacy dual-score-card props (v8.4 — unused on v8.5 cover but retained for safety) */
+  .dsc-grade-row { position: relative; z-index: 1; display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .dsc-grade { font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: -0.035em; color: var(--white); }
+  .dsc-score { font-size: 14px; font-weight: 700; color: var(--white-3); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+  .dsc-score .dsc-of { color: var(--white-4); font-weight: 600; }
+  .dsc-headline { position: relative; z-index: 1; font-size: 12.5px; font-weight: 700; color: var(--white); letter-spacing: -0.005em; margin-bottom: 10px; }
+  .dsc-bullets { position: relative; z-index: 1; list-style: none; margin: 0 0 10px; padding: 0; border-top: 1px solid var(--rule-soft); padding-top: 8px; }
+  .dsc-bullets li { font-size: 11px; color: var(--white-2); line-height: 1.5; padding: 2px 0 2px 14px; position: relative; }
+  .dsc-bullets li::before { content: '·'; position: absolute; left: 2px; color: var(--white-4); font-weight: 700; }
+
+  .overall-grade-band { display: grid; grid-template-columns: 56px 1fr; gap: 18px; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--rule-dark); border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; }
+  .ogb-letter { width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, var(--cyan) 0%, var(--cyan-deep) 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; letter-spacing: -0.03em; color: var(--ink); box-shadow: 0 2px 10px rgba(0,194,255,0.25); }
+  .ogb-body { line-height: 1.4; }
+  .ogb-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--white-3); margin-bottom: 3px; }
+  .ogb-headline { font-size: 15px; font-weight: 800; color: var(--white); letter-spacing: -0.015em; margin-bottom: 2px; }
+  .ogb-detail { font-size: 11.5px; color: var(--white-2); line-height: 1.5; max-width: 540px; }
+
+  /* Trust grade block (v8.3 — unused on v8.4 cover but retained for now) */
   .grade-block { display: grid; grid-template-columns: 168px 1fr; gap: 28px; align-items: center; background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%); border: 1px solid var(--rule-dark); border-radius: 16px; padding: 26px 30px; margin-bottom: 28px; position: relative; overflow: hidden; }
   .grade-block::before { content: ''; position: absolute; top: -60px; right: -40px; width: 220px; height: 220px; background: radial-gradient(circle, var(--cyan-glow) 0%, transparent 60%); pointer-events: none; }
   .grade-dial { position: relative; width: 168px; height: 168px; }
@@ -400,6 +631,217 @@ HEALTH_REPORT_TEMPLATE = r"""
   .next-section-cta-text { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
   .next-section-cta-text strong { color: var(--ink); font-weight: 700; }
   .next-section-cta-arrow { display: inline-flex; align-items: center; gap: 8px; font-size: 10.5px; font-weight: 800; color: var(--cyan-deep); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+
+  /* ============ Section 04 — Platform exposure (monitoring state) ============ */
+  .monitoring-state-panel { margin: 0 56px 22px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 24px 26px; display: grid; grid-template-columns: 56px 1fr; gap: 22px; align-items: start; }
+  .monitoring-state-icon { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, var(--cyan-page) 0%, #0078A0 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 2px 10px rgba(0,150,204,0.25); position: relative; }
+  .monitoring-state-icon::after { content: ''; position: absolute; top: -3px; right: -3px; width: 14px; height: 14px; border-radius: 50%; background: var(--good); border: 2px solid var(--white); box-shadow: 0 0 0 0 rgba(74,222,128,0.5); animation: monitor-pulse 2s ease-out infinite; }
+  @keyframes monitor-pulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 70% { box-shadow: 0 0 0 12px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+  .monitoring-state-body h3 { font-size: 17px; font-weight: 800; color: var(--ink); letter-spacing: -0.015em; margin-bottom: 6px; line-height: 1.25; }
+  .monitoring-state-body p { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 10px; }
+  .monitoring-state-body p strong { color: var(--ink); font-weight: 600; }
+  .monitoring-state-meta { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--ink-3); }
+  .monitoring-state-meta strong { color: var(--ink); font-weight: 700; letter-spacing: 0.04em; }
+  .monitoring-state-meta .sep { color: var(--ink-4); }
+
+  /* What we monitor per platform (preview) */
+  .platform-preview-header { margin: 14px 56px 10px; }
+  .platform-preview-header h4 { font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 4px; }
+  .platform-preview-header p { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+  .platform-preview-grid { margin: 0 56px 18px; display: grid; gap: 8px; }
+  .platform-preview-row { background: var(--white); border: 1px solid var(--rule-light); border-radius: 8px; padding: 11px 16px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .platform-preview-name { font-size: 12.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+  .platform-preview-name .sub { display: inline-block; font-size: 10.5px; font-weight: 500; color: var(--ink-3); margin-left: 8px; }
+  .platform-preview-state { display: inline-flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--good); padding: 4px 10px; border-radius: 100px; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.28); }
+  .platform-preview-state .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+
+  /* Methodology card */
+  .methodology-card { margin: 0 56px 0; padding: 16px 20px; background: linear-gradient(135deg, rgba(15,23,42,0.03) 0%, rgba(15,23,42,0.01) 100%); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .methodology-card h5 { font-size: 11px; font-weight: 800; color: var(--ink); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+  .methodology-card p { font-size: 11.5px; color: var(--ink-2); line-height: 1.6; }
+
+  /* ============ Section 05 — Brand exposure ============ */
+  .brand-summary-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; margin: 0 56px 22px; }
+  .brand-summary-card { background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 16px 18px; }
+  .brand-summary-card.primary { border-left: 3px solid #F59E0B; }
+  .brand-summary-num { font-size: 32px; font-weight: 900; color: var(--ink); letter-spacing: -0.04em; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .brand-summary-num.warn { color: #B45309; }
+  .brand-summary-num.good { color: #15803D; }
+  .brand-summary-label { font-size: 11px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
+  .brand-summary-detail { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; }
+  .brand-summary-detail strong { color: var(--ink); font-weight: 600; }
+  .brand-watchlist { margin: 0 56px 18px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .brand-watchlist-empty { padding: 28px 22px; text-align: center; color: var(--ink-3); font-size: 12px; }
+  .brand-watchlist-empty strong { color: var(--ink); display: block; margin-bottom: 4px; font-size: 13px; }
+  .brand-watchlist-row { padding: 12px 18px; display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; border-bottom: 1px solid var(--rule-lighter); }
+  .brand-watchlist-row:last-child { border-bottom: none; }
+  .brand-watchlist-domain { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink); font-weight: 600; }
+  .brand-watchlist-meta { font-size: 10.5px; color: var(--ink-3); }
+
+  /* ============ Section 06 — Outbound posture ============ */
+  .posture-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 56px 14px; }
+  .posture-card { background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; padding: 14px 16px; border-left: 3px solid var(--ink-4); }
+  .posture-card.good { border-left-color: var(--good); }
+  .posture-card.warn { border-left-color: #F59E0B; }
+  .posture-card.bad  { border-left-color: #EF4444; }
+  .posture-card.missing { border-left-color: var(--ink-4); opacity: 0.85; }
+  .posture-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .posture-state { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -0.015em; margin-bottom: 6px; line-height: 1.2; }
+  .posture-card.good .posture-state { color: #15803D; }
+  .posture-card.warn .posture-state { color: #B45309; }
+  .posture-card.bad  .posture-state { color: #B91C1C; }
+  .posture-card.missing .posture-state { color: var(--ink-3); }
+  .posture-detail { font-size: 10.5px; color: var(--ink-2); line-height: 1.45; }
+  .posture-detail code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: rgba(15,23,42,0.05); padding: 1px 4px; border-radius: 3px; }
+  .posture-mini-pill { font-size: 8.5px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 3px; }
+  .posture-card.good .posture-mini-pill { background: rgba(74,222,128,0.15); color: #15803D; }
+  .posture-card.warn .posture-mini-pill { background: #FEF3C7; color: #92400E; }
+  .posture-card.bad  .posture-mini-pill { background: #FEE2E2; color: #991B1B; }
+  .posture-card.missing .posture-mini-pill { background: rgba(100,116,139,0.12); color: var(--ink-3); }
+  .posture-explainer { margin: 8px 56px 18px; padding: 14px 18px; background: rgba(0,150,204,0.04); border: 1px solid rgba(0,150,204,0.18); border-radius: 8px; font-size: 11.5px; color: var(--ink-2); line-height: 1.55; }
+  .posture-explainer strong { color: var(--ink); }
+
+  /* ============ Section 06 — Defensive controls audit ============ */
+  .controls-summary-strip { margin: 0 56px 16px; background: linear-gradient(135deg, var(--ink) 0%, #1E293B 100%); color: var(--white); border-radius: 12px; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .css-headline { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.85); letter-spacing: -0.005em; }
+  .css-headline strong { color: var(--cyan); font-weight: 800; font-size: 16px; letter-spacing: -0.015em; margin-right: 2px; }
+  .css-counts { display: flex; gap: 14px; }
+  .css-count { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.85); }
+  .css-count .css-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .css-count.good .css-dot { background: #4ADE80; }
+  .css-count.warn .css-dot { background: #F59E0B; }
+  .css-count.bad  .css-dot { background: #EF4444; }
+
+  /* DMARC mandate callout — only renders when DMARC is below full enforcement */
+  .mandate-callout { margin: 0 56px 14px; padding: 14px 18px; background: linear-gradient(135deg, rgba(194,65,12,0.06) 0%, rgba(194,65,12,0.02) 100%); border: 1px solid rgba(194,65,12,0.28); border-radius: 10px; display: grid; grid-template-columns: 30px 1fr; gap: 14px; align-items: start; }
+  .mandate-callout-icon { width: 26px; height: 26px; border-radius: 50%; background: var(--tag-action); color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+  .mandate-callout-title { font-size: 12.5px; font-weight: 800; color: var(--ink); letter-spacing: -0.005em; margin-bottom: 5px; }
+  .mandate-callout-text { font-size: 11px; color: var(--ink-2); line-height: 1.55; }
+  .mandate-callout-text strong { color: var(--ink); font-weight: 700; }
+
+  .controls-category { margin: 0 56px 12px; }
+  .cc-header { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px 6px; border-bottom: 1px solid var(--rule-light); margin-bottom: 4px; }
+  .cc-title { font-size: 10.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
+  .cc-count { font-size: 9.5px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.04em; }
+
+  .control-row { display: grid; grid-template-columns: 165px 1fr; gap: 14px; padding: 8px 0; border-bottom: 1px dashed var(--rule-lighter); align-items: start; }
+  .control-row:last-child { border-bottom: none; }
+  .control-name { font-size: 11.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.005em; padding-top: 2px; }
+  .control-mid { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .control-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 100px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; border: 1px solid; }
+  .control-badge.deployed { color: #15803D; background: rgba(74,222,128,0.10); border-color: rgba(74,222,128,0.28); }
+  .control-badge.partial  { color: #B45309; background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.28); }
+  .control-badge.missing  { color: #B91C1C; background: rgba(239,68,68,0.10);  border-color: rgba(239,68,68,0.30); }
+  .control-badge.limited  { color: var(--ink-3); background: rgba(100,116,139,0.08); border-color: rgba(100,116,139,0.25); }
+  .control-trust-marker { display: inline-block; color: #B45309; font-size: 12px; font-weight: 700; margin-left: 3px; vertical-align: -1px; }
+  .control-evidence { font-size: 10.5px; color: var(--ink-2); line-height: 1.45; flex: 1; min-width: 0; }
+  .control-action { font-size: 10.5px; color: var(--tag-action); line-height: 1.45; grid-column: 2; padding-top: 3px; font-style: italic; }
+
+  /* ============ Section 07 — Hidden infrastructure ============ */
+
+  /* Registration strip (top of §07) */
+  .registration-strip { margin: 0 56px 14px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .registration-strip-header { padding: 9px 18px; background: rgba(15,23,42,0.025); border-bottom: 1px solid var(--rule-lighter); display: flex; justify-content: space-between; align-items: center; }
+  .registration-strip-header h4 { font-size: 10.5px; font-weight: 800; color: var(--ink); letter-spacing: 0.08em; text-transform: uppercase; }
+  .registration-strip-header .meta { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; }
+  .registration-cells { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .registration-cell { padding: 12px 16px; border-right: 1px solid var(--rule-lighter); }
+  .registration-cell:last-child { border-right: none; }
+  .reg-cell-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 5px; }
+  .reg-cell-value { font-size: 13.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; line-height: 1.2; }
+  .reg-cell-value.email { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; word-break: break-word; }
+  .reg-cell-value.good { color: #15803D; }
+  .reg-cell-value.warn { color: #B45309; }
+  .reg-cell-value.bad  { color: #B91C1C; }
+  .reg-cell-sub { font-size: 10px; font-weight: 500; color: var(--ink-3); margin-top: 3px; line-height: 1.35; }
+  .reg-cell-sub .risk-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+  .reg-cell-sub .risk-chip.good { background: rgba(74,222,128,0.12); color: #15803D; }
+  .reg-cell-sub .risk-chip.warn { background: rgba(245,158,11,0.12); color: #B45309; }
+  .reg-cell-sub .risk-chip.med  { background: rgba(100,116,139,0.10); color: var(--ink-3); }
+  .reg-cell-sub .risk-chip.bad  { background: rgba(239,68,68,0.12); color: #B91C1C; }
+  .registration-address { padding: 9px 18px; border-top: 1px solid var(--rule-lighter); background: rgba(15,23,42,0.015); display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--ink-3); }
+  .registration-address .addr-label { font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-size: 9px; white-space: nowrap; }
+  .registration-address .addr-value { color: var(--ink-2); font-style: italic; }
+
+  /* Estate overview */
+  .estate-overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0 56px 18px; padding: 14px 0; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .estate-stat { padding: 0 22px; border-right: 1px solid var(--rule-lighter); }
+  .estate-stat:last-child { border-right: none; }
+  .estate-stat-num { font-size: 26px; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .estate-stat-num.alert { color: #B91C1C; }
+  .estate-stat-num.warn  { color: #B45309; }
+  .estate-stat-num.good  { color: #15803D; }
+  .estate-stat-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); line-height: 1.3; }
+  .estate-callout { margin: 0 56px 14px; padding: 12px 18px; border-radius: 8px; font-size: 11.5px; line-height: 1.55; display: flex; gap: 12px; align-items: flex-start; }
+  .estate-callout.warn { background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.25); color: var(--ink-2); }
+  .estate-callout.good { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.25); color: var(--ink-2); }
+  .estate-callout strong { color: var(--ink); font-weight: 600; }
+  .estate-callout .icon { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: white; }
+  .estate-callout.warn .icon { background: #F59E0B; }
+  .estate-callout.good .icon { background: var(--good); }
+  .subdomain-sample-table-wrap { margin: 0 56px 18px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .subdomain-sample-header { padding: 10px 18px; background: rgba(15,23,42,0.02); border-bottom: 1px solid var(--rule-light); font-size: 11px; font-weight: 700; color: var(--ink); display: flex; justify-content: space-between; align-items: center; }
+  .subdomain-sample-header .meta { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; }
+  .sample-table { width: 100%; border-collapse: collapse; }
+  .sample-table thead th { text-align: left; padding: 7px 14px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); border-bottom: 1px solid var(--rule-light); }
+  .sample-table tbody td { padding: 8px 14px; font-size: 11px; border-bottom: 1px solid var(--rule-lighter); vertical-align: middle; color: var(--ink-2); }
+  .sample-table tbody tr:last-child td { border-bottom: none; }
+  .sample-table .host-cell { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--ink); }
+  .sample-table .risk-cell { width: 88px; }
+  .risk-mini { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 100px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid; }
+  .risk-mini .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .risk-mini.high     { color: #B91C1C; background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.32); }
+  .risk-mini.high .dot     { background: #EF4444; }
+  .risk-mini.med      { color: #92400E; background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.28); }
+  .risk-mini.med  .dot     { background: #F59E0B; }
+  .risk-mini.low      { color: var(--ink-3); background: rgba(100,116,139,0.06); border-color: rgba(100,116,139,0.22); }
+  .risk-mini.low  .dot     { background: var(--ink-4); }
+
+  /* ============ Section 08 — Timeline ============ */
+  .timeline-summary { margin: 0 56px 16px; padding: 14px 20px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .timeline-summary strong { color: var(--ink); font-weight: 600; }
+  .signal-grid { margin: 0 56px 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .signal-card { background: var(--white); border: 1px solid var(--rule-light); border-radius: 8px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .signal-card.active { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.04); }
+  .signal-card.inactive { opacity: 0.7; }
+  .signal-label { font-size: 11px; font-weight: 600; color: var(--ink); }
+  .signal-state { font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 100px; }
+  .signal-state.stable { color: var(--ink-3); background: rgba(100,116,139,0.08); }
+  .signal-state.changed { color: #B45309; background: rgba(245,158,11,0.12); }
+  .timeline-baseline { margin: 0 56px 0; padding: 14px 18px; background: rgba(0,150,204,0.04); border: 1px solid rgba(0,150,204,0.18); border-radius: 8px; font-size: 11.5px; color: var(--ink-2); line-height: 1.55; }
+  .timeline-baseline strong { color: var(--ink); }
+
+  /* ============ Section 09 — Roadmap ============ */
+  .roadmap-grid { margin: 0 56px 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .roadmap-col { background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 16px 18px; border-top: 3px solid var(--ink-4); }
+  .roadmap-col.fortnight { border-top-color: #EF4444; }
+  .roadmap-col.quarter   { border-top-color: #F59E0B; }
+  .roadmap-col.year      { border-top-color: var(--cyan-page); }
+  .roadmap-col-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--rule-lighter); }
+  .roadmap-col-title { font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; }
+  .roadmap-col-count { font-size: 18px; font-weight: 900; color: var(--ink-4); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .roadmap-col.fortnight .roadmap-col-count { color: #B91C1C; }
+  .roadmap-col.quarter   .roadmap-col-count { color: #B45309; }
+  .roadmap-col.year      .roadmap-col-count { color: var(--cyan-deep); }
+  .roadmap-item { padding: 8px 0; border-bottom: 1px dashed var(--rule-lighter); }
+  .roadmap-item:last-child { border-bottom: none; }
+  .roadmap-item-title { font-size: 11.5px; font-weight: 700; color: var(--ink); line-height: 1.35; margin-bottom: 2px; }
+  .roadmap-item-meta  { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; }
+  .roadmap-empty { color: var(--ink-4); font-size: 11px; font-style: italic; padding: 6px 0; }
+  .roadmap-narrative { margin: 0 56px 0; padding: 14px 18px; background: rgba(194,65,12,0.04); border: 1px solid rgba(194,65,12,0.18); border-radius: 8px; font-size: 11.5px; color: var(--ink-2); line-height: 1.6; }
+  .roadmap-narrative strong { color: var(--ink); font-weight: 600; }
+
+  /* ============ Section 10 — Glossary ============ */
+  .glossary-grid { margin: 0 56px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+  .glossary-item { padding: 10px 0; border-bottom: 1px solid var(--rule-lighter); }
+  .glossary-term { font-size: 11.5px; font-weight: 800; color: var(--ink); letter-spacing: -0.005em; margin-bottom: 2px; }
+  .glossary-term .acronym { font-family: 'JetBrains Mono', monospace; color: var(--cyan-deep); font-size: 11px; }
+  .glossary-def { font-size: 10.5px; color: var(--ink-2); line-height: 1.5; }
+  .methodology-block { margin: 0 56px 0; padding: 16px 20px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .methodology-block h4 { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.005em; }
+  .methodology-block p { font-size: 11px; color: var(--ink-2); line-height: 1.6; margin-bottom: 8px; }
+  .methodology-block p:last-child { margin-bottom: 0; }
+  .methodology-block strong { color: var(--ink); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -435,46 +877,82 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="cover">
     <span class="eyebrow">
       <span class="dot"></span>
-      Trusted platform &amp; brand impersonation exposure
+      {{ quarter_label }} &middot; Attack surface assessment
     </span>
 
-    <h1 class="hero">
-      <span class="pct">85&ndash;90%</span> of impersonation attacks target the trusted platforms your team logs into every day.
-      <span class="lead-out">This report shows which of yours.</span>
+    <h1 class="cover-title">
+      Trusted-platform and brand-impersonation attack surface for <span class="cover-domain">{{ domain }}</span>.
     </h1>
 
-    <p class="deck">
-      A point-in-time exposure assessment for <strong>{{ domain }}</strong>: the technology platforms your stack depends on, the active attacker infrastructure currently imitating them, and how your own brand authentication holds up in return. Derived from continuous certificate-issuance, BGP and DNS telemetry across a 320-million-domain corpus.
+    <p class="cover-deck">
+      Every digital estate has an attack surface &mdash; the parts of it that an attacker can leverage. This report maps yours from <strong>public DNS, certificate, and registration data</strong> &mdash; no access to your systems required. <strong>The same data is available to bad actors performing reconnaissance.</strong> Two slices follow, and a roadmap to minimise both.
     </p>
 
-    <div class="grade-block">
-      <div class="grade-dial">
-        <svg viewBox="0 0 168 168">
-          <circle cx="84" cy="84" r="74" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
-          <circle cx="84" cy="84" r="74" fill="none" stroke="url(#dialGrad)" stroke-width="10"
-                  stroke-dasharray="465" stroke-dashoffset="{{ (465 * (1 - grade.arc_fill)) | round(0) }}" stroke-linecap="round"/>
-          <defs>
-            <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#00C2FF"/>
-              <stop offset="100%" stop-color="#0096CC"/>
-            </linearGradient>
-          </defs>
-        </svg>
-        <div class="grade-dial-letter">
-          <div class="grade-letter">{{ grade.letter }}</div>
-          <div class="grade-caption">Trust Grade</div>
+    <div class="dual-score">
+      <div class="dual-score-card platform">
+        <div class="dsc-label">
+          <span class="dsc-icon">▲</span>
+          Platform attack surface
+          <span class="dsc-grade-ref">{{ platform_grade.letter }} &middot; {{ platform_score }}/100</span>
         </div>
-      </div>
-      <div class="grade-text">
-        <h2 class="grade-headline">{{ grade.headline }} — {{ grade.description }}</h2>
-        <p class="grade-sub">
-          {# TODO(section-04-data): pillar counts use placeholder logic until per-platform exposure dataset exists #}
-          {{ pill_platforms_at_risk }} platforms in your stack are being actively impersonated, and your own brand authentication has gaps that let the same attackers send convincingly as you. Items to address by priority over the quarter.
+        <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms</div>
+        <p class="dsc-qualifier">{{ platform_state.qualifier }}</p>
+        {% if platform_list.platforms %}
+        <div class="dsc-platform-list">
+          {% for item in platform_list.platforms %}<span class="dsc-platform-name{% if item.cname_only %} cname-only{% endif %}">{{ item.name }}{% if item.cname_only %}<span class="dsc-platform-marker">◆</span>{% endif %}</span>{% if not loop.last %} <span class="dsc-platform-sep">·</span> {% endif %}{% endfor %}
+        </div>
+        {% if platform_list.has_cname_items %}
+        <p class="dsc-platform-footnote"><span class="dsc-platform-marker">◆</span> <strong>{{ platform_list.cname_count }} surfaced from subdomain CNAMEs.</strong> If we found these from outside, a bad actor performing reconnaissance can too &mdash; the same data is in public DNS.</p>
+        {% endif %}
+        {% endif %}
+        <div class="dsc-actions">
+          <div class="dsc-actions-label">Hardening checklist <span class="dsc-actions-caption">externally unverifiable</span></div>
+          <ul class="dsc-actions-list">
+            {% for action in platform_actions %}
+            <li>{{ action }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <p class="dsc-context">
+          Datazag observes <strong>85&ndash;90%</strong> of certificate-based impersonation activity targeting platforms like these &mdash; which is why this surface matters.
         </p>
-        <div class="grade-pills">
-          <span class="pill bad"><span class="pill-dot"></span><span class="pill-num">{{ pill_platforms_at_risk }}</span>platforms at risk</span>
-          <span class="pill warn"><span class="pill-dot"></span><span class="pill-num">{{ pill_brand_exposures }}</span>brand exposures</span>
-          <span class="pill"><span class="pill-dot"></span><span class="pill-num">{{ pill_defence_gaps }}</span>defence gaps</span>
+      </div>
+
+      <div class="dual-score-card infra">
+        <div class="dsc-label">
+          <span class="dsc-icon">◉</span>
+          Infrastructure attack surface
+          <span class="dsc-grade-ref">{{ infra_grade.letter }} &middot; {{ infra_score }}/100</span>
+        </div>
+        <div class="dsc-state">{{ infra_grade.headline }}</div>
+        <p class="dsc-qualifier">What attackers can exploit if not configured &mdash; DMARC, SPF, BIMI, CAA, certificates, and the subdomains attached to your domain.</p>
+        <div class="dsc-actions">
+          <div class="dsc-actions-label">Current state</div>
+          <ul class="dsc-actions-list compact">
+            {% for bit in infra_summary_bits %}
+            <li>{{ bit }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <p class="dsc-context">
+          Each item is fixable through DNS, certificate, or email-auth changes you control. Detailed minimisation steps in <strong>section 09</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="overall-grade-band">
+      <div class="ogb-letter">{{ grade.letter }}</div>
+      <div class="ogb-body">
+        <div class="ogb-label">Overall Trust Grade &middot; how exposed your attack surface is today</div>
+        <div class="ogb-headline">{{ grade.headline }}.</div>
+        <div class="ogb-detail">
+          {% if driving_surface == 'platform' %}
+          Most surface-minimisation payoff is on the platform side &mdash; hardening the platforms attackers most often imitate. Specific actions are in the panel above; deeper detail in section 09.
+          {% elif driving_surface == 'infrastructure' %}
+          Most surface-minimisation payoff is on the infrastructure side &mdash; the open items are short-effort DNS, certificate, and email-auth changes. See section 09 for prioritised steps.
+          {% else %}
+          Both sides of your attack surface warrant attention. Section 09 sequences the minimisation work by impact.
+          {% endif %}
         </div>
       </div>
     </div>
@@ -507,8 +985,8 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
   <div class="toc-header">
     <div class="toc-eyebrow">A guided tour</div>
-    <h2 class="toc-title">Ten sections, three kinds of section.</h2>
-    <p class="toc-lede">Each section is one of three kinds. <strong>Context</strong> orients you. <strong>Findings</strong> tell you what we observed. <strong>Action</strong> tells you what to do about it. The report is designed to be read in order, but each section also stands alone &mdash; if you only have ten minutes, sections 01, 02 and 09 are the spine.</p>
+    <h2 class="toc-title">Mapping your attack surface, in ten sections.</h2>
+    <p class="toc-lede">This report describes your attack surface and gives you a roadmap to minimise it. Each section is one of three kinds: <strong>Context</strong> orients you, <strong>Findings</strong> tell you what we observed, <strong>Action</strong> tells you what to do about it. The report is designed to be read in order, but each section also stands alone &mdash; if you only have ten minutes, sections 01, 02 and 09 are the spine.</p>
   </div>
   <ol class="toc-list">
     {% for item in toc_items %}
@@ -545,7 +1023,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 01</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">At a glance.</h1>
-    <p class="section-headline"><strong>{{ org_name }} sits at {{ grade.headline | lower }}.</strong> Trusted platform-impersonation activity is currently elevated against the platforms you depend on; brand-impersonation exposure is moderate but contained; your own outbound posture is the weakest of the three surfaces and the easiest to repair. Most of the work is in the next 90 days.</p>
+    <p class="section-headline"><strong>{{ org_name }}&rsquo;s attack surface is at {{ grade.headline | lower }}.</strong> The platform side &mdash; the trusted technology platforms your staff log into &mdash; is largely a function of normal SaaS dependence; the infrastructure side has several short-effort improvements available. Most minimisation work is in the next 90 days.</p>
   </div>
   <div class="grade-band">
     <div class="grade-band-letter">{{ grade.letter }}</div>
@@ -622,7 +1100,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 02</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">Why attackers prefer trusted platforms.</h1>
-    <p class="section-headline">Imitating a single company gives an attacker access to that company&rsquo;s customers. <strong>Imitating a platform your staff already trusts gives them access to every company&rsquo;s staff.</strong> The asymmetry is the entire reason this report exists &mdash; and the reason it&rsquo;s structured around two impersonation surfaces rather than one.</p>
+    <p class="section-headline">Imitating a single company gives an attacker access to that company&rsquo;s customers. <strong>Imitating a platform your staff already trusts gives them access to every company&rsquo;s staff.</strong> That asymmetry is why platform-impersonation is the largest single slice of your attack surface &mdash; and why this report describes it before the brand-impersonation side.</p>
   </div>
   <div class="data-panel">
     <div class="data-panel-inner">
@@ -634,7 +1112,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           <div class="data-panel-bar-rest">Everything else · 10&ndash;15%</div>
         </div>
       </div>
-      <p class="data-panel-claim">Of all suspicious certificate registrations Datazag observed in {{ research_month }}, <strong>between 85 and 90 per cent imitated a trusted technology platform</strong> &mdash; Microsoft 365, Google Workspace, Apple, DocuSign, Mailchimp, PayPal, Amazon, Cloudflare, and the rest of the platforms most companies log into every day. Single-company brand impersonation accounted for the remainder. One phishing kit imitating Microsoft 365 can be used against thousands of tenants; a kit imitating any single company only works against that company&rsquo;s customers. Attackers follow the volume.</p>
+      <p class="data-panel-claim">Of all suspicious certificate registrations Datazag observed in {{ research_month }}, <strong>between 85 and 90 per cent imitated a trusted technology platform</strong> &mdash; Microsoft 365, Google Workspace, Apple, DocuSign, Mailchimp, PayPal, Amazon, Cloudflare, and the rest of the platforms most companies log into every day. Single-company brand impersonation accounted for the remainder. One phishing kit imitating Microsoft 365 can be used against thousands of tenants; a kit imitating any single company only works against that company&rsquo;s customers. <strong>Attackers follow the volume &mdash; and the volume is wherever the platforms are.</strong> Which is why your platform-footprint shapes the recon picture: the same DNS, certificate, and CNAME data that surfaced your stack on the cover is what an attacker reads first.</p>
     </div>
   </div>
   <div class="surfaces-grid">
@@ -748,6 +1226,378 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 5 of {{ total_pages }}</span></div>
 </div>
 
+{# ============ PAGE 6 — SECTION 04 / PLATFORM EXPOSURE (monitoring state) ============ #}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Section 04 · Platform-impersonation exposure<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 04</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Active campaigns against your platforms.</h1>
+    <p class="section-headline">For each detected platform, Datazag continuously watches certificate-issuance and DNS activity for new infrastructure that imitates it. When a campaign matches your platform stack, the section below populates with what your staff are likely to encounter — the lure, the domain pattern, and the time it&rsquo;s been live.</p>
+  </div>
+
+  <div class="monitoring-state-panel">
+    <div class="monitoring-state-icon">◉</div>
+    <div class="monitoring-state-body">
+      <h3>Monitoring active — no current high-confidence campaigns against your platforms.</h3>
+      <p>Your {{ vendors | length }} detected platforms are under continuous surveillance against the trusted-platform-impersonation corpus. At the time of this snapshot, <strong>no attacker infrastructure currently in our 30-day observation window matches your platform stack with high confidence</strong>.</p>
+      <p>This is the expected steady-state for a first assessment. Active campaigns are intermittent by nature — when one emerges that targets a platform you depend on, this section will populate with the campaign signature, observed lure domains, and recommended staff briefing language.</p>
+      <div class="monitoring-state-meta">
+        <span><strong>Watch window:</strong> last 30 days</span>
+        <span class="sep">·</span>
+        <span><strong>Platforms covered:</strong> {{ vendors | length }} of {{ vendors | length }}</span>
+        <span class="sep">·</span>
+        <span><strong>Next refresh:</strong> hourly</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="platform-preview-header">
+    <h4>What we monitor for each platform</h4>
+    <p>Per-platform watch state. Each platform below has a continuous certificate-issuance and DNS subscription against attacker-infrastructure patterns matching that brand.</p>
+  </div>
+  <div class="platform-preview-grid">
+    {% for v in vendors_top %}
+    <div class="platform-preview-row">
+      <div class="platform-preview-name">{{ v.name }} <span class="sub">{{ v.role }}</span></div>
+      <span class="platform-preview-state"><span class="dot"></span>Monitoring · no matches</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="methodology-card">
+    <h5>How this section will populate</h5>
+    <p>Datazag&rsquo;s certificate-issuance pipeline observes new SSL certificates as they&rsquo;re issued, cross-references against a corpus of known trusted-platform brand signatures, and flags clusters of new attacker infrastructure imitating each platform. When the volume targeting a platform you depend on exceeds the alert threshold, this section will populate with the cluster details, sample lure domains, and a staff briefing snippet. Continuous-monitoring customers also receive immediate alerts when new campaigns appear, rather than waiting for the next quarterly snapshot.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 6 of {{ total_pages }}</span></div>
+</div>
+
+{# ============ PAGE 7 — SECTION 05 / BRAND EXPOSURE ============ #}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Section 05 · Brand-impersonation exposure<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 05</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Attacks aimed at your customers.</h1>
+    <p class="section-headline">Lookalike domains, suspicious certificates, and typosquats targeting <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code> &mdash; the campaigns where <strong>your brand is the lure and your customers are the target</strong>. Continuously refreshed against our certificate-issuance and DNS corpus.</p>
+  </div>
+
+  <div class="brand-summary-grid">
+    <div class="brand-summary-card primary">
+      <div class="brand-summary-label">Lookalike domains</div>
+      <div class="brand-summary-num{% if pill_brand_exposures > 0 %} warn{% else %} good{% endif %}">{{ pill_brand_exposures }}</div>
+      <div class="brand-summary-detail">{% if pill_brand_exposures > 0 %}Active lookalikes observed in certificate-issuance data targeting your brand string.{% else %}No active lookalikes detected in the current observation window.{% endif %}</div>
+    </div>
+    <div class="brand-summary-card">
+      <div class="brand-summary-label">Recent certs for your brand</div>
+      <div class="brand-summary-num">—</div>
+      <div class="brand-summary-detail">{# TODO(brand-pipeline): cert count for the brand string #}Cert-issuance corpus search for <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.04);padding:1px 3px;border-radius:3px;">{{ domain_root }}</code> populating in next snapshot.</div>
+    </div>
+    <div class="brand-summary-card">
+      <div class="brand-summary-label">Takedown queue</div>
+      <div class="brand-summary-num good">0</div>
+      <div class="brand-summary-detail">No domains currently queued for takedown action.</div>
+    </div>
+  </div>
+
+  <div class="brand-watchlist">
+    <div class="brand-watchlist-empty">
+      <strong>Watch is live; no current matches.</strong>
+      Lookalike-domain detection across our 320M-domain corpus is running continuously for <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> and its common typosquat patterns. When a match emerges, it will appear in this watchlist with the registration date, observed activity, and recommended takedown path.
+    </div>
+  </div>
+
+  <div class="methodology-card">
+    <h5>What this section watches</h5>
+    <p>Three signal sources: <strong>(1)</strong> certificate-issuance logs for new SSL certs containing your brand string, <strong>(2)</strong> DNS registration data for typosquats and homoglyph variants of your domain, <strong>(3)</strong> our active-infrastructure corpus where any of the above start sending mail or hosting pages. Detection is continuous; this section reflects the state at the snapshot timestamp.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 7 of {{ total_pages }}</span></div>
+</div>
+
+{# ============ PAGE 8 — SECTION 06 / DEFENSIVE CONTROLS ============ #}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Section 06 · Defensive controls<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 06</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Defensive controls — what we can see externally.</h1>
+    <p class="section-headline">Every control here is <strong>directly observable</strong> from DNS, SSL, or RDAP — no tenant access required. Items marked <strong>deployed</strong> are credit for work already done. Items marked <strong>partial</strong> or <strong>missing</strong> are minimisation opportunities, each with the exact remediation step underneath.</p>
+  </div>
+
+  <div class="controls-summary-strip">
+    <div class="css-headline"><strong>{{ controls_summary.deployed }} of {{ controls_summary.total }}</strong> externally verifiable controls deployed{% if controls_summary.limited %} · {{ controls_summary.limited }} not externally testable{% endif %}</div>
+    <div class="css-counts">
+      <span class="css-count good"><span class="css-dot"></span>{{ controls_summary.deployed }} deployed</span>
+      <span class="css-count warn"><span class="css-dot"></span>{{ controls_summary.partial }} partial</span>
+      <span class="css-count bad"><span class="css-dot"></span>{{ controls_summary.missing }} missing</span>
+    </div>
+  </div>
+
+  {% if dmarc_mandate_callout %}
+  <div class="mandate-callout">
+    <div class="mandate-callout-icon">!</div>
+    <div class="mandate-callout-body">
+      <div class="mandate-callout-title">DMARC has moved from best practice to operational requirement.</div>
+      <div class="mandate-callout-text">
+        Google and Yahoo have required DMARC for bulk senders (5,000+ msgs/day) since <strong>February 2024</strong>; Microsoft since <strong>May 2025</strong>; Apple and Comcast are aligned with the same requirements. Non-compliant senders now face permanent rejections rather than delays. Even for estates below the bulk-sender threshold, the trajectory means deliverability problems are arriving &mdash; ahead of any consideration of the impersonation-defence value.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% for cat in controls_audit %}
+  <div class="controls-category">
+    <div class="cc-header">
+      <span class="cc-title">{{ cat.name }}</span>
+      <span class="cc-count">{{ cat.deployed }} of {{ cat.total }} deployed</span>
+    </div>
+    {% for c in cat.controls %}
+    <div class="control-row {{ c.state }}">
+      <div class="control-name">{{ c.name }}{% if c.trust_signal %} <span class="control-trust-marker" title="Notable trust signal">✦</span>{% endif %}</div>
+      <div class="control-mid">
+        <span class="control-badge {{ c.state }}">
+          {% if c.state == 'deployed' %}✓ Deployed{% elif c.state == 'partial' %}◐ Partial{% elif c.state == 'limited' %}◯ Limited visibility{% else %}✗ Missing{% endif %}
+        </span>
+        <span class="control-evidence">{{ c.evidence }}</span>
+      </div>
+      {% if c.action %}
+      <div class="control-action">→ {{ c.action }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <div class="methodology-card">
+    <h5>Methodology notes</h5>
+    <p><strong>SPF doesn&rsquo;t inherit to subdomains.</strong> SPF records apply only to the exact domain they&rsquo;re published at. If subdomains send mail (e.g. <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">mailgun.{{ domain }}</code>, <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">support.{{ domain }}</code>), each one needs its own SPF record. The audit above shows the apex domain only. DMARC, in contrast, inherits to subdomains unless overridden via the <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">sp=</code> tag.</p>
+    <p><strong>DKIM cannot be reliably tested externally.</strong> DKIM records sit at <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">{selector}._domainkey.{{ domain }}</code> where the selector is an arbitrary subdomain chosen by the sending platform. Without internal knowledge or a real signed email to inspect, we cannot enumerate selectors. For platforms we recognise (Microsoft 365: selector1/selector2; Google Workspace: google), we can probe specific selectors &mdash; but absence there doesn&rsquo;t confirm DKIM is missing.</p>
+    <p><strong>What we can&rsquo;t see externally.</strong> Beyond the controls above &mdash; phishing-resistant MFA on platform tenants, Conditional Access policies, anti-phishing rules in Microsoft Defender or equivalents, internal SIEM rules, and staff training programmes. Those appear as checklist items on the cover platform card rather than as audited controls here.</p>
+  </div>
+
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 8 of {{ total_pages }}</span></div>
+</div>
+
+{# ============ PAGE 9 — SECTION 07 / HIDDEN INFRASTRUCTURE ============ #}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Section 07 · Hidden infrastructure<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 07</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">The assets attackers find that you may not know exist.</h1>
+    <p class="section-headline">Domain registration, subdomains, dormant services, and certificate hygiene. The foundational facts about your estate — discovered through DNS enumeration, SSL transparency logs, and RDAP. <strong>{{ subdomain_count }} live subdomains observed</strong> for {{ domain }}.</p>
+  </div>
+
+  {% if registration %}
+  <div class="registration-strip">
+    <div class="registration-strip-header">
+      <h4>Domain registration</h4>
+      <span class="meta">{% if registration.dnssec_enabled %}DNSSEC enabled · {% else %}DNSSEC not enabled · {% endif %}RDAP source: rdap.org</span>
+    </div>
+    <div class="registration-cells">
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Domain age</div>
+        <div class="reg-cell-value">{{ registration.age_value }}</div>
+        <div class="reg-cell-sub">{{ registration.age_sub | safe }}</div>
+      </div>
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Last updated</div>
+        <div class="reg-cell-value">{{ registration.updated_value }}</div>
+        <div class="reg-cell-sub">{{ registration.updated_sub | safe }}</div>
+      </div>
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Registrar</div>
+        <div class="reg-cell-value">{{ registration.registrar_value }}</div>
+        <div class="reg-cell-sub">{% if registration.registrar_chip_class %}<span class="risk-chip {{ registration.registrar_chip_class }}">{{ registration.registrar_chip_label }}</span>{% else %}&nbsp;{% endif %}</div>
+      </div>
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Abuse contact</div>
+        <div class="reg-cell-value email">{{ registration.abuse_value }}</div>
+        <div class="reg-cell-sub">{{ registration.security_sub | safe }}</div>
+      </div>
+
+    </div>
+    {% if registration.address %}
+    <div class="registration-address">
+      <span class="addr-label">Registrar address</span>
+      <span class="addr-value">{{ registration.address }}</span>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="estate-overview">
+    <div class="estate-stat"><div class="estate-stat-num">{{ subdomain_count }}</div><div class="estate-stat-label">Total subdomains</div></div>
+    <div class="estate-stat"><div class="estate-stat-num{% if estate_high > 0 %} alert{% endif %}">{{ estate_high }}</div><div class="estate-stat-label">High-risk</div></div>
+    <div class="estate-stat"><div class="estate-stat-num{% if estate_missed_renewal > 0 %} warn{% endif %}">{{ estate_missed_renewal }}</div><div class="estate-stat-label">Missed cert renewals</div></div>
+    <div class="estate-stat"><div class="estate-stat-num{% if estate_cross_san > 5 %} warn{% endif %}">{{ estate_cross_san }}</div><div class="estate-stat-label">Cross-domain SANs</div></div>
+  </div>
+
+  {% if estate_callout %}
+  <div class="estate-callout {{ estate_callout.kind }}">
+    <span class="icon">{{ estate_callout.icon }}</span>
+    <span>{{ estate_callout.text | safe }}</span>
+  </div>
+  {% endif %}
+
+  {% if subdomain_sample %}
+  <div class="subdomain-sample-table-wrap">
+    <div class="subdomain-sample-header">
+      Subdomain corpus — sample
+      <span class="meta">{{ subdomain_sample | length }} of {{ subdomain_count }} shown · ordered by risk</span>
+    </div>
+    <table class="sample-table">
+      <thead><tr><th>Subdomain</th><th>Age</th><th>Notes</th><th class="risk-cell">Risk</th></tr></thead>
+      <tbody>
+        {% for s in subdomain_sample %}
+        <tr>
+          <td class="host-cell">{{ s.host }}</td>
+          <td>{{ s.age }}</td>
+          <td>{{ s.notes }}</td>
+          <td class="risk-cell"><span class="risk-mini {{ s.risk_class }}"><span class="dot"></span>{{ s.risk_label }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="methodology-card">
+    <h5>What we look for</h5>
+    <p>Subdomains discovered via DNS brute-force, SSL transparency logs (Certificate Transparency feeds), and zone enumeration. Each subdomain is checked for: dangling CNAMEs (deleted but still pointed at), takeover-vulnerable platforms (services that respond to abandoned subdomain claims), shared cross-domain SAN certificates (which leak relationships between unrelated estates), and certificates that missed auto-renewal.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 9 of {{ total_pages }}</span></div>
+</div>
+
+{# ============ PAGE 10 — SECTION 08 / TIMELINE ============ #}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Section 08 · Twelve-month timeline<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 08</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Infrastructure changes worth knowing.</h1>
+    <p class="section-headline">Every change Datazag has observed in your DNS and infrastructure over the past twelve months — flagged where it deviates from the baseline pattern for an estate of your shape.</p>
+  </div>
+
+  <div class="timeline-summary">{{ timeline_summary | safe }}</div>
+
+  <div class="signal-grid">
+    {% for sig in change_signals %}
+    <div class="signal-card {{ 'active' if sig.changed else 'inactive' }}">
+      <span class="signal-label">{{ sig.label }}</span>
+      <span class="signal-state {{ 'changed' if sig.changed else 'stable' }}">{{ sig.state }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="timeline-baseline">
+    <strong>First assessment.</strong> This snapshot establishes your baseline. From the next assessment onward, this section will show changes between snapshots — new subdomains appearing, NS or MX provider rotations, dynamic-DNS adoption, or any change that deviates from your established pattern.
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 10 of {{ total_pages }}</span></div>
+</div>
+
+{# ============ PAGE 11 — SECTION 09 / ROADMAP ============ #}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Section 09 · Your minimisation roadmap<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 09</span><span class="section-rule"></span><span class="section-tag" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
+    <h1 class="section-title-h1">Minimising your attack surface.</h1>
+    <p class="section-headline">Everything from the previous sections, sequenced by impact. <strong>This fortnight</strong> is what you should not wait on; <strong>this quarter</strong> is the substantive minimisation work; <strong>this year</strong> is structural improvement.</p>
+  </div>
+
+  <div class="roadmap-grid">
+    <div class="roadmap-col fortnight">
+      <div class="roadmap-col-header"><span class="roadmap-col-title">This fortnight</span><span class="roadmap-col-count">{{ roadmap_fortnight | length }}</span></div>
+      {% for item in roadmap_fortnight %}
+      <div class="roadmap-item"><div class="roadmap-item-title">{{ item.title }}</div><div class="roadmap-item-meta">{{ item.surface }} · {{ item.effort }}</div></div>
+      {% else %}
+      <div class="roadmap-empty">No immediate actions required.</div>
+      {% endfor %}
+    </div>
+    <div class="roadmap-col quarter">
+      <div class="roadmap-col-header"><span class="roadmap-col-title">This quarter</span><span class="roadmap-col-count">{{ roadmap_quarter | length }}</span></div>
+      {% for item in roadmap_quarter %}
+      <div class="roadmap-item"><div class="roadmap-item-title">{{ item.title }}</div><div class="roadmap-item-meta">{{ item.surface }} · {{ item.effort }}</div></div>
+      {% else %}
+      <div class="roadmap-empty">No quarter-horizon items.</div>
+      {% endfor %}
+    </div>
+    <div class="roadmap-col year">
+      <div class="roadmap-col-header"><span class="roadmap-col-title">This year</span><span class="roadmap-col-count">{{ roadmap_year | length }}</span></div>
+      {% for item in roadmap_year %}
+      <div class="roadmap-item"><div class="roadmap-item-title">{{ item.title }}</div><div class="roadmap-item-meta">{{ item.surface }} · {{ item.effort }}</div></div>
+      {% else %}
+      <div class="roadmap-empty">No structural changes recommended.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="roadmap-narrative">
+    <strong>How this prioritises:</strong> items affecting trusted-platform exposure or sensitive subdomains land in <strong>this fortnight</strong>. Outbound-posture work and brand-protection wiring is <strong>this quarter</strong>. Estate-wide hygiene improvements — CAA across all subdomains, MTA-STS, full BIMI deployment with verified mark certificate — are <strong>this year</strong>. Reassessment at the next snapshot will reorder as appropriate.
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 11 of {{ total_pages }}</span></div>
+</div>
+
+{# ============ PAGE 12 — SECTION 10 / GLOSSARY ============ #}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Section 10 · Glossary &amp; methodology<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 10</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
+    <h1 class="section-title-h1">Plain-English definitions.</h1>
+    <p class="section-headline">Every technical term used in this report, defined for the cold reader. The methodology block below describes how the evidence was gathered.</p>
+  </div>
+
+  <div class="glossary-grid">
+    {% for g in glossary %}
+    <div class="glossary-item">
+      <div class="glossary-term">{{ g.term | safe }}</div>
+      <div class="glossary-def">{{ g.def | safe }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="methodology-block">
+    <h4>Methodology</h4>
+    <p><strong>Data sources.</strong> Live DNS resolution at snapshot time; SSL transparency logs (Certificate Transparency feeds); Datazag&rsquo;s continuous certificate-issuance pipeline observing new SSL issuance across the public web; RDAP for domain registration data; ASN and BGP routing observations across 320 million domains, refreshed hourly.</p>
+    <p><strong>Trusted-platform corpus.</strong> Maintained list of identity platforms most-frequently impersonated in the certificate-issuance data. Currently includes Microsoft 365, Google Workspace, Apple, PayPal, Amazon, DocuSign, Mailchimp, Cloudflare, and the long tail of SaaS platforms used by typical SMB and mid-market estates.</p>
+    <p><strong>The 85&ndash;90% figure.</strong> Of all suspicious certificate registrations observed by Datazag in April 2026, between 85 and 90 per cent imitated a trusted technology platform. The figure is refreshed monthly; the range absorbs month-to-month variance.</p>
+    <p><strong>Trust Grade.</strong> A composite score 0&ndash;100 (higher = more exposed) mapped to a six-band letter grade (A&ndash;F). Drivers include platform-impersonation exposure, brand-impersonation exposure, outbound posture (DMARC/SPF/BIMI/CAA), and infrastructure findings.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 12 of {{ total_pages }}</span></div>
+</div>
+
 </body>
 </html>
 """
@@ -767,7 +1617,7 @@ class HealthReportRenderer(BaseRenderer):
 
     AUDIENCE = "health"
     REPORT_TITLE = "Datazag Health Report"
-    TOTAL_PAGES = 5  # placeholder; will grow to ~24 once all sections exist
+    TOTAL_PAGES = 12  # cover + TOC + sections 01-10
 
     # ----- Public API ------------------------------------------------------
 
@@ -782,7 +1632,7 @@ class HealthReportRenderer(BaseRenderer):
         Useful for debugging and for downstream JSON consumers."""
         return {
             "report_type":   "trusted_platform_health_report",
-            "version":       "v8",
+            "version":       "v8.1",
             "domain":        self.domain,
             "generated_at":  self.o["generated_at"],
             "trust_grade":   {
@@ -835,10 +1685,178 @@ class HealthReportRenderer(BaseRenderer):
     # ----- Cached lazy properties ------------------------------------------
 
     @property
+    def _platform_score(self) -> int:
+        """Platform exposure score 0-100. Reflects the size of the attack
+        surface the customer faces — more high-desirability platforms in the
+        stack means more lures attackers can deploy.
+
+        Calibration (v1):
+            base = 15  (everyone has some baseline platform exposure)
+            +8 per high-desirability platform     (Microsoft 365, Google Workspace, ...)
+            +5 per med-high-desirability platform (Mailchimp, ...)
+            +3 per med-desirability platform      (Zoho, Citrix, ...)
+            +1 per low-desirability platform      (Mailgun, Email Signatures, ...)
+            capped at 100
+
+        TODO(section-04-data): once per-platform exposure data exists (active
+        attacker certs imitating each detected platform), this score will
+        incorporate observed campaign volume not just stack composition.
+        """
+        if not hasattr(self, "_platform_score_cache"):
+            vendors = self._build_vendor_list()
+            weights = {"high": 8, "med-high": 5, "med": 3, "low": 1}
+            score = 15 + sum(weights.get(v["tier"], 3) for v in vendors)
+            self._platform_score_cache = min(100, score)
+        return self._platform_score_cache
+
+    @property
+    def _infrastructure_score(self) -> int:
+        """Internal infrastructure score 0-100. Uses the existing pipeline
+        composite_score — DMARC/SPF/BIMI/CAA posture, infrastructure trust,
+        DNS hygiene, subdomain risk.
+        """
+        return int(self.display_score or 0)
+
+    @property
+    def _overall_score(self) -> int:
+        """Overall = the worse of the two surfaces. Higher = more exposure."""
+        return max(self._platform_score, self._infrastructure_score)
+
+    @property
+    def _platform_grade(self) -> TrustGrade:
+        if not hasattr(self, "_platform_grade_cache"):
+            self._platform_grade_cache = score_to_grade(self._platform_score)
+        return self._platform_grade_cache
+
+    @property
+    def _infrastructure_grade(self) -> TrustGrade:
+        if not hasattr(self, "_infra_grade_cache"):
+            self._infra_grade_cache = score_to_grade(self._infrastructure_score)
+        return self._infra_grade_cache
+
+    @property
     def _grade(self) -> TrustGrade:
+        """Overall Trust Grade — derived from the worse of the two sub-scores."""
         if not hasattr(self, "_grade_cache"):
-            self._grade_cache = score_to_grade(self.display_score)
+            self._grade_cache = score_to_grade(self._overall_score)
         return self._grade_cache
+
+    @property
+    def _driving_surface(self) -> str:
+        """Which sub-score is driving the overall grade?
+        Returns 'platform', 'infrastructure', or 'both' (within 5 points)."""
+        diff = self._platform_score - self._infrastructure_score
+        if abs(diff) <= 5:
+            return "both"
+        return "platform" if diff > 0 else "infrastructure"
+
+    @property
+    def _platform_state(self) -> dict[str, str]:
+        """Descriptive state for the platform attack surface, based on size and
+        composition. Avoids the punitive 'exposure' framing — the platform side
+        is about surface SIZE, not defensive failure. The qualifier reassures
+        the reader that having common platforms isn't itself a problem.
+        """
+        n = len(self._build_vendor_list())
+        if n == 0:
+            return {"descriptor": "Minimal",
+                    "qualifier":  "No SaaS platforms detected in DNS signals."}
+        if n <= 3:
+            return {"descriptor": "Lean",
+                    "qualifier":  "Small SaaS footprint — fewer lures attackers can deploy against your staff."}
+        if n <= 7:
+            return {"descriptor": "Standard",
+                    "qualifier":  f"{n} trusted platforms — typical for a business of your shape."}
+        if n <= 12:
+            return {"descriptor": "Wide",
+                    "qualifier":  f"{n} trusted platforms — heavily SaaS-dependent, normal for an established estate."}
+        return {"descriptor": "Very wide",
+                "qualifier":  f"{n} trusted platforms — consider SSO consolidation to reduce lure count."}
+
+    def _platform_actions(self) -> list[str]:
+        """Generate platform-specific defensive actions based on detected
+        platforms. The actions are customer-owned (they don't require Datazag
+        services) and tailored to the actual stack.
+
+        NOTE: every action here is Tier-3 — externally unverifiable. We can't
+        see whether MFA is enforced, Conditional Access is configured, or API
+        keys have been rotated. So actions are framed as checklist items
+        ("If not already in place: ...") rather than diagnoses. The cover
+        caption ('externally unverifiable') makes this explicit.
+        """
+        vendors = self._build_vendor_list()
+        detected_keys = {v["name_key"] for v in vendors}
+        actions: list[str] = []
+
+        if "microsoft 365" in detected_keys:
+            actions.append("If not already enforced: phishing-resistant MFA on Microsoft 365 "
+                           "admin accounts, block legacy auth in Conditional Access.")
+
+        if "google workspace" in detected_keys:
+            actions.append("If not already enabled: Google Advanced Protection for high-value "
+                           "accounts, Context-Aware Access policies.")
+
+        if "mailchimp" in detected_keys:
+            actions.append("If not already in place: Mailchimp 2FA on all users, rotated API "
+                           "keys, IP allowlisting on the account.")
+
+        # ConnectWise / Autotask are PSA platforms with high lateral-impact risk —
+        # warrant their own action when detected
+        if "connectwise" in detected_keys or "autotask" in detected_keys:
+            actions.append("If not already enforced: MFA on PSA accounts (ConnectWise/Autotask) "
+                           "with admin-tier accounts on phishing-resistant credentials. "
+                           "These hold your client list.")
+
+        # Salesforce gets its own item — high-value target, distinct controls
+        if "salesforce" in detected_keys:
+            actions.append("If not already enforced: Salesforce MFA org-wide; restrict API "
+                           "access to allowlisted IPs.")
+
+        # If we have detected platforms but no named-platform actions yet, fall back to generic
+        if not actions and vendors:
+            top = vendors[0]
+            actions.append(f"If not already enforced: strong MFA on {top['name']} accounts, "
+                           "especially anyone with admin rights or broad data access.")
+
+        # Universal closer — recurring activity, doesn't require verification
+        if vendors:
+            top_names = ", ".join(v["name"] for v in vendors[:3])
+            actions.append(f"Brief staff on impersonation lure patterns for {top_names} — "
+                           "what real login pages look like vs. fake ones. Recurring activity.")
+
+        return actions[:3]
+
+    def _platform_list_for_cover(self) -> dict[str, Any]:
+        """Build the platform-name list shown on the cover, with a marker
+        flagging platforms surfaced from subdomain CNAMEs (the higher-signal,
+        less-obvious-to-the-customer detection path).
+
+        Returns a dict:
+            platforms:       list of {name, cname_only} pairs
+            cname_count:     int — how many were CNAME-only detections
+            has_cname_items: bool — whether to show the footnote
+
+        Note: the key is 'platforms' not 'items' — Jinja2 resolves `.items`
+        to dict.items() rather than the value of an 'items' key.
+        """
+        vendors = self._build_vendor_list()
+        platforms = []
+        cname_count = 0
+        for v in vendors:
+            evidence_keys = {e["key"] for e in v["evidence"]}
+            # "CNAME-only" means the only evidence is CNAME — i.e. surfaced
+            # purely from subdomain data, not from TXT records or SPF includes.
+            # These are the "surprising" detections the customer may not realise
+            # are externally visible.
+            cname_only = evidence_keys == {"CNAME"}
+            if cname_only:
+                cname_count += 1
+            platforms.append({"name": v["name"], "cname_only": cname_only})
+        return {
+            "platforms":       platforms,
+            "cname_count":     cname_count,
+            "has_cname_items": cname_count > 0,
+        }
 
     # ----- Context assembly ------------------------------------------------
 
@@ -866,6 +1884,15 @@ class HealthReportRenderer(BaseRenderer):
             "total_pages":       self.TOTAL_PAGES,
             # Trust grade
             "grade":             self._grade,
+            "platform_grade":    self._platform_grade,
+            "infra_grade":       self._infrastructure_grade,
+            "platform_score":    self._platform_score,
+            "infra_score":       self._infrastructure_score,
+            "driving_surface":   self._driving_surface,
+            "platform_state":    self._platform_state,
+            "platform_actions":  self._platform_actions(),
+            "platform_list":     self._platform_list_for_cover(),
+            "infra_summary_bits": self._infra_summary_bits(),
             # Surface pill counts
             "pill_platforms_at_risk": self._pill_platforms_at_risk(),
             "pill_brand_exposures":   self._pill_brand_exposures(),
@@ -883,21 +1910,61 @@ class HealthReportRenderer(BaseRenderer):
             "total_evidence_signals": sum(len(v["evidence"]) for v in vendors),
             # TOC
             "toc_items":         self._toc_items(),
+            # Section 06 — Outbound posture
+            "posture_layers":    self._build_posture_layers(),
+            "controls_audit":    self._controls_categories(),
+            "controls_summary":  self._controls_summary(),
+            "dmarc_mandate_callout": (self.ea.get("dmarc_policy") or "") != "reject",
+            # Section 07 — Hidden infrastructure
+            "registration":           self._build_registration(),
+            "estate_high":            self._estate_count("high"),
+            "estate_missed_renewal":  self._estate_missed_renewals_count(),
+            "estate_cross_san":       self._estate_cross_san_count(),
+            "estate_callout":         self._estate_callout(),
+            "subdomain_sample":       self._build_subdomain_sample(limit=8),
+            # Section 08 — Timeline
+            "timeline_summary":  self._build_timeline_summary(),
+            "change_signals":    self._build_change_signal_list(),
+            # Section 09 — Roadmap
+            "roadmap_fortnight": self._build_roadmap_bucket("fortnight"),
+            "roadmap_quarter":   self._build_roadmap_bucket("quarter"),
+            "roadmap_year":      self._build_roadmap_bucket("year"),
+            # Section 10 — Glossary
+            "glossary":          self._glossary_items(),
         }
 
     # ----- Display helpers -------------------------------------------------
 
     def _org_display_name(self) -> str:
-        rdap_org = (self.rdap or {}).get("registrant_name") or ""
-        if rdap_org:
-            return rdap_org
-        # Fallback: prettify the domain root
-        return self.domain.split(".")[0].replace("-", " ").title()
+        """The 'Prepared for' line on the cover.
+
+        Default: the domain itself — clean, accurate, no fabricated company name.
+        Override: an explicit `prepared_for` string can be passed via the output
+        dict (set by upstream run() or CLI) when the report is being prepared
+        for a named buyer (MSSP for a client, Datazag-direct for a customer).
+
+        Note: we do NOT use rdap.registrar_name — that's the registration
+        provider (e.g. "Easyspace Limited"), not the customer. We do NOT use
+        rdap.registrant_name either — the upstream RDAP module does not emit it
+        because most TLDs redact registrant data behind WHOIS privacy by default.
+        """
+        override = (self.o.get("prepared_for") or "").strip()
+        if override:
+            return override
+        return self.domain
 
     def _org_locale(self) -> str:
-        # TODO(rdap-locale): registrant country + industry classification
-        country = (self.rdap or {}).get("registrant_country", "") or ""
-        return country if country else "—"
+        """Sub-line under the 'Prepared for' cell.
+
+        We don't reliably know the customer's locale (RDAP registrant data is
+        typically redacted). What we do know is where their infrastructure is
+        hosted, which is a legitimate and accurate signal — and not misleading
+        because it's labelled 'hosted in' in the template.
+        """
+        country = (self.tech or {}).get("isp_country") or ""
+        if country:
+            return f"hosted in {country}"
+        return ""
 
     @staticmethod
     def _pretty_date(iso_date: str) -> str:
@@ -953,6 +2020,47 @@ class HealthReportRenderer(BaseRenderer):
             bits.append("no BIMI")
         return ", ".join(bits) + (". Your domain remains spoofable" if ea.get("is_spoofable") else "")
 
+    def _infra_summary_bits(self) -> list[str]:
+        """Three short bullets describing the customer's infrastructure posture,
+        for the cover sub-score card. Each bullet is ≤ 6 words."""
+        ea = self.ea or {}
+        rdap = self.rdap or {}
+        flags = self.flags or {}
+        bits = []
+
+        # DMARC state — top of the order; it's the most consequential outbound control
+        dmarc = ea.get("dmarc_policy") or ""
+        if dmarc == "reject":
+            bits.append("DMARC enforcing")
+        elif dmarc == "quarantine":
+            bits.append("DMARC partial (quarantine)")
+        elif dmarc == "none":
+            bits.append("DMARC monitor only")
+        else:
+            bits.append("DMARC missing")
+
+        # CAA / BIMI / DNSSEC — pick the most consequential missing layer next
+        missing_layers = ea.get("missing_layers") or []
+        if not flags.get("has_caa"):
+            bits.append("CAA not deployed")
+        elif "BIMI" in missing_layers:
+            bits.append("BIMI not deployed")
+        elif not rdap.get("dnssec_enabled"):
+            bits.append("DNSSEC not enabled")
+
+        # If we still have room, mention high-risk subdomains or cert hygiene
+        if len(bits) < 3:
+            high_count = sum(1 for s in self.subdomains if s.get("risk_level") == "high")
+            missed = len((self.cert_analysis or {}).get("missed_renewals") or [])
+            if high_count > 0:
+                bits.append(f"{high_count} high-risk subdomain{'s' if high_count != 1 else ''}")
+            elif missed > 0:
+                bits.append(f"{missed} missed cert renewal{'s' if missed != 1 else ''}")
+            elif not rdap.get("dnssec_enabled"):
+                bits.append("DNSSEC not enabled")
+
+        return bits[:3]
+
     # ----- Priorities ------------------------------------------------------
 
     def _build_priorities(self) -> list[dict[str, Any]]:
@@ -960,8 +2068,10 @@ class HealthReportRenderer(BaseRenderer):
 
         TODO(section-04-data): the platform-priority is currently synthesised
         from the highest-tier detected vendor. Once per-platform exposure data
-        exists, this will reference an actual active campaign."""
+        exists, this will reference an actual active campaign.
+        """
         priorities = []
+        used_findings: set[str] = set()
 
         # 1. Platform priority — synthesised from top vendor
         vendors = self._build_vendor_list()
@@ -984,6 +2094,7 @@ class HealthReportRenderer(BaseRenderer):
             })
 
         # 2. Brand priority — DMARC if spoofable
+        dmarc_finding_key = "dmarc_p_none"
         if self.ea.get("is_spoofable") and self.ea.get("dmarc_policy") in (None, "none", ""):
             priorities.append({
                 "severity": "high",
@@ -1000,28 +2111,36 @@ class HealthReportRenderer(BaseRenderer):
                 "effort": "30 min",
                 "when": "Quarter",
             })
+            used_findings.add(dmarc_finding_key)
 
-        # 3. Infra priority — top critical/high posture finding
-        infra_finding = next(
-            (f for f in self.findings if f.get("severity") in ("critical", "high")),
-            None,
-        )
-        if infra_finding:
-            title = infra_finding.get("title") or infra_finding.get("finding", "Critical posture finding")
-            action = infra_finding.get("remediation") or infra_finding.get("fix") or "See full finding detail."
+        # 3. Infra priority — top critical/high finding that isn't already in priorities
+        for f in self.findings:
+            if f.get("severity") not in ("critical", "high"):
+                continue
+            f_key = f.get("finding") or ""
+            # Skip any finding whose key, title, or remediation matches an already-used priority
+            if f_key in used_findings:
+                continue
+            f_title = (f.get("title") or "").lower()
+            if "dmarc" in f_title and dmarc_finding_key in used_findings:
+                continue
+            title = f.get("title") or f.get("finding", "Critical posture finding")
+            action = f.get("remediation") or f.get("fix") or "See full finding detail."
             priorities.append({
-                "severity": "crit" if infra_finding.get("severity") == "critical" else "high",
-                "severity_label": (infra_finding.get("severity") or "high").capitalize(),
+                "severity": "crit" if f.get("severity") == "critical" else "high",
+                "severity_label": (f.get("severity") or "high").capitalize(),
                 "surface": "infra",
                 "surface_label": "Infra",
                 "surface_glyph": "◉",
                 "title": title[:80],
                 "action": action[:200],
-                "why": (infra_finding.get("detail") or infra_finding.get("description") or "")[:200],
+                "why": (f.get("detail") or f.get("description") or "")[:200],
                 "owner": "Infrastructure",
                 "effort": "varies",
                 "when": "Fortnight",
             })
+            used_findings.add(f_key)
+            break  # only one infra priority
 
         return priorities[:3]
 
@@ -1032,7 +2151,9 @@ class HealthReportRenderer(BaseRenderer):
 
         Sources:
         - txt_intelligence['saas_platforms'/'identity_providers'/etc.] from the
-          existing technographics module
+          existing technographics module — gives us the vendor name
+        - dns_records['txt'] — gives us the actual TXT record string, matched
+          back to the vendor by substring
         - mx_provider, isp from infrastructure
         - SPF includes parsed from dns_records['txt']
 
@@ -1043,12 +2164,39 @@ class HealthReportRenderer(BaseRenderer):
         ti = self.txt_intel or {}
         evidence_map: dict[str, list[dict[str, str]]] = {}
 
-        # Categorised platforms from txt_intelligence
+        # Build a TXT-record corpus we can match vendor names back against
+        txt_records: list[str] = [t for t in (self.dns.get("txt", []) or []) if isinstance(t, str)]
+
+        def _match_txt_for_vendor(name_key: str) -> list[str]:
+            """Return TXT records that mention this vendor (best-effort substring match)."""
+            patterns = _VENDOR_TXT_PATTERNS.get(name_key, [])
+            matches = []
+            for txt in txt_records:
+                txt_lower = txt.lower()
+                if any(p in txt_lower for p in patterns):
+                    matches.append(txt)
+            return matches
+
+        # Categorised platforms from txt_intelligence — emit evidence as the actual TXT record
         for category in ("saas_platforms", "identity_providers", "payment_processors",
                          "ai_infrastructure", "security_tooling", "email_marketing"):
             for svc in ti.get(category, []):
                 key = self._normalise_vendor_name(svc)
-                evidence_map.setdefault(key, []).append({"key": "TXT", "val": category})
+                txt_matches = _match_txt_for_vendor(key)
+                if txt_matches:
+                    # Add the most evidential TXT record (shortest non-SPF is usually the verification token)
+                    non_spf = [t for t in txt_matches if not t.startswith("v=spf1")]
+                    chosen = non_spf[0] if non_spf else txt_matches[0]
+                    evidence_map.setdefault(key, []).append({
+                        "key": "TXT",
+                        "val": chosen[:80] + ("…" if len(chosen) > 80 else ""),
+                    })
+                else:
+                    # Fallback: at least record that the category match was made
+                    evidence_map.setdefault(key, []).append({
+                        "key": "STACK",
+                        "val": "technographic match",
+                    })
 
         # MX provider
         mx_provider = self.infra.get("mx_provider")
@@ -1059,15 +2207,39 @@ class HealthReportRenderer(BaseRenderer):
                        else (mx_records[0] if mx_records else mx_provider))
             evidence_map.setdefault(key, []).append({"key": "MX", "val": str(mx_host)})
 
-        # SPF includes
-        for txt in self.dns.get("txt", []) or []:
-            if isinstance(txt, str) and txt.startswith("v=spf1"):
+        # SPF includes — emit one evidence pill per detected include
+        for txt in txt_records:
+            if txt.startswith("v=spf1"):
                 for token in txt.split():
                     if token.startswith("include:"):
                         host = token.split(":", 1)[1]
                         key = self._spf_to_vendor_key(host)
                         if key:
                             evidence_map.setdefault(key, []).append({"key": "SPF", "val": host})
+
+        # Subdomain CNAME targets — Tier-1 evidence. Pulls vendor signals from
+        # the subdomain estate (e.g. support.example.com → desk.zoho.com).
+        # This is the strongest detection mechanism because CNAMEs prove current
+        # active use, not just historical domain ownership.
+        for host, target in self._subdomain_cname_targets():
+            for vendor_key, patterns in _VENDOR_CNAME_PATTERNS.items():
+                if any(p in target for p in patterns):
+                    evidence_map.setdefault(vendor_key, []).append({
+                        "key": "CNAME",
+                        "val": f"{host} → {target}",
+                    })
+                    break  # one vendor per CNAME match
+
+        # De-duplicate evidence per vendor (same key+val collapsing)
+        for key, items in evidence_map.items():
+            seen: set[tuple[str, str]] = set()
+            deduped: list[dict[str, str]] = []
+            for item in items:
+                sig = (item["key"], item["val"])
+                if sig not in seen:
+                    seen.add(sig)
+                    deduped.append(item)
+            evidence_map[key] = deduped
 
         # Build vendor records, applying desirability lookup
         vendors = []
@@ -1092,11 +2264,51 @@ class HealthReportRenderer(BaseRenderer):
         vendors.sort(key=lambda v: -v["weight"])
         return vendors
 
+    def _subdomain_cname_targets(self) -> list[tuple[str, str]]:
+        """Extract (host, cname_target) tuples from subdomain data.
+
+        The upstream pipeline emits subdomain CNAME data, but the field name
+        varies across pipeline versions. This helper tries a handful of common
+        shapes so detection works without requiring a coordinated rename:
+            subdomain.cname             (preferred — flat string)
+            subdomain.cname_target      (alternative name)
+            subdomain.target / .canonical
+            subdomain.dns_records.cname (nested list/string)
+            subdomain.records[*]        (some shapes flatten everything here)
+
+        Targets are returned lowercased and stripped of trailing dots.
+        Empty/missing CNAMEs are silently skipped.
+        """
+        out: list[tuple[str, str]] = []
+        for s in self.subdomains:
+            host = s.get("host") or ""
+            target = (
+                s.get("cname")
+                or s.get("cname_target")
+                or s.get("target")
+                or s.get("canonical")
+                or ""
+            )
+            # Try nested dns_records dict
+            if not target and isinstance(s.get("dns_records"), dict):
+                cn = s["dns_records"].get("cname")
+                if isinstance(cn, list) and cn:
+                    target = cn[0]
+                elif isinstance(cn, str):
+                    target = cn
+            if isinstance(target, list):
+                target = target[0] if target else ""
+            target = str(target).strip().rstrip(".").lower()
+            if host and target:
+                out.append((host, target))
+        return out
+
     @staticmethod
     def _normalise_vendor_name(raw: str) -> str:
         """Lowercase, strip, collapse common aliases."""
         s = (raw or "").strip().lower()
-        if "outlook" in s or "office 365" in s or "ms 365" in s:
+        # Microsoft family — including bare "microsoft" from MX provider classification
+        if any(k in s for k in ("microsoft", "outlook", "office 365", "ms 365", "exchange online")):
             return "microsoft 365"
         if "google" in s and ("workspace" in s or "search console" in s):
             return "google workspace"
@@ -1148,10 +2360,891 @@ class HealthReportRenderer(BaseRenderer):
             "mailchimp":        "Mailchimp",
             "apple":            "Apple",
             "zoho":             "Zoho",
+            "zoho desk":        "Zoho Desk",
+            "zoho crm":         "Zoho CRM",
+            "zoho mail":        "Zoho Mail",
+            "zoho generic":     "Zoho (other)",
             "citrix":           "Citrix",
             "mailgun":          "Mailgun",
             "email signatures": "Email Signatures 365",
+            "zendesk":          "Zendesk",
+            "freshservice":     "Freshservice",
+            "freshdesk":        "Freshdesk",
+            "servicenow":       "ServiceNow",
+            "atlassian":        "Atlassian (Jira/Confluence)",
+            "help scout":       "Help Scout",
+            "intercom":         "Intercom",
+            "salesforce":       "Salesforce",
+            "hubspot":          "HubSpot",
+            "pipedrive":        "Pipedrive",
+            "connectwise":      "ConnectWise",
+            "autotask":         "Autotask",
+            "cloudflare":       "Cloudflare",
+            "aws":              "AWS",
+            "azure":            "Microsoft Azure",
+            "vercel":           "Vercel",
+            "netlify":          "Netlify",
+            "statuspage":       "Atlassian Statuspage",
+            "betterstack":      "BetterStack",
+            "notion":           "Notion",
+            "gitbook":          "GitBook",
+            "shopify":          "Shopify",
+            "sendgrid":         "SendGrid",
+            "wordpress engine": "WP Engine",
         }.get(name_key, name_key.title())
+
+    # ----- Section 06: Outbound posture ------------------------------------
+
+    # ----- Section 06: Defensive controls audit ----------------------------
+
+    def _capture_field(self, name: str, *containers: dict) -> Any:
+        """Resolve a DNS-capture-schema field across possible upstream shapes.
+
+        Tries each provided container in order, then falls back to the top-level
+        `output` dict. Returns the first non-None value found, or None.
+
+        This lets the renderer be forward-compatible with whatever sub-dict
+        structure the upstream pipeline ends up using — fields can land in
+        email_auth, certificates, threat_flags, or stay at the top level.
+        """
+        for c in containers:
+            if c is None:
+                continue
+            val = c.get(name)
+            if val is not None:
+                return val
+        return self.o.get(name)
+
+    @staticmethod
+    def _parse_bimi_record(bimi: str | None) -> dict[str, Any]:
+        """Parse a BIMI record string into its tags.
+
+        Returns a dict with:
+            has_record:  True if a valid-looking BIMI record was passed
+            logo_url:    the l= tag value if present (logo URL)
+            vmc_url:     the a= tag value if present (VMC URL — the trust signal)
+            vmc_host:    hostname of the VMC URL if extractable
+        """
+        out: dict[str, Any] = {"has_record": False, "logo_url": None,
+                               "vmc_url": None, "vmc_host": None}
+        if not bimi or not isinstance(bimi, str):
+            return out
+        if "v=bimi1" not in bimi.lower():
+            return out
+        out["has_record"] = True
+        for part in bimi.split(";"):
+            part = part.strip()
+            if "=" not in part:
+                continue
+            k, v = part.split("=", 1)
+            k = k.strip().lower()
+            v = v.strip()
+            if k == "l":
+                out["logo_url"] = v
+            elif k == "a":
+                out["vmc_url"] = v
+                # Extract host for compact display
+                try:
+                    from urllib.parse import urlparse
+                    out["vmc_host"] = urlparse(v).netloc or None
+                except Exception:
+                    pass
+        return out
+
+    def _defensive_controls_audit(self) -> dict[str, list[dict[str, Any]]]:
+        """Audit externally-observable defensive controls.
+
+        Returns a dict of category → list of control records. Each record is:
+            {name, state, evidence, action}
+        where state ∈ {'deployed', 'partial', 'missing'}.
+
+        IMPORTANT: every control here is Tier-1 — directly observable in
+        DNS, SSL, or RDAP. Tier-3 controls (MFA enforcement, Conditional
+        Access policies, training programmes) are NOT included because we
+        cannot externally verify them. Those live as 'checklist items' on
+        the platform card.
+        """
+        ea = self.ea or {}
+        rdap = self.rdap or {}
+        flags = self.flags or {}
+        findings = self.findings or []
+        missing_layers = ea.get("missing_layers") or []
+
+        controls: dict[str, list[dict[str, Any]]] = {
+            "Email authentication": [],
+            "Certificate & web":    [],
+            "DNS security":         [],
+            "Domain registration":  [],
+        }
+
+        # ─── Email authentication ─────────────────────────────────────────
+        # DMARC has moved from best-practice to operational requirement: Google
+        # and Yahoo have required it for bulk senders since Feb 2024; Microsoft
+        # since May 2025; Apple and Comcast are aligned. The action text reflects
+        # this — the deliverability angle matters even before the impersonation
+        # defence side.
+        dmarc_mandate_note = (" Increasingly required by Google, Yahoo, Microsoft, "
+                              "Apple, and Comcast for bulk-sender deliverability.")
+        dmarc = ea.get("dmarc_policy") or ""
+        if dmarc == "reject":
+            controls["Email authentication"].append({
+                "name": "DMARC enforcement", "state": "deployed",
+                "evidence": "p=reject (full enforcement)", "action": None,
+            })
+        elif dmarc == "quarantine":
+            controls["Email authentication"].append({
+                "name": "DMARC enforcement", "state": "partial",
+                "evidence": "p=quarantine (mail quarantined, not rejected)",
+                "action": "Move to p=reject for full enforcement once quarantine has been stable.",
+            })
+        elif dmarc == "none":
+            controls["Email authentication"].append({
+                "name": "DMARC enforcement", "state": "partial",
+                "evidence": "p=none (monitoring only, no enforcement)",
+                "action": "After 30-day reporting validation, move to p=quarantine, then p=reject."
+                          + dmarc_mandate_note,
+            })
+        else:
+            controls["Email authentication"].append({
+                "name": "DMARC enforcement", "state": "missing",
+                "evidence": "No DMARC TXT record published",
+                "action": f"Publish DMARC record at _dmarc.{self.domain} starting with p=none for reporting."
+                          + dmarc_mandate_note,
+            })
+
+        # SPF — check both apex AND mail subdomain. SPF doesn't inherit, so a
+        # protected apex with an unprotected mail.* subdomain is partial coverage,
+        # not full. The mail_spf column gives us the direct fact.
+        spf = ea.get("spf") or self._capture_field("spf", ea) or ""
+        mail_spf = self._capture_field("mail_spf", ea) or ""
+        spf_strict = ea.get("spf_strictness") or ""
+        apex_strict = "-all" in spf or spf_strict == "strict"
+        apex_soft   = "~all" in spf or spf_strict == "soft"
+        apex_present = bool(spf)
+        mail_present = bool(mail_spf)
+        mail_strict = "-all" in mail_spf
+
+        if apex_strict and mail_strict:
+            controls["Email authentication"].append({
+                "name": "SPF strict mode", "state": "deployed",
+                "evidence": "Apex SPF -all + mail subdomain has its own SPF (both protected)",
+                "action": None,
+            })
+        elif apex_strict and not mail_present:
+            controls["Email authentication"].append({
+                "name": "SPF strict mode", "state": "partial",
+                "evidence": "Apex SPF -all, but mail subdomain has no SPF record of its own "
+                            "(SPF does not inherit — mail.* is unprotected)",
+                "action": f"Publish SPF record at mail.{self.domain} matching the sending "
+                          "infrastructure used from that subdomain.",
+            })
+        elif apex_strict and mail_present and not mail_strict:
+            controls["Email authentication"].append({
+                "name": "SPF strict mode", "state": "partial",
+                "evidence": "Apex SPF -all, but mail subdomain SPF is permissive",
+                "action": f"Tighten SPF at mail.{self.domain} to -all.",
+            })
+        elif apex_soft:
+            controls["Email authentication"].append({
+                "name": "SPF strict mode", "state": "partial",
+                "evidence": "SPF ~all (soft-fail) at apex",
+                "action": "Tighten apex SPF to -all once includes are stable.",
+            })
+        elif apex_present:
+            controls["Email authentication"].append({
+                "name": "SPF strict mode", "state": "partial",
+                "evidence": "SPF published at apex but permissive",
+                "action": "Tighten apex SPF to -all.",
+            })
+        else:
+            controls["Email authentication"].append({
+                "name": "SPF strict mode", "state": "missing",
+                "evidence": "No SPF record",
+                "action": "Publish SPF TXT record with -all and all legitimate senders included.",
+            })
+
+        # BIMI — parse the raw record string to detect VMC reference.
+        # If 'a=' tag is present, the VMC is referenced directly; that's the
+        # full trust signal. If only a logo URL ('l=') is present, the record
+        # exists but no VMC has been completed yet (or they're relying on
+        # Yahoo's VMC-optional policy).
+        bimi_raw = ea.get("bimi") or self._capture_field("bimi", ea)
+        bimi_parsed = self._parse_bimi_record(bimi_raw)
+        bimi_missing_via_layer = "BIMI" in missing_layers
+
+        if not bimi_parsed["has_record"] and bimi_missing_via_layer:
+            controls["Email authentication"].append({
+                "name": "BIMI", "state": "missing",
+                "evidence": "No BIMI record at default._bimi",
+                "action": "Publish BIMI record (requires DMARC at p=quarantine or stronger; "
+                          "VMC ~$1,500/year from DigiCert or Entrust gives the verified logo).",
+            })
+        elif bimi_parsed["has_record"] and bimi_parsed["vmc_url"]:
+            # Strongest case: BIMI deployed AND VMC referenced
+            vmc_host_clause = (f" — VMC referenced at {bimi_parsed['vmc_host']}"
+                               if bimi_parsed["vmc_host"] else "")
+            controls["Email authentication"].append({
+                "name": "BIMI", "state": "deployed",
+                "evidence": f"BIMI record present with VMC{vmc_host_clause} "
+                            f"(VMC ~$1,500/year requires registered trademark + identity verification)",
+                "action": None,
+                "trust_signal": True,
+            })
+        elif bimi_parsed["has_record"]:
+            # BIMI record exists but no VMC — partial credit
+            controls["Email authentication"].append({
+                "name": "BIMI", "state": "partial",
+                "evidence": "BIMI record present but no VMC referenced "
+                            "(a= tag absent — logo display limited to providers that "
+                            "accept BIMI without VMC, e.g. Yahoo)",
+                "action": "Obtain a VMC (~$1,500/year from DigiCert or Entrust) "
+                          "to unlock verified logo display in Gmail and Apple Mail.",
+            })
+        else:
+            # Fallback when ea.missing_layers and ea.bimi disagree
+            controls["Email authentication"].append({
+                "name": "BIMI", "state": "missing",
+                "evidence": "No BIMI record at default._bimi",
+                "action": "Publish BIMI record (requires DMARC at p=quarantine or stronger).",
+            })
+
+        # DKIM — limited external visibility. Selectors are arbitrary subdomains
+        # chosen by the sending platform, so we can't enumerate them without
+        # knowing what they are. We can probe a handful of common selectors
+        # (selector1, selector2 for M365; google for Workspace) but absence
+        # there doesn't mean DKIM isn't configured.
+        controls["Email authentication"].append({
+            "name": "DKIM signing", "state": "limited",
+            "evidence": "Limited external visibility — selectors are arbitrary, "
+                        "not enumerable without internal knowledge",
+            "action": "Verify internally: Microsoft 365 typically uses selector1 and "
+                      "selector2; Google Workspace uses google. Each sending platform "
+                      "has its own selectors; each should be rotated annually.",
+        })
+
+        # MTA-STS — check both the deployment AND the mode. 'enforce' is the
+        # full trust signal; 'testing' means the policy file is published but
+        # senders won't actually enforce it (no protection in practice yet).
+        has_mta_sts = self._capture_field("has_mta_sts", ea, flags)
+        mta_sts_mode = (self._capture_field("mta_sts_mode", ea, flags) or "").lower()
+        # Fall back to subdomain detection if the upstream hasn't populated the columns
+        mtasts_subs = [s for s in self.subdomains if "mta-sts" in s.get("host", "").lower()]
+        mta_sts_deployed = bool(has_mta_sts) or bool(mtasts_subs)
+
+        if mta_sts_deployed and mta_sts_mode == "enforce":
+            controls["Email authentication"].append({
+                "name": "MTA-STS", "state": "deployed",
+                "evidence": "Policy published in enforce mode",
+                "action": None,
+                "trust_signal": True,
+            })
+        elif mta_sts_deployed and mta_sts_mode == "testing":
+            controls["Email authentication"].append({
+                "name": "MTA-STS", "state": "partial",
+                "evidence": "Policy published in testing mode (senders observe but do not enforce)",
+                "action": "Move MTA-STS policy from mode=testing to mode=enforce once "
+                          "you've validated that legitimate mail isn't being blocked.",
+            })
+        elif mta_sts_deployed:
+            # Detected but mode not visible
+            controls["Email authentication"].append({
+                "name": "MTA-STS", "state": "deployed",
+                "evidence": "mta-sts subdomain published (policy mode not captured)",
+                "action": None,
+            })
+        else:
+            controls["Email authentication"].append({
+                "name": "MTA-STS", "state": "missing",
+                "evidence": "No MTA-STS policy detected",
+                "action": "Publish MTA-STS DNS TXT and policy file in testing mode initially, "
+                          "then move to enforce.",
+            })
+
+        # TLS-RPT — receiver-side reporting partner to MTA-STS. Tells senders
+        # where to send TLS failure reports. Deployed means the org is paying
+        # attention to delivery integrity, not just configuring it.
+        tlsrpt = self._capture_field("tlsrpt_rua", ea)
+        if tlsrpt:
+            controls["Email authentication"].append({
+                "name": "TLS-RPT", "state": "deployed",
+                "evidence": f"TLS-RPT reporting configured ({tlsrpt[:60]}{'…' if len(str(tlsrpt)) > 60 else ''})",
+                "action": None,
+            })
+        else:
+            controls["Email authentication"].append({
+                "name": "TLS-RPT", "state": "missing",
+                "evidence": "No TLS-RPT record at _smtp._tls",
+                "action": "Publish a TLS-RPT TXT record pointing to an inbox or aggregator "
+                          "that can receive TLS failure reports.",
+            })
+
+        # ─── Certificate & web ────────────────────────────────────────────
+        if flags.get("has_caa"):
+            controls["Certificate & web"].append({
+                "name": "CAA records", "state": "deployed",
+                "evidence": "CAA records published — issuance restricted",
+                "action": None,
+            })
+        else:
+            controls["Certificate & web"].append({
+                "name": "CAA records", "state": "missing",
+                "evidence": "No CAA record — any CA can issue for this domain",
+                "action": "Publish CAA records restricting issuance to the CAs you actually use",
+            })
+
+        hsts_findings = [f for f in findings
+                         if "hsts" in (f.get("finding") or "").lower()
+                         or "hsts" in (f.get("title") or "").lower()]
+        if hsts_findings:
+            most_severe = sorted(hsts_findings,
+                                 key=lambda f: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(
+                                     f.get("severity"), 4))[0]
+            sev = most_severe.get("severity", "")
+            state = "missing" if sev in ("critical", "high") else "partial"
+            controls["Certificate & web"].append({
+                "name": "HSTS deployment", "state": state,
+                "evidence": most_severe.get("title") or "HSTS gaps detected",
+                "action": most_severe.get("remediation")
+                          or "Deploy HSTS header with includeSubDomains; consider preload",
+            })
+        else:
+            controls["Certificate & web"].append({
+                "name": "HSTS deployment", "state": "deployed",
+                "evidence": "No HSTS gaps detected",
+                "action": None,
+            })
+
+        # HTTPS certificate health — direct cert state from the SSL handshake.
+        # 'Deployed' means a valid cert with reasonable runway. 'Partial' means
+        # valid but expiring imminently. 'Missing' means handshake failed.
+        certs = self.certs or {}
+        https_ok = self._capture_field("https_cert_ok", certs)
+        https_days = self._capture_field("https_cert_days_left", certs)
+        https_issuer = self._capture_field("https_cert_issuer", certs)
+        if https_ok is None and https_days is None:
+            pass  # field not populated — skip the row entirely
+        elif https_ok and isinstance(https_days, int) and https_days >= 14:
+            issuer_clause = f", issued by {https_issuer}" if https_issuer else ""
+            controls["Certificate & web"].append({
+                "name": "HTTPS certificate health", "state": "deployed",
+                "evidence": f"Certificate valid, {https_days} days remaining{issuer_clause}",
+                "action": None,
+            })
+        elif https_ok and isinstance(https_days, int) and https_days >= 0:
+            controls["Certificate & web"].append({
+                "name": "HTTPS certificate health", "state": "partial",
+                "evidence": f"Certificate valid but expiring in {https_days} days",
+                "action": "Schedule certificate renewal — most ACME setups auto-renew "
+                          "within 30 days of expiry.",
+            })
+        else:
+            controls["Certificate & web"].append({
+                "name": "HTTPS certificate health", "state": "missing",
+                "evidence": "Certificate handshake failed or certificate invalid",
+                "action": "Investigate HTTPS configuration — handshake or validity error.",
+            })
+
+        # security.txt — vulnerability disclosure process. Few SMBs publish one;
+        # presence signals a mature security posture (someone has thought about
+        # how external researchers will reach them when they find something).
+        has_sec_txt = self._capture_field("has_security_txt", flags)
+        sec_txt_url = self._capture_field("security_txt_url", flags)
+        if has_sec_txt:
+            url_clause = f" at {sec_txt_url}" if sec_txt_url else ""
+            controls["Certificate & web"].append({
+                "name": "security.txt", "state": "deployed",
+                "evidence": f"Vulnerability disclosure file published{url_clause} — "
+                            "signals a working security-contact process",
+                "action": None,
+                "trust_signal": True,
+            })
+        else:
+            controls["Certificate & web"].append({
+                "name": "security.txt", "state": "missing",
+                "evidence": "No /.well-known/security.txt — researchers have no "
+                            "documented channel to report vulnerabilities",
+                "action": f"Publish a security.txt file at /.well-known/security.txt on "
+                          f"{self.domain} with a contact, expires date, and preferred languages.",
+            })
+
+        # ─── DNS security ─────────────────────────────────────────────────
+        if rdap.get("dnssec_enabled"):
+            controls["DNS security"].append({
+                "name": "DNSSEC", "state": "deployed",
+                "evidence": "Domain signed; delegation signing active",
+                "action": None,
+            })
+        else:
+            controls["DNS security"].append({
+                "name": "DNSSEC", "state": "missing",
+                "evidence": "DNSSEC not enabled",
+                "action": "Enable DNSSEC at registrar; publish DS records",
+            })
+
+        # ─── Domain registration ──────────────────────────────────────────
+        lock_count = rdap.get("lock_count", 0) or 0
+        if lock_count >= 4:
+            controls["Domain registration"].append({
+                "name": "Registrar locks", "state": "deployed",
+                "evidence": f"{lock_count} client-side locks (transfer, delete, update, renew)",
+                "action": None,
+            })
+        elif lock_count >= 1:
+            controls["Domain registration"].append({
+                "name": "Registrar locks", "state": "partial",
+                "evidence": f"{lock_count} of 4 client-side locks",
+                "action": "Enable all four client-side locks at the registrar",
+            })
+        else:
+            controls["Domain registration"].append({
+                "name": "Registrar locks", "state": "missing",
+                "evidence": "No registrar locks",
+                "action": "Enable client-side locks (transfer, delete, update, renew); "
+                          "consider server-side locks for high-value domains",
+            })
+
+        if rdap.get("abuse_email"):
+            controls["Domain registration"].append({
+                "name": "Abuse contact published", "state": "deployed",
+                "evidence": f"Contact: {rdap.get('abuse_email')}",
+                "action": None,
+            })
+        else:
+            controls["Domain registration"].append({
+                "name": "Abuse contact published", "state": "missing",
+                "evidence": "No abuse contact in RDAP",
+                "action": "Verify the registrar has a current abuse contact on file",
+            })
+
+        return controls
+
+    def _controls_summary(self) -> dict[str, int]:
+        """Total/deployed/partial/missing/limited counts across all controls.
+
+        'limited' is a fourth state for controls that exist in principle but
+        can't be reliably verified externally — DKIM is the canonical example.
+        Limited-state controls are excluded from deployed/partial/missing
+        counts so the summary headline ('X of Y deployed') remains honest:
+        Y is the count of verifiable controls only.
+        """
+        audit = self._defensive_controls_audit()
+        deployed = partial = missing = limited = 0
+        verifiable_total = 0
+        for ctrls in audit.values():
+            for c in ctrls:
+                state = c.get("state", "")
+                if state == "deployed":
+                    deployed += 1
+                    verifiable_total += 1
+                elif state == "partial":
+                    partial += 1
+                    verifiable_total += 1
+                elif state == "missing":
+                    missing += 1
+                    verifiable_total += 1
+                elif state == "limited":
+                    limited += 1
+        return {
+            "total":    verifiable_total,
+            "deployed": deployed,
+            "partial":  partial,
+            "missing":  missing,
+            "limited":  limited,
+        }
+
+    def _controls_categories(self) -> list[dict[str, Any]]:
+        """Flatten the audit into a list with per-category counts, ready for
+        the Jinja template. 'limited'-state controls (e.g. DKIM) are excluded
+        from the deployed/total ratio so it remains an honest count of
+        externally verifiable controls."""
+        audit = self._defensive_controls_audit()
+        out = []
+        for category, ctrls in audit.items():
+            verifiable = [c for c in ctrls if c["state"] != "limited"]
+            deployed = sum(1 for c in verifiable if c["state"] == "deployed")
+            total = len(verifiable)
+            out.append({
+                "name":      category,
+                "controls":  ctrls,
+                "deployed":  deployed,
+                "total":     total,
+            })
+        return out
+
+    # ----- Section 06: Outbound posture (legacy v8.6 helper, retained) -----
+
+    def _build_posture_layers(self) -> list[dict[str, Any]]:
+        """Six-layer posture grid. Each entry covers one defence layer with its
+        current state, severity, and a short technical detail line."""
+        ea = self.ea or {}
+        flags = self.flags or {}
+
+        # DMARC
+        dmarc_policy = ea.get("dmarc_policy") or ""
+        if dmarc_policy in ("reject",):
+            dmarc_state, dmarc_class, dmarc_mini = "Enforced", "good", "Reject"
+        elif dmarc_policy == "quarantine":
+            dmarc_state, dmarc_class, dmarc_mini = "Partial", "warn", "Quarantine"
+        elif dmarc_policy == "none":
+            dmarc_state, dmarc_class, dmarc_mini = "Monitor only", "bad", "p=none"
+        else:
+            dmarc_state, dmarc_class, dmarc_mini = "Missing", "missing", "Absent"
+        dmarc_detail = (f"DMARC published with policy <code>p={dmarc_policy}</code>."
+                        if dmarc_policy else "No DMARC record published — domain is fully spoofable.")
+        if dmarc_policy == "none":
+            dmarc_detail += " Receivers take no action on unauthenticated mail."
+
+        # SPF
+        spf = (ea.get("spf") or "")
+        spf_strict = ea.get("spf_strictness") or ""
+        if "-all" in spf or spf_strict == "strict":
+            spf_state, spf_class, spf_mini = "Strict", "good", "-all"
+            spf_detail = "SPF published with strict failure mode (-all)."
+        elif "~all" in spf or spf_strict == "soft":
+            spf_state, spf_class, spf_mini = "Soft", "warn", "~all"
+            spf_detail = "SPF in soft-fail mode (~all) — unauthorised mail may still reach inboxes marked as suspicious."
+        elif spf:
+            spf_state, spf_class, spf_mini = "Permissive", "warn", "?all"
+            spf_detail = "SPF published but permissive."
+        else:
+            spf_state, spf_class, spf_mini = "Missing", "missing", "None"
+            spf_detail = "No SPF record published."
+
+        # BIMI
+        if "BIMI" in (ea.get("missing_layers") or []):
+            bimi_state, bimi_class, bimi_mini = "Not deployed", "missing", "Absent"
+            bimi_detail = "No BIMI record. Your logo doesn't appear in supporting inboxes."
+        else:
+            bimi_state, bimi_class, bimi_mini = "Configured", "good", "Live"
+            bimi_detail = "BIMI record present; logo appears in supporting inboxes."
+
+        # CAA
+        if flags.get("has_caa"):
+            caa_state, caa_class, caa_mini = "Configured", "good", "Live"
+            caa_detail = "CAA records restrict which CAs can issue certificates."
+        else:
+            caa_state, caa_class, caa_mini = "Not deployed", "missing", "Absent"
+            caa_detail = "Any CA can issue certificates for this domain — rogue cert risk."
+
+        # MTA-STS (best-effort: not always present in output dict)
+        mtasts_subs = [s for s in self.subdomains if "mta-sts" in s.get("host", "").lower()]
+        if mtasts_subs:
+            mtasts_state, mtasts_class, mtasts_mini = "Configured", "good", "Live"
+            mtasts_detail = "MTA-STS policy published; receivers can verify TLS before delivery."
+        else:
+            mtasts_state, mtasts_class, mtasts_mini = "Not deployed", "missing", "Absent"
+            mtasts_detail = "No MTA-STS policy. Inbound TLS is not enforced for receivers."
+
+        # DNSSEC
+        rdap = self.rdap or {}
+        if rdap.get("dnssec_enabled"):
+            dnssec_state, dnssec_class, dnssec_mini = "Enabled", "good", "Signed"
+            dnssec_detail = "DNSSEC validates DNS responses cryptographically."
+        else:
+            dnssec_state, dnssec_class, dnssec_mini = "Not enabled", "missing", "Unsigned"
+            dnssec_detail = "DNSSEC not enabled — DNS responses are not cryptographically validated."
+
+        return [
+            {"label": "DMARC",   "state": dmarc_state,  "state_class": dmarc_class,  "mini_label": dmarc_mini,  "detail": dmarc_detail},
+            {"label": "SPF",     "state": spf_state,    "state_class": spf_class,    "mini_label": spf_mini,    "detail": spf_detail},
+            {"label": "BIMI",    "state": bimi_state,   "state_class": bimi_class,   "mini_label": bimi_mini,   "detail": bimi_detail},
+            {"label": "CAA",     "state": caa_state,    "state_class": caa_class,    "mini_label": caa_mini,    "detail": caa_detail},
+            {"label": "MTA-STS", "state": mtasts_state, "state_class": mtasts_class, "mini_label": mtasts_mini, "detail": mtasts_detail},
+            {"label": "DNSSEC",  "state": dnssec_state, "state_class": dnssec_class, "mini_label": dnssec_mini, "detail": dnssec_detail},
+        ]
+
+    # ----- Section 07: Hidden infrastructure -------------------------------
+
+    def _build_registration(self) -> dict[str, Any] | None:
+        """Build the registration strip data for §07.
+
+        Reads from self.rdap (populated by the upstream rdap_lookup_async module).
+        Returns None if RDAP failed or is missing — template skips the strip.
+
+        Fields consumed:
+            registered, updated, expires
+            domain_age_days, days_to_expiry
+            registrar_name, registrar_address, registrar_label, registrar_score
+            abuse_email
+            dnssec_enabled, lock_count, recent_transfer
+        """
+        rdap = self.rdap or {}
+        if not rdap.get("rdap_available"):
+            return None
+
+        # ── Domain age cell ────────────────────────────────────────────────
+        age_days = rdap.get("domain_age_days")
+        registered = rdap.get("registered") or "—"
+        if isinstance(age_days, int) and age_days >= 0:
+            if age_days >= 365:
+                years = age_days / 365.25
+                age_value = f"{years:.1f} years"
+            else:
+                age_value = f"{age_days} days"
+            age_sub = f"Registered {registered}"
+            if isinstance(age_days, int) and age_days < 90:
+                age_sub += ' &middot; <span class="risk-chip warn">New domain</span>'
+        else:
+            age_value = "—"
+            age_sub = "Registration date unavailable"
+
+        # ── Last updated cell ──────────────────────────────────────────────
+        updated = rdap.get("updated") or "—"
+        days_to_expiry = rdap.get("days_to_expiry")
+        if updated and updated != "—":
+            updated_value = updated
+            # Derive a sub-line that combines days-since-update + expiry context
+            try:
+                from datetime import datetime
+                u_date = datetime.strptime(updated, "%Y-%m-%d")
+                days_since = max(0, (datetime.now() - u_date).days)
+                if days_since == 0:
+                    updated_sub = "Updated today"
+                elif days_since < 365:
+                    updated_sub = f"{days_since} days ago"
+                else:
+                    yrs = days_since / 365.25
+                    updated_sub = f"{yrs:.1f} years ago"
+            except (ValueError, TypeError):
+                updated_sub = ""
+        else:
+            updated_value = "—"
+            updated_sub = "No 'last changed' event in RDAP"
+
+        # Add expiry context to the updated sub-line where relevant
+        if isinstance(days_to_expiry, int) and days_to_expiry > 0:
+            if days_to_expiry < 30:
+                updated_sub += ' &middot; <span class="risk-chip bad">Expires in ' + str(days_to_expiry) + 'd</span>'
+            elif days_to_expiry < 90:
+                updated_sub += ' &middot; <span class="risk-chip warn">Expires in ' + str(days_to_expiry) + 'd</span>'
+
+        # ── Registrar cell ─────────────────────────────────────────────────
+        registrar_value = rdap.get("registrar_name") or "—"
+        registrar_label = rdap.get("registrar_label") or ""
+        registrar_score = rdap.get("registrar_score", 0) or 0
+        if registrar_score >= 2:
+            chip_class = "bad"
+        elif registrar_score == 1:
+            chip_class = "warn"
+        elif "low" in registrar_label.lower() or "enterprise" in registrar_label.lower():
+            chip_class = "good"
+        else:
+            chip_class = "med"
+        registrar_chip_class = chip_class if registrar_label else None
+        registrar_chip_label = registrar_label
+
+        # ── Abuse contact cell ─────────────────────────────────────────────
+        abuse_value = rdap.get("abuse_email") or "Not found"
+
+        # Build the 'security' sub-line under abuse contact: DNSSEC + lock count + transfer signal
+        sec_bits = []
+        if rdap.get("dnssec_enabled"):
+            sec_bits.append('<span class="risk-chip good">DNSSEC on</span>')
+        else:
+            sec_bits.append('<span class="risk-chip warn">DNSSEC off</span>')
+        lock_count = rdap.get("lock_count", 0) or 0
+        if lock_count >= 4:
+            sec_bits.append('<span class="risk-chip good">Locked</span>')
+        elif lock_count > 0:
+            sec_bits.append(f'{lock_count} lock{"s" if lock_count != 1 else ""}')
+        if rdap.get("recent_transfer"):
+            sec_bits.append('<span class="risk-chip warn">Recent transfer</span>')
+        security_sub = " &middot; ".join(sec_bits)
+
+        return {
+            "rdap_available":       True,
+            "dnssec_enabled":       bool(rdap.get("dnssec_enabled")),
+            "age_value":            age_value,
+            "age_sub":              age_sub,
+            "updated_value":        updated_value,
+            "updated_sub":          updated_sub,
+            "registrar_value":      registrar_value,
+            "registrar_chip_class": registrar_chip_class,
+            "registrar_chip_label": registrar_chip_label,
+            "abuse_value":          abuse_value,
+            "security_sub":         security_sub,
+            "address":              (rdap.get("registrar_address") or "").strip() or None,
+        }
+
+    def _estate_count(self, risk_level: str) -> int:
+        return sum(1 for s in self.subdomains if s.get("risk_level") == risk_level)
+
+    def _estate_missed_renewals_count(self) -> int:
+        return len((self.cert_analysis or {}).get("missed_renewals", []) or [])
+
+    def _estate_cross_san_count(self) -> int:
+        return len((self.cert_analysis or {}).get("cross_domain_sans", []) or [])
+
+    def _estate_callout(self) -> dict[str, Any] | None:
+        """Choose one summary callout line for the page."""
+        if self._estate_missed_renewals_count() > 0:
+            n = self._estate_missed_renewals_count()
+            return {
+                "kind": "warn",
+                "icon": "!",
+                "text": (f"<strong>{n} certificate{'s' if n != 1 else ''} missed auto-renewal.</strong> "
+                         "After expiry, browsers display security warnings to all visitors. Trigger manual "
+                         "renewal and verify the ACME/Let's Encrypt cron jobs."),
+            }
+        if self._estate_cross_san_count() > 10:
+            return {
+                "kind": "warn",
+                "icon": "i",
+                "text": (f"<strong>{self._estate_cross_san_count()} cross-domain SANs detected.</strong> "
+                         "Shared certificate SANs reveal infrastructure relationships between unrelated estates. "
+                         "Worth reviewing whether any of those relationships should be visible to outsiders."),
+            }
+        if self._estate_count("high") > 0:
+            return {
+                "kind": "warn",
+                "icon": "!",
+                "text": (f"<strong>{self._estate_count('high')} high-risk subdomain{'s' if self._estate_count('high') != 1 else ''}.</strong> "
+                         "Review the sample below — typically staging, dev, or legacy infrastructure that hasn't been hardened."),
+            }
+        return {
+            "kind": "good",
+            "icon": "✓",
+            "text": ("<strong>Estate hygiene looks clean.</strong> No missed certificate renewals, "
+                     "no high-risk subdomains, and cross-domain SAN exposure is within normal range."),
+        }
+
+    def _build_subdomain_sample(self, limit: int = 8) -> list[dict[str, Any]]:
+        """Subdomains sorted by risk for the sample table."""
+        order = {"critical": 0, "high": 1, "medium": 2, "info": 3, "low": 4}
+        items = sorted(self.subdomains, key=lambda s: order.get(s.get("risk_level", "info"), 5))
+        out = []
+        for s in items[:limit]:
+            risk = s.get("risk_level", "info")
+            risk_class = "high" if risk in ("critical", "high") else "med" if risk == "medium" else "low"
+            risk_label = risk.upper() if risk in ("critical", "high") else risk.title()
+            age = s.get("cert_age_days") or s.get("age_days")
+            age_str = f"{age}d" if age else "—"
+            notes = []
+            if s.get("is_dangling_cname"):           notes.append("dangling CNAME")
+            if s.get("is_takeover_vulnerable"):      notes.append("takeover-vulnerable")
+            if s.get("is_malicious_ip"):             notes.append("malicious IP")
+            if s.get("is_delegated"):                notes.append("delegated")
+            if not notes:                            notes.append("active")
+            out.append({
+                "host":       s.get("host", "—"),
+                "age":        age_str,
+                "notes":      ", ".join(notes),
+                "risk_class": risk_class,
+                "risk_label": risk_label,
+            })
+        return out
+
+    # ----- Section 08: Timeline --------------------------------------------
+
+    def _build_timeline_summary(self) -> str:
+        """Narrative summary for the timeline page header block."""
+        rdap = self.rdap or {}
+        age_days = rdap.get("domain_age_days") or 0
+        registered = rdap.get("registered") or "—"
+        ch = self.changes or {}
+        any_changes = any(ch.get(k) for k in ("ns_changed", "ip_changed", "country_changed",
+                                              "ttl_drop_big", "is_dynamic_dns", "mx_misconfigured"))
+        if any_changes:
+            return (f"Domain registered {registered} ({age_days} days old). "
+                    f"<strong>Notable infrastructure changes</strong> observed over the past twelve months — "
+                    "see the signal grid below for specifics.")
+        return (f"Domain registered {registered} ({age_days} days old). "
+                "<strong>Infrastructure has been stable</strong> over the past twelve months — "
+                "no NS, IP, country, TTL, or MX changes outside normal operation.")
+
+    def _build_change_signal_list(self) -> list[dict[str, Any]]:
+        """The six change-signal cards across the timeline page."""
+        ch = self.changes or {}
+        signals = [
+            ("NS provider",     "ns_changed",        "Changed", "Stable"),
+            ("Hosting IP",      "ip_changed",        "Changed", "Stable"),
+            ("Country",         "country_changed",   "Moved",   "Stable"),
+            ("TTL behaviour",   "ttl_drop_big",      "Anomalous", "Stable"),
+            ("Dynamic DNS",     "is_dynamic_dns",    "Active",  "Not used"),
+            ("MX configuration","mx_misconfigured",  "Issue",   "Healthy"),
+        ]
+        return [
+            {"label": label, "changed": bool(ch.get(key)),
+             "state": active_label if ch.get(key) else stable_label}
+            for label, key, active_label, stable_label in signals
+        ]
+
+    # ----- Section 09: Roadmap ---------------------------------------------
+
+    def _build_roadmap_bucket(self, bucket: str) -> list[dict[str, str]]:
+        """Bucket findings into fortnight/quarter/year by severity heuristic.
+
+        Heuristic:
+        - fortnight  ← critical findings + section 09 priorities marked "Fortnight"
+        - quarter    ← high findings + DMARC/SPF/BIMI work + section 09 priorities marked "Quarter"
+        - year       ← medium findings + estate-wide hygiene work
+        """
+        out: list[dict[str, str]] = []
+
+        for p in self._build_priorities():
+            if p["when"].lower() == bucket:
+                out.append({
+                    "title":   p["title"],
+                    "surface": p["surface_label"],
+                    "effort":  p["effort"],
+                })
+
+        # Add findings not already covered by priorities
+        priority_titles = {p["title"] for p in self._build_priorities()}
+        for f in self.findings:
+            sev = f.get("severity", "")
+            title = (f.get("title") or f.get("finding") or "Untitled finding")[:80]
+            if title in priority_titles:
+                continue
+            if bucket == "fortnight" and sev == "critical":
+                out.append({"title": title, "surface": "Infra", "effort": "varies"})
+            elif bucket == "quarter" and sev == "high":
+                out.append({"title": title, "surface": "Infra", "effort": "varies"})
+            elif bucket == "year" and sev == "medium":
+                out.append({"title": title, "surface": "Infra", "effort": "varies"})
+
+        # Cap per bucket for visual hygiene
+        return out[:6]
+
+    # ----- Section 10: Glossary --------------------------------------------
+
+    @staticmethod
+    def _glossary_items() -> list[dict[str, str]]:
+        """Plain-English definitions for every technical term used in the report."""
+        return [
+            {"term": "Trusted platform impersonation",
+             "def":  "Attackers imitate a platform your staff trusts (Microsoft 365, Google Workspace, etc.) to capture their credentials. The largest impersonation surface — 85&ndash;90% of observed activity."},
+            {"term": "Brand impersonation",
+             "def":  "Attackers imitate your own brand to defraud your customers. Lookalike domains, typosquats, fraudulent certificates."},
+            {"term": "<span class=\"acronym\">DMARC</span>",
+             "def":  "Domain-based Message Authentication, Reporting &amp; Conformance. Tells receiving mail servers what to do with unauthenticated mail claiming to be from you (none / quarantine / reject)."},
+            {"term": "<span class=\"acronym\">SPF</span>",
+             "def":  "Sender Policy Framework. Lists which mail servers are authorised to send email as your domain."},
+            {"term": "<span class=\"acronym\">BIMI</span>",
+             "def":  "Brand Indicators for Message Identification. Displays your verified logo in supporting inboxes — requires DMARC enforcement."},
+            {"term": "<span class=\"acronym\">CAA</span>",
+             "def":  "Certification Authority Authorisation. Restricts which certificate authorities can issue SSL/TLS certificates for your domain."},
+            {"term": "<span class=\"acronym\">MTA-STS</span>",
+             "def":  "Mail Transfer Agent Strict Transport Security. Enforces TLS for inbound mail delivery, preventing downgrade attacks."},
+            {"term": "<span class=\"acronym\">DNSSEC</span>",
+             "def":  "DNS Security Extensions. Cryptographically signs DNS responses so receivers can validate that records haven't been tampered with."},
+            {"term": "<span class=\"acronym\">SSL stripping</span>",
+             "def":  "An attack that downgrades HTTPS to HTTP, allowing credentials and session data to be intercepted in plain text."},
+            {"term": "HSTS",
+             "def":  "HTTP Strict Transport Security. Tells browsers to only access your site over HTTPS, preventing SSL stripping."},
+            {"term": "Dangling CNAME",
+             "def":  "A subdomain CNAME pointing at a service that has been deleted. Attackers can claim the abandoned resource and serve content from your subdomain."},
+            {"term": "Subdomain takeover",
+             "def":  "An attack where a subdomain points at an abandoned third-party service that an attacker can claim — turning your subdomain into theirs."},
+            {"term": "Cross-domain SAN",
+             "def":  "Subject Alternative Name on an SSL certificate that covers unrelated domains. Reveals infrastructure relationships and creates joint failure modes."},
+            {"term": "Certificate Transparency",
+             "def":  "Public logs of every SSL certificate issued. Datazag observes these in real time to detect impersonation infrastructure as it appears."},
+            {"term": "Trust Grade",
+             "def":  "Datazag&rsquo;s six-band letter grade (A&ndash;F) summarising overall exposure. Derived from a composite 0&ndash;100 score with higher = worse."},
+            {"term": "CertStream",
+             "def":  "Datazag&rsquo;s real-time certificate-issuance pipeline. Watches new SSL certificates as they&rsquo;re issued, cross-referenced against trusted-platform brand signatures."},
+        ]
 
     # ----- TOC -------------------------------------------------------------
 
@@ -1159,13 +3252,13 @@ class HealthReportRenderer(BaseRenderer):
     def _toc_items() -> list[dict[str, str]]:
         return [
             {"title": "At-a-glance", "kind": "context",
-             "desc": "Your overall Trust Grade, what changed since last quarter, and the three things to address first."},
+             "desc": "Your overall Trust Grade, how the two slices of your attack surface compare, and the three things to address first."},
             {"title": "Why this matters", "kind": "context",
-             "desc": "Why 85&ndash;90% of impersonation attacks target trusted technology platforms, and how to read both the inbound (platform) and outbound (brand) sides of impersonation exposure."},
+             "desc": "Why 85&ndash;90% of impersonation attacks target trusted technology platforms, and how to read both the inbound (platform) and outbound (brand) sides of your attack surface."},
             {"title": "Your vendor footprint", "kind": "findings",
              "desc": "The technology platforms your stack actually depends on, ordered by attacker desirability rather than internal priority."},
             {"title": "Trusted platform-impersonation exposure", "kind": "findings",
-             "desc": "For each detected platform: the active attacker infrastructure imitating it, recently observed lures, and what those campaigns look like to your staff. <em>Highest-volume threat surface.</em>"},
+             "desc": "For each detected platform: the active attacker infrastructure imitating it, recently observed lures, and what those campaigns look like to your staff. <em>Highest-volume slice of the attack surface.</em>"},
             {"title": "Brand-impersonation exposure", "kind": "findings",
              "desc": "Lookalike domains, suspicious certificates, and typosquats targeting your own brand &mdash; the campaigns aimed at your customers, not your staff."},
             {"title": "Outbound posture", "kind": "findings",
@@ -1174,8 +3267,8 @@ class HealthReportRenderer(BaseRenderer):
              "desc": "Forgotten subdomains, dormant services, certificate hygiene across your wider estate &mdash; the assets attackers find that you may not know exist."},
             {"title": "Twelve-month timeline", "kind": "findings",
              "desc": "Every infrastructure change observed in the past year &mdash; including any that look unusual against your baseline."},
-            {"title": "Your remediation roadmap", "kind": "action",
-             "desc": "What to address this fortnight, this quarter, and this year &mdash; with effort estimates and ownership recommendations against your current Trust Grade."},
+            {"title": "Your minimisation roadmap", "kind": "action",
+             "desc": "How to minimise your attack surface, sequenced by impact &mdash; this fortnight, this quarter, this year &mdash; with effort estimates and ownership recommendations."},
             {"title": "Glossary &amp; methodology", "kind": "context",
              "desc": "Plain-English definitions of every technical term used, plus how the evidence behind each finding was gathered."},
         ]

@@ -1,0 +1,1619 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Datazag Health Report — coffeecupsolutions.com</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy-deep: #0A141F; --navy: #0F1923; --navy-lift: #18283C; --navy-soft: #1E2C40;
+    --rule-dark: rgba(255,255,255,0.10); --rule-soft: rgba(255,255,255,0.06);
+    --white: #FFFFFF; --white-2: rgba(255,255,255,0.78); --white-3: rgba(255,255,255,0.55); --white-4: rgba(255,255,255,0.32);
+    --cyan: #00C2FF; --cyan-deep: #0096CC; --cyan-glow: rgba(0,194,255,0.12);
+    --warn: #F4B860; --bad: #FF6B6B; --good: #4ADE80;
+    --paper: #FAFAF8; --ink: #0F172A; --ink-2: #334155; --ink-3: #64748B; --ink-4: #94A3B8;
+    --rule-light: #E2E8F0; --rule-lighter: #F1F5F9; --cyan-page: #0096CC;
+    --tag-context: #64748B; --tag-findings: #0096CC; --tag-action: #C2410C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { size: A4; margin: 0; }
+  html, body { background: #FFFFFF; font-family: 'Inter', sans-serif; color: var(--white); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  /* Page shell */
+  .page { width: 794px; height: 1123px; margin: 0 auto; background: var(--navy); position: relative; overflow: hidden; display: flex; flex-direction: column; page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  .page::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 88% 8%, rgba(0,194,255,0.10) 0%, transparent 38%), radial-gradient(circle at 8% 82%, rgba(0,194,255,0.06) 0%, transparent 42%), radial-gradient(circle at 60% 50%, rgba(255,255,255,0.02) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+  .page::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px); background-size: 32px 32px; pointer-events: none; z-index: 0; }
+  .page > * { position: relative; z-index: 1; }
+  /* Top bar */
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 28px 56px 22px; border-bottom: 1px solid var(--rule-dark); }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--cyan) 0%, var(--cyan-deep) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 12px rgba(0,194,255,0.28); }
+  .brand-mark svg { width: 18px; height: 18px; }
+  .brand-wordmark { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--white); }
+  .brand-divider { width: 1px; height: 22px; background: var(--rule-dark); }
+  .brand-product { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--white-3); }
+  .topbar-right { text-align: right; }
+  .topbar-id { font-size: 11px; font-weight: 600; color: var(--white-3); letter-spacing: 0.06em; text-transform: uppercase; }
+  .topbar-id strong { color: var(--cyan); font-weight: 700; letter-spacing: 0; text-transform: none; margin-left: 8px; font-size: 12px; }
+  /* Cover content */
+  .cover { flex: 1; padding: 44px 56px 40px; display: flex; flex-direction: column; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px; background: var(--cyan-glow); border: 1px solid rgba(0,194,255,0.28); border-radius: 100px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan); align-self: flex-start; margin-bottom: 28px; }
+  .eyebrow .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  .hero { font-size: 44px; font-weight: 800; letter-spacing: -0.028em; line-height: 1.08; color: var(--white); margin-bottom: 22px; max-width: 640px; }
+  .hero .pct { color: var(--cyan); font-weight: 900; position: relative; white-space: nowrap; }
+  .hero .pct::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--cyan); opacity: 0.25; border-radius: 2px; }
+  .hero .lead-out { display: block; font-weight: 600; color: var(--white-2); font-size: 32px; letter-spacing: -0.02em; margin-top: 14px; line-height: 1.15; }
+  .deck { font-size: 14px; line-height: 1.65; color: var(--white-2); max-width: 600px; margin-bottom: 36px; }
+  .deck strong { color: var(--white); font-weight: 600; }
+
+  /* New cover (v8.4) — descriptive title + dual-score panel */
+  .cover-title { font-size: 26px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.22; color: var(--white); margin-bottom: 14px; max-width: 660px; }
+  .cover-title .cover-domain { color: var(--cyan); font-weight: 800; }
+  .cover-deck { font-size: 13px; line-height: 1.65; color: var(--white-2); max-width: 620px; margin-bottom: 22px; }
+  .cover-deck strong { color: var(--white); font-weight: 600; }
+
+  .dual-score { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .dual-score-card { background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%); border: 1px solid var(--rule-dark); border-radius: 14px; padding: 16px 18px 14px; position: relative; overflow: hidden; }
+  .dual-score-card::before { content: ''; position: absolute; top: -40px; right: -40px; width: 140px; height: 140px; border-radius: 50%; pointer-events: none; opacity: 0.4; }
+  .dual-score-card.platform::before { background: radial-gradient(circle, rgba(255,107,107,0.18) 0%, transparent 70%); }
+  .dual-score-card.infra::before    { background: radial-gradient(circle, rgba(0,194,255,0.18) 0%, transparent 70%); }
+  .dsc-label { position: relative; z-index: 1; font-size: 9.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--white-3); margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+  .dual-score-card.platform .dsc-label { color: var(--bad); }
+  .dual-score-card.infra    .dsc-label { color: var(--cyan); }
+  .dsc-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; color: var(--ink); font-size: 9px; font-weight: 800; }
+  .dual-score-card.platform .dsc-icon { background: var(--bad); }
+  .dual-score-card.infra    .dsc-icon { background: var(--cyan); }
+  .dsc-grade-ref { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--white-3); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; padding: 2px 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--rule-soft); border-radius: 100px; }
+  .dsc-state { position: relative; z-index: 1; font-size: 19px; font-weight: 800; color: var(--white); letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 5px; }
+  .dsc-qualifier { position: relative; z-index: 1; font-size: 11.5px; color: var(--white-2); line-height: 1.5; margin: 0 0 12px; }
+
+  /* Platform list — surfaces the actual vendor names so the customer sees what we found */
+  .dsc-platform-list { position: relative; z-index: 1; padding: 9px 0 9px; margin: 0 0 8px; border-top: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); font-size: 10.5px; line-height: 1.65; color: var(--white-2); }
+  .dsc-platform-name { color: var(--white); font-weight: 600; letter-spacing: -0.005em; white-space: nowrap; }
+  .dsc-platform-name.cname-only { color: var(--cyan); }
+  .dsc-platform-marker { font-size: 7.5px; color: var(--cyan); margin-left: 1px; vertical-align: super; }
+  .dsc-platform-sep { color: var(--white-4); margin: 0 1px; }
+  .dsc-platform-footnote { position: relative; z-index: 1; font-size: 9.5px; color: var(--white-3); line-height: 1.5; margin: 0 0 10px; font-style: italic; }
+  .dsc-platform-footnote .dsc-platform-marker { font-style: normal; }
+  .dsc-actions { position: relative; z-index: 1; padding-top: 10px; border-top: 1px solid var(--rule-soft); margin-bottom: 10px; }
+  .dsc-actions-label { font-size: 9px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--white-4); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .dsc-actions-caption { font-weight: 500; letter-spacing: 0.02em; text-transform: none; font-size: 9px; color: var(--white-4); font-style: italic; }
+  .dsc-actions-list { list-style: none; margin: 0; padding: 0; }
+  .dsc-actions-list li { font-size: 11px; color: var(--white-2); line-height: 1.5; padding: 3px 0 3px 16px; position: relative; }
+  .dsc-actions-list li::before { content: '→'; position: absolute; left: 0; color: var(--cyan); font-weight: 700; }
+  .dsc-actions-list.compact li { padding: 1px 0 1px 14px; }
+  .dsc-actions-list.compact li::before { content: '·'; color: var(--white-4); top: -2px; }
+  .dsc-context { position: relative; z-index: 1; font-size: 10.5px; color: var(--white-3); line-height: 1.55; border-top: 1px dashed var(--rule-soft); padding-top: 8px; margin: 0; font-style: italic; }
+  .dsc-context strong { color: var(--cyan); font-weight: 700; font-style: normal; }
+
+  /* legacy dual-score-card props (v8.4 — unused on v8.5 cover but retained for safety) */
+  .dsc-grade-row { position: relative; z-index: 1; display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .dsc-grade { font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: -0.035em; color: var(--white); }
+  .dsc-score { font-size: 14px; font-weight: 700; color: var(--white-3); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+  .dsc-score .dsc-of { color: var(--white-4); font-weight: 600; }
+  .dsc-headline { position: relative; z-index: 1; font-size: 12.5px; font-weight: 700; color: var(--white); letter-spacing: -0.005em; margin-bottom: 10px; }
+  .dsc-bullets { position: relative; z-index: 1; list-style: none; margin: 0 0 10px; padding: 0; border-top: 1px solid var(--rule-soft); padding-top: 8px; }
+  .dsc-bullets li { font-size: 11px; color: var(--white-2); line-height: 1.5; padding: 2px 0 2px 14px; position: relative; }
+  .dsc-bullets li::before { content: '·'; position: absolute; left: 2px; color: var(--white-4); font-weight: 700; }
+
+  .overall-grade-band { display: grid; grid-template-columns: 56px 1fr; gap: 18px; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--rule-dark); border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; }
+  .ogb-letter { width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, var(--cyan) 0%, var(--cyan-deep) 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; letter-spacing: -0.03em; color: var(--ink); box-shadow: 0 2px 10px rgba(0,194,255,0.25); }
+  .ogb-body { line-height: 1.4; }
+  .ogb-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--white-3); margin-bottom: 3px; }
+  .ogb-headline { font-size: 15px; font-weight: 800; color: var(--white); letter-spacing: -0.015em; margin-bottom: 2px; }
+  .ogb-detail { font-size: 11.5px; color: var(--white-2); line-height: 1.5; max-width: 540px; }
+
+  /* Trust grade block (v8.3 — unused on v8.4 cover but retained for now) */
+  .grade-block { display: grid; grid-template-columns: 168px 1fr; gap: 28px; align-items: center; background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%); border: 1px solid var(--rule-dark); border-radius: 16px; padding: 26px 30px; margin-bottom: 28px; position: relative; overflow: hidden; }
+  .grade-block::before { content: ''; position: absolute; top: -60px; right: -40px; width: 220px; height: 220px; background: radial-gradient(circle, var(--cyan-glow) 0%, transparent 60%); pointer-events: none; }
+  .grade-dial { position: relative; width: 168px; height: 168px; }
+  .grade-dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .grade-dial-letter { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .grade-letter { font-size: 76px; font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: var(--white); margin-bottom: 4px; }
+  .grade-caption { font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--white-3); }
+  .grade-text { position: relative; z-index: 1; }
+  .grade-headline { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--white); line-height: 1.2; margin-bottom: 6px; }
+  .grade-sub { font-size: 13px; color: var(--white-2); line-height: 1.55; margin-bottom: 18px; max-width: 460px; }
+  .grade-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px 7px 11px; background: rgba(255,255,255,0.04); border: 1px solid var(--rule-dark); border-radius: 100px; font-size: 11.5px; font-weight: 600; color: var(--white); letter-spacing: 0.005em; }
+  .pill .pill-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); }
+  .pill.warn .pill-dot { background: var(--warn); }
+  .pill.bad .pill-dot { background: var(--bad); }
+  .pill .pill-num { font-weight: 800; color: var(--cyan); margin-right: 2px; }
+  .pill.warn .pill-num { color: var(--warn); }
+  .pill.bad .pill-num { color: var(--bad); }
+  /* Meta strip */
+  .meta-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 18px 0 20px; border-top: 1px solid var(--rule-dark); border-bottom: 1px solid var(--rule-dark); margin-bottom: 24px; }
+  .meta-cell { padding: 0 22px; border-right: 1px solid var(--rule-soft); }
+  .meta-cell:first-child { padding-left: 0; }
+  .meta-cell:last-child { padding-right: 0; border-right: none; }
+  .meta-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan); margin-bottom: 7px; }
+  .meta-value { font-size: 13.5px; font-weight: 600; color: var(--white); line-height: 1.35; }
+  .meta-value .meta-sub { display: block; font-size: 10.5px; font-weight: 500; color: var(--white-3); margin-top: 3px; letter-spacing: 0.01em; }
+  /* Corpus line */
+  .corpus { display: flex; align-items: center; gap: 12px; margin-bottom: auto; padding-bottom: 20px; }
+  .corpus-bar { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rule-dark) 0%, rgba(0,194,255,0.18) 50%, var(--rule-dark) 100%); }
+  .corpus-text { font-size: 10.5px; font-weight: 600; color: var(--white-3); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  .corpus-text strong { color: var(--cyan); font-weight: 700; margin-right: 4px; }
+  .corpus-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); }
+  /* Footer */
+  .cover-footer { display: flex; justify-content: space-between; align-items: center; padding: 18px 56px 24px; border-top: 1px solid var(--rule-dark); font-size: 10px; font-weight: 600; color: var(--white-4); letter-spacing: 0.1em; text-transform: uppercase; }
+  .cover-footer .right { color: var(--white-3); }
+  /* Light interior pages */
+  .page.light { background: var(--paper); color: var(--ink); }
+  .page.light::before { background: radial-gradient(circle at 92% 4%, rgba(0,150,204,0.05) 0%, transparent 35%), radial-gradient(circle at 4% 96%, rgba(0,150,204,0.03) 0%, transparent 40%); }
+  .page.light::after { background-image: linear-gradient(rgba(15,23,42,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.025) 1px, transparent 1px); background-size: 36px 36px; }
+  .page.light .topbar { border-bottom-color: var(--rule-light); }
+  .page.light .brand-wordmark { color: var(--ink); }
+  .page.light .brand-product { color: var(--ink-3); }
+  .page.light .brand-divider { background: var(--rule-light); }
+  .page.light .topbar-id { color: var(--ink-3); }
+  .page.light .topbar-id strong { color: var(--cyan-page); }
+  .page.light .cover-footer { color: var(--ink-4); border-top-color: var(--rule-light); }
+  .page.light .cover-footer .right { color: var(--ink-3); }
+  .page.light .toc-spacer { flex: 1; }
+  /* TOC */
+  .toc-header { padding: 44px 56px 24px; }
+  .toc-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 10.5px; font-weight: 700; color: var(--cyan-page); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 14px; }
+  .toc-eyebrow::before { content: ''; width: 18px; height: 1.5px; background: var(--cyan-page); }
+  .toc-title { font-size: 32px; font-weight: 800; letter-spacing: -0.025em; color: var(--ink); line-height: 1.15; margin-bottom: 12px; max-width: 600px; }
+  .toc-lede { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; max-width: 600px; }
+  .toc-list { padding: 8px 56px 0; list-style: none; }
+  .toc-item { display: grid; grid-template-columns: 56px 1fr auto; gap: 18px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--rule-lighter); }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-num { font-size: 22px; font-weight: 800; color: var(--cyan-page); letter-spacing: -0.02em; line-height: 1; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .toc-content { padding-right: 12px; }
+  .toc-content h4 { font-size: 14.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 3px; line-height: 1.3; }
+  .toc-content p { font-size: 12px; color: var(--ink-3); line-height: 1.5; margin: 0; }
+  .toc-tag { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 9px; border-radius: 100px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid; white-space: nowrap; margin-top: 2px; }
+  .toc-tag .tag-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .toc-tag.context { color: var(--tag-context); border-color: rgba(100,116,139,0.3); background: rgba(100,116,139,0.06); }
+  .toc-tag.context .tag-dot { background: var(--tag-context); }
+  .toc-tag.findings { color: var(--tag-findings); border-color: rgba(0,150,204,0.32); background: rgba(0,150,204,0.06); }
+  .toc-tag.findings .tag-dot { background: var(--tag-findings); }
+  .toc-tag.action { color: var(--tag-action); border-color: rgba(194,65,12,0.32); background: rgba(194,65,12,0.06); }
+  .toc-tag.action .tag-dot { background: var(--tag-action); }
+  .toc-callout { margin: 16px 56px 0; background: linear-gradient(135deg, rgba(0,150,204,0.06) 0%, rgba(0,150,204,0.02) 100%); border: 1px solid rgba(0,150,204,0.22); border-radius: 12px; padding: 18px 22px; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; }
+  .toc-callout-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--cyan-page); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
+  .toc-callout h5 { font-size: 12.5px; font-weight: 700; color: var(--ink); margin-bottom: 4px; letter-spacing: 0.02em; }
+  .toc-callout p { font-size: 12px; color: var(--ink-2); line-height: 1.55; margin: 0; }
+  .toc-callout p strong { color: var(--ink); font-weight: 600; }
+  /* Section identifier */
+  .section-id-bar { padding: 36px 56px 0; }
+  .section-num-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+  .section-num { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; color: var(--cyan-page); text-transform: uppercase; }
+  .section-rule { flex: 1; height: 1px; background: var(--rule-light); }
+  .section-tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 10px; border-radius: 100px; background: rgba(100,116,139,0.08); border: 1px solid rgba(100,116,139,0.22); color: var(--ink-3); }
+  .section-title-h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.025em; color: var(--ink); line-height: 1.1; margin-bottom: 10px; }
+  .section-headline { font-size: 14.5px; color: var(--ink-2); line-height: 1.6; max-width: 620px; margin-bottom: 24px; }
+  .section-headline strong { color: var(--ink); font-weight: 600; }
+  /* At-a-glance */
+  .grade-band { margin: 0 56px 24px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 18px 22px; display: grid; grid-template-columns: 60px 1fr; gap: 22px; align-items: center; }
+  .grade-band-letter { width: 60px; height: 60px; border-radius: 12px; background: linear-gradient(135deg, var(--ink) 0%, #1E293B 100%); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; letter-spacing: -0.03em; box-shadow: 0 2px 10px rgba(15,23,42,0.18); }
+  .grade-band-body { display: grid; grid-template-rows: auto auto; gap: 8px; }
+  .grade-band-scale { position: relative; height: 24px; margin-top: 2px; }
+  .grade-scale-track { position: absolute; top: 50%; left: 0; right: 0; height: 6px; transform: translateY(-50%); background: linear-gradient(90deg, #4ADE80 0%, #A3E635 22%, #FACC15 45%, #FB923C 65%, #EF4444 88%, #B91C1C 100%); border-radius: 3px; opacity: 0.85; }
+  .grade-scale-marks { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); display: flex; justify-content: space-between; pointer-events: none; }
+  .grade-scale-mark { width: 2px; height: 14px; background: var(--paper); border-radius: 1px; }
+  .grade-scale-pin { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: var(--ink); border: 3px solid var(--paper); box-shadow: 0 2px 8px rgba(15,23,42,0.35); z-index: 2; }
+  .grade-band-text { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; }
+  .grade-band-text strong { color: var(--ink); font-weight: 600; }
+  .scorecards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0 56px 22px; }
+  .scorecard { background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 18px 18px 16px; border-top: 3px solid var(--ink-4); }
+  .scorecard.bad { border-top-color: #EF4444; }
+  .scorecard.warn { border-top-color: #F59E0B; }
+  .scorecard.neutral { border-top-color: var(--cyan-page); }
+  .scorecard-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .scorecard-label .scorecard-icon { width: 14px; height: 14px; border-radius: 4px; background: var(--ink-4); display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 9px; font-weight: 800; }
+  .scorecard.bad .scorecard-icon { background: #EF4444; }
+  .scorecard.warn .scorecard-icon { background: #F59E0B; }
+  .scorecard.neutral .scorecard-icon { background: var(--cyan-page); }
+  .scorecard-state { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 10px; color: var(--ink); }
+  .scorecard.bad .scorecard-state { color: #B91C1C; }
+  .scorecard.warn .scorecard-state { color: #B45309; }
+  .scorecard.neutral .scorecard-state { color: var(--cyan-deep); }
+  .scorecard-text { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; }
+  .scorecard-text strong { color: var(--ink); font-weight: 600; }
+  .assessment-strip { margin: 0 56px 22px; padding: 12px 18px; background: rgba(100,116,139,0.05); border: 1px solid rgba(100,116,139,0.15); border-radius: 10px; font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 10px; }
+  .assessment-strip-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--ink-3); color: white; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+  .assessment-strip strong { color: var(--ink); font-weight: 600; }
+  .priorities-header { margin: 0 56px 12px; display: flex; align-items: baseline; gap: 14px; }
+  .priorities-header h3 { font-size: 16px; font-weight: 800; letter-spacing: -0.015em; color: var(--ink); }
+  .priorities-header .sub { font-size: 11.5px; color: var(--ink-3); }
+  .priority-list { margin: 0 56px; }
+  .priority-card { display: grid; grid-template-columns: 40px 1fr 110px; gap: 16px; padding: 14px 18px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; margin-bottom: 8px; align-items: start; }
+  .priority-card:last-child { margin-bottom: 0; }
+  .priority-num { font-size: 26px; font-weight: 900; color: var(--ink-4); letter-spacing: -0.03em; line-height: 1; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .priority-body { padding-right: 8px; }
+  .priority-pills { display: flex; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
+  .pri-pill { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+  .pri-pill.crit { background: #FEE2E2; color: #991B1B; }
+  .pri-pill.high { background: #FEF3C7; color: #92400E; }
+  .pri-pill.med { background: #DBEAFE; color: #1E40AF; }
+  .pri-pill.vendor { background: rgba(239,68,68,0.08); color: #B91C1C; border: 1px solid rgba(239,68,68,0.25); }
+  .pri-pill.brand { background: rgba(245,158,11,0.08); color: #B45309; border: 1px solid rgba(245,158,11,0.25); }
+  .pri-pill.infra { background: rgba(0,150,204,0.08); color: var(--cyan-deep); border: 1px solid rgba(0,150,204,0.25); }
+  .priority-title { font-size: 13.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.005em; line-height: 1.3; margin-bottom: 3px; }
+  .priority-action { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; margin-bottom: 6px; }
+  .priority-why { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; font-style: italic; }
+  .priority-why::before { content: 'Why · '; font-style: normal; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-4); font-size: 9.5px; }
+  .priority-meta { font-size: 10px; color: var(--ink-3); line-height: 1.6; text-align: right; border-left: 1px solid var(--rule-light); padding-left: 14px; align-self: stretch; }
+  .priority-meta-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .priority-meta-key { font-weight: 700; color: var(--ink-4); letter-spacing: 0.06em; text-transform: uppercase; font-size: 8.5px; }
+  .priority-meta-val { font-weight: 600; color: var(--ink); font-size: 10.5px; }
+  /* Why this matters */
+  .data-panel { margin: 0 56px 26px; background: linear-gradient(135deg, var(--ink) 0%, #1E293B 100%); border-radius: 14px; padding: 22px 26px; color: var(--white); position: relative; overflow: hidden; }
+  .data-panel::before { content: ''; position: absolute; top: -40px; right: -40px; width: 220px; height: 220px; background: radial-gradient(circle, rgba(0,194,255,0.18) 0%, transparent 60%); pointer-events: none; }
+  .data-panel-inner { position: relative; z-index: 1; }
+  .data-panel-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--cyan); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .data-panel-eyebrow::after { content: ''; flex: 1; height: 1px; background: rgba(0,194,255,0.25); }
+  .data-panel-row { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; margin-bottom: 14px; }
+  .data-panel-pct { font-size: 56px; font-weight: 900; color: var(--cyan); line-height: 1; letter-spacing: -0.04em; }
+  .data-panel-bar { height: 24px; border-radius: 6px; overflow: hidden; display: flex; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
+  .data-panel-bar-fill { background: linear-gradient(90deg, var(--cyan-deep) 0%, var(--cyan) 100%); width: 87.5%; display: flex; align-items: center; justify-content: flex-start; padding-left: 12px; font-size: 10.5px; font-weight: 700; color: var(--ink); letter-spacing: 0.04em; text-transform: uppercase; }
+  .data-panel-bar-rest { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 10px; font-weight: 600; color: var(--white-3); letter-spacing: 0.04em; text-transform: uppercase; }
+  .data-panel-claim { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.6; max-width: 580px; margin-top: 14px; }
+  .data-panel-claim strong { color: var(--white); font-weight: 600; }
+  .surfaces-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0 56px 24px; }
+  .surface-panel { background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 20px 22px; }
+  .surface-panel.inbound { border-top: 3px solid #EF4444; }
+  .surface-panel.outbound { border-top: 3px solid #F59E0B; }
+  .surface-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 7px; }
+  .surface-panel.inbound .surface-eyebrow { color: #B91C1C; }
+  .surface-panel.outbound .surface-eyebrow { color: #B45309; }
+  .surface-eyebrow .surface-icon { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 9px; font-weight: 800; }
+  .surface-panel.inbound .surface-icon { background: #EF4444; }
+  .surface-panel.outbound .surface-icon { background: #F59E0B; }
+  .surface-title { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 6px; }
+  .surface-thesis { font-size: 12px; color: var(--ink-2); line-height: 1.55; margin-bottom: 14px; font-style: italic; }
+  .surface-attrs { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--rule-light); }
+  .surface-attr { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: baseline; font-size: 11.5px; }
+  .surface-attr-key { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); padding-top: 2px; }
+  .surface-attr-val { color: var(--ink-2); line-height: 1.45; }
+  .surface-attr-val strong { color: var(--ink); font-weight: 600; }
+  .vol-badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; }
+  .surface-panel.inbound .vol-badge { background: #FEE2E2; color: #991B1B; }
+  .surface-panel.outbound .vol-badge { background: #FEF3C7; color: #92400E; }
+  .causal-section { margin: 0 56px 0; }
+  .causal-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+  .causal-header h3 { font-size: 15px; font-weight: 800; letter-spacing: -0.015em; color: var(--ink); }
+  .causal-header .sub { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+  .causal-example-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px; padding: 5px 12px; background: rgba(100,116,139,0.06); border: 1px dashed rgba(100,116,139,0.32); border-radius: 4px; }
+  .causal-example-eyebrow::before { content: 'For example'; font-weight: 800; color: var(--ink); padding-right: 8px; margin-right: 4px; border-right: 1px solid rgba(100,116,139,0.3); }
+  .causal-chain { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 0; align-items: stretch; }
+  .causal-step { background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-height: 72px; }
+  .causal-step.start { border-left: 3px solid #EF4444; }
+  .causal-step.end { border-left: 3px solid #F59E0B; }
+  .causal-step-num { font-size: 8.5px; font-weight: 800; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; }
+  .causal-step.start .causal-step-num { color: #B91C1C; }
+  .causal-step.end .causal-step-num { color: #B45309; }
+  .causal-step-title { font-size: 11.5px; font-weight: 700; color: var(--ink); line-height: 1.3; letter-spacing: -0.005em; }
+  .causal-step-detail { font-size: 10px; color: var(--ink-3); line-height: 1.4; }
+  .causal-arrow { display: flex; align-items: center; justify-content: center; color: var(--ink-4); padding: 0 4px; font-size: 18px; }
+  .causal-tags { display: flex; justify-content: space-between; margin-top: 10px; padding: 0 4px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .causal-tags .tag-vendor { color: #B91C1C; }
+  .causal-tags .tag-brand { color: #B45309; }
+  /* Vendor footprint */
+  .footprint-summary { margin: 0 56px 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 14px 0; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .footprint-stat { padding: 0 22px; border-right: 1px solid var(--rule-lighter); }
+  .footprint-stat:last-child { border-right: none; }
+  .footprint-stat-num { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .footprint-stat-num.accent { color: var(--cyan-deep); }
+  .footprint-stat-num.alert { color: #B91C1C; }
+  .footprint-stat-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); line-height: 1.3; }
+  .top-vendors { margin: 0 56px 18px; display: grid; gap: 10px; }
+  .vendor-card { background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 16px 18px 14px; display: grid; grid-template-columns: 56px 1fr 130px; gap: 16px; align-items: start; }
+  .vendor-card.high { border-left: 3px solid #EF4444; }
+  .vendor-card.med-high { border-left: 3px solid #F59E0B; }
+  .vendor-rank { display: flex; flex-direction: column; align-items: center; padding-top: 2px; }
+  .vendor-rank-num { font-size: 30px; font-weight: 900; color: var(--ink); line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+  .vendor-rank-label { font-size: 7.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); margin-top: 4px; }
+  .vendor-body { padding-right: 4px; }
+  .vendor-name { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 2px; }
+  .vendor-role { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; font-weight: 500; }
+  .vendor-evidence { display: flex; flex-wrap: wrap; gap: 5px 6px; margin-bottom: 10px; }
+  .vendor-evi { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 500; color: var(--ink-2); background: rgba(15,23,42,0.04); border: 1px solid rgba(15,23,42,0.08); padding: 3px 7px; border-radius: 4px; letter-spacing: -0.01em; }
+  .vendor-evi-key { color: var(--cyan-deep); font-weight: 700; margin-right: 3px; }
+  .vendor-quote { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; font-style: italic; padding-left: 10px; border-left: 2px solid var(--rule-light); }
+  .vendor-quote strong { color: var(--ink); font-weight: 600; font-style: normal; }
+  .vendor-meta { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .vendor-desirability { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 100px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid; white-space: nowrap; }
+  .vendor-desirability.high { color: #B91C1C; background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.32); }
+  .vendor-desirability.med-high { color: #B45309; background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.32); }
+  .vendor-desirability .des-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .vendor-desirability.high .des-dot { background: #EF4444; }
+  .vendor-desirability.med-high .des-dot { background: #F59E0B; }
+  .vendor-evidence-count { font-size: 9.5px; font-weight: 700; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; }
+  .vendor-evidence-count strong { color: var(--ink); font-size: 11.5px; font-weight: 800; margin-right: 3px; }
+  .vendor-table-wrap { margin: 0 56px 18px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .vendor-table-header { padding: 10px 18px; background: rgba(15,23,42,0.02); border-bottom: 1px solid var(--rule-light); font-size: 11px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+  .vendor-table-header span { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; text-transform: none; }
+  .vendor-table { width: 100%; border-collapse: collapse; }
+  .vendor-table thead th { text-align: left; padding: 8px 14px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); border-bottom: 1px solid var(--rule-light); background: rgba(15,23,42,0.015); }
+  .vendor-table tbody td { padding: 9px 14px; font-size: 11.5px; color: var(--ink-2); border-bottom: 1px solid var(--rule-lighter); vertical-align: middle; }
+  .vendor-table tbody tr:last-child td { border-bottom: none; }
+  .vendor-table .rank-cell { font-weight: 800; color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: 13px; width: 36px; }
+  .vendor-table .name-cell { font-weight: 700; color: var(--ink); font-size: 12px; white-space: nowrap; }
+  .vendor-table .role-cell { color: var(--ink-3); }
+  .vendor-table .evi-cell { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--ink-3); }
+  .vendor-table .des-cell { text-align: right; width: 88px; }
+  .des-mini { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 100px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid; }
+  .des-mini.med { color: #92400E; background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.28); }
+  .des-mini.low { color: var(--ink-3); background: rgba(100,116,139,0.06); border-color: rgba(100,116,139,0.22); }
+  .des-mini .des-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .des-mini.med .des-dot { background: #F59E0B; }
+  .des-mini.low .des-dot { background: var(--ink-4); }
+  .next-section-cta { margin: 0 56px 0; padding: 14px 18px; background: linear-gradient(135deg, rgba(0,150,204,0.05) 0%, rgba(0,150,204,0.015) 100%); border: 1px solid rgba(0,150,204,0.22); border-radius: 10px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+  .next-section-cta-text { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .next-section-cta-text strong { color: var(--ink); font-weight: 700; }
+  .next-section-cta-arrow { display: inline-flex; align-items: center; gap: 8px; font-size: 10.5px; font-weight: 800; color: var(--cyan-deep); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+
+  /* ============ Section 04 — Platform exposure (monitoring state) ============ */
+  .monitoring-state-panel { margin: 0 56px 22px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 24px 26px; display: grid; grid-template-columns: 56px 1fr; gap: 22px; align-items: start; }
+  .monitoring-state-icon { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, var(--cyan-page) 0%, #0078A0 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 2px 10px rgba(0,150,204,0.25); position: relative; }
+  .monitoring-state-icon::after { content: ''; position: absolute; top: -3px; right: -3px; width: 14px; height: 14px; border-radius: 50%; background: var(--good); border: 2px solid var(--white); box-shadow: 0 0 0 0 rgba(74,222,128,0.5); animation: monitor-pulse 2s ease-out infinite; }
+  @keyframes monitor-pulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 70% { box-shadow: 0 0 0 12px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+  .monitoring-state-body h3 { font-size: 17px; font-weight: 800; color: var(--ink); letter-spacing: -0.015em; margin-bottom: 6px; line-height: 1.25; }
+  .monitoring-state-body p { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 10px; }
+  .monitoring-state-body p strong { color: var(--ink); font-weight: 600; }
+  .monitoring-state-meta { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--ink-3); }
+  .monitoring-state-meta strong { color: var(--ink); font-weight: 700; letter-spacing: 0.04em; }
+  .monitoring-state-meta .sep { color: var(--ink-4); }
+
+  /* What we monitor per platform (preview) */
+  .platform-preview-header { margin: 14px 56px 10px; }
+  .platform-preview-header h4 { font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 4px; }
+  .platform-preview-header p { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+  .platform-preview-grid { margin: 0 56px 18px; display: grid; gap: 8px; }
+  .platform-preview-row { background: var(--white); border: 1px solid var(--rule-light); border-radius: 8px; padding: 11px 16px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .platform-preview-name { font-size: 12.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+  .platform-preview-name .sub { display: inline-block; font-size: 10.5px; font-weight: 500; color: var(--ink-3); margin-left: 8px; }
+  .platform-preview-state { display: inline-flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--good); padding: 4px 10px; border-radius: 100px; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.28); }
+  .platform-preview-state .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+
+  /* Methodology card */
+  .methodology-card { margin: 0 56px 0; padding: 16px 20px; background: linear-gradient(135deg, rgba(15,23,42,0.03) 0%, rgba(15,23,42,0.01) 100%); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .methodology-card h5 { font-size: 11px; font-weight: 800; color: var(--ink); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+  .methodology-card p { font-size: 11.5px; color: var(--ink-2); line-height: 1.6; }
+
+  /* ============ Section 05 — Brand exposure ============ */
+  .brand-summary-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; margin: 0 56px 22px; }
+  .brand-summary-card { background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 16px 18px; }
+  .brand-summary-card.primary { border-left: 3px solid #F59E0B; }
+  .brand-summary-num { font-size: 32px; font-weight: 900; color: var(--ink); letter-spacing: -0.04em; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .brand-summary-num.warn { color: #B45309; }
+  .brand-summary-num.good { color: #15803D; }
+  .brand-summary-label { font-size: 11px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
+  .brand-summary-detail { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; }
+  .brand-summary-detail strong { color: var(--ink); font-weight: 600; }
+  .brand-watchlist { margin: 0 56px 18px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .brand-watchlist-empty { padding: 28px 22px; text-align: center; color: var(--ink-3); font-size: 12px; }
+  .brand-watchlist-empty strong { color: var(--ink); display: block; margin-bottom: 4px; font-size: 13px; }
+  .brand-watchlist-row { padding: 12px 18px; display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; border-bottom: 1px solid var(--rule-lighter); }
+  .brand-watchlist-row:last-child { border-bottom: none; }
+  .brand-watchlist-domain { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink); font-weight: 600; }
+  .brand-watchlist-meta { font-size: 10.5px; color: var(--ink-3); }
+
+  /* ============ Section 06 — Outbound posture ============ */
+  .posture-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 56px 14px; }
+  .posture-card { background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; padding: 14px 16px; border-left: 3px solid var(--ink-4); }
+  .posture-card.good { border-left-color: var(--good); }
+  .posture-card.warn { border-left-color: #F59E0B; }
+  .posture-card.bad  { border-left-color: #EF4444; }
+  .posture-card.missing { border-left-color: var(--ink-4); opacity: 0.85; }
+  .posture-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .posture-state { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -0.015em; margin-bottom: 6px; line-height: 1.2; }
+  .posture-card.good .posture-state { color: #15803D; }
+  .posture-card.warn .posture-state { color: #B45309; }
+  .posture-card.bad  .posture-state { color: #B91C1C; }
+  .posture-card.missing .posture-state { color: var(--ink-3); }
+  .posture-detail { font-size: 10.5px; color: var(--ink-2); line-height: 1.45; }
+  .posture-detail code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: rgba(15,23,42,0.05); padding: 1px 4px; border-radius: 3px; }
+  .posture-mini-pill { font-size: 8.5px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 3px; }
+  .posture-card.good .posture-mini-pill { background: rgba(74,222,128,0.15); color: #15803D; }
+  .posture-card.warn .posture-mini-pill { background: #FEF3C7; color: #92400E; }
+  .posture-card.bad  .posture-mini-pill { background: #FEE2E2; color: #991B1B; }
+  .posture-card.missing .posture-mini-pill { background: rgba(100,116,139,0.12); color: var(--ink-3); }
+  .posture-explainer { margin: 8px 56px 18px; padding: 14px 18px; background: rgba(0,150,204,0.04); border: 1px solid rgba(0,150,204,0.18); border-radius: 8px; font-size: 11.5px; color: var(--ink-2); line-height: 1.55; }
+  .posture-explainer strong { color: var(--ink); }
+
+  /* ============ Section 06 — Defensive controls audit ============ */
+  .controls-summary-strip { margin: 0 56px 16px; background: linear-gradient(135deg, var(--ink) 0%, #1E293B 100%); color: var(--white); border-radius: 12px; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .css-headline { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.85); letter-spacing: -0.005em; }
+  .css-headline strong { color: var(--cyan); font-weight: 800; font-size: 16px; letter-spacing: -0.015em; margin-right: 2px; }
+  .css-counts { display: flex; gap: 14px; }
+  .css-count { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.85); }
+  .css-count .css-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .css-count.good .css-dot { background: #4ADE80; }
+  .css-count.warn .css-dot { background: #F59E0B; }
+  .css-count.bad  .css-dot { background: #EF4444; }
+
+  /* DMARC mandate callout — only renders when DMARC is below full enforcement */
+  .mandate-callout { margin: 0 56px 14px; padding: 14px 18px; background: linear-gradient(135deg, rgba(194,65,12,0.06) 0%, rgba(194,65,12,0.02) 100%); border: 1px solid rgba(194,65,12,0.28); border-radius: 10px; display: grid; grid-template-columns: 30px 1fr; gap: 14px; align-items: start; }
+  .mandate-callout-icon { width: 26px; height: 26px; border-radius: 50%; background: var(--tag-action); color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+  .mandate-callout-title { font-size: 12.5px; font-weight: 800; color: var(--ink); letter-spacing: -0.005em; margin-bottom: 5px; }
+  .mandate-callout-text { font-size: 11px; color: var(--ink-2); line-height: 1.55; }
+  .mandate-callout-text strong { color: var(--ink); font-weight: 700; }
+
+  .controls-category { margin: 0 56px 12px; }
+  .cc-header { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px 6px; border-bottom: 1px solid var(--rule-light); margin-bottom: 4px; }
+  .cc-title { font-size: 10.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
+  .cc-count { font-size: 9.5px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.04em; }
+
+  .control-row { display: grid; grid-template-columns: 165px 1fr; gap: 14px; padding: 8px 0; border-bottom: 1px dashed var(--rule-lighter); align-items: start; }
+  .control-row:last-child { border-bottom: none; }
+  .control-name { font-size: 11.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.005em; padding-top: 2px; }
+  .control-mid { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .control-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 100px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; border: 1px solid; }
+  .control-badge.deployed { color: #15803D; background: rgba(74,222,128,0.10); border-color: rgba(74,222,128,0.28); }
+  .control-badge.partial  { color: #B45309; background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.28); }
+  .control-badge.missing  { color: #B91C1C; background: rgba(239,68,68,0.10);  border-color: rgba(239,68,68,0.30); }
+  .control-badge.limited  { color: var(--ink-3); background: rgba(100,116,139,0.08); border-color: rgba(100,116,139,0.25); }
+  .control-trust-marker { display: inline-block; color: #B45309; font-size: 12px; font-weight: 700; margin-left: 3px; vertical-align: -1px; }
+  .control-evidence { font-size: 10.5px; color: var(--ink-2); line-height: 1.45; flex: 1; min-width: 0; }
+  .control-action { font-size: 10.5px; color: var(--tag-action); line-height: 1.45; grid-column: 2; padding-top: 3px; font-style: italic; }
+
+  /* ============ Section 07 — Hidden infrastructure ============ */
+
+  /* Registration strip (top of §07) */
+  .registration-strip { margin: 0 56px 14px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .registration-strip-header { padding: 9px 18px; background: rgba(15,23,42,0.025); border-bottom: 1px solid var(--rule-lighter); display: flex; justify-content: space-between; align-items: center; }
+  .registration-strip-header h4 { font-size: 10.5px; font-weight: 800; color: var(--ink); letter-spacing: 0.08em; text-transform: uppercase; }
+  .registration-strip-header .meta { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; }
+  .registration-cells { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .registration-cell { padding: 12px 16px; border-right: 1px solid var(--rule-lighter); }
+  .registration-cell:last-child { border-right: none; }
+  .reg-cell-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 5px; }
+  .reg-cell-value { font-size: 13.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; line-height: 1.2; }
+  .reg-cell-value.email { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; word-break: break-word; }
+  .reg-cell-value.good { color: #15803D; }
+  .reg-cell-value.warn { color: #B45309; }
+  .reg-cell-value.bad  { color: #B91C1C; }
+  .reg-cell-sub { font-size: 10px; font-weight: 500; color: var(--ink-3); margin-top: 3px; line-height: 1.35; }
+  .reg-cell-sub .risk-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+  .reg-cell-sub .risk-chip.good { background: rgba(74,222,128,0.12); color: #15803D; }
+  .reg-cell-sub .risk-chip.warn { background: rgba(245,158,11,0.12); color: #B45309; }
+  .reg-cell-sub .risk-chip.med  { background: rgba(100,116,139,0.10); color: var(--ink-3); }
+  .reg-cell-sub .risk-chip.bad  { background: rgba(239,68,68,0.12); color: #B91C1C; }
+  .registration-address { padding: 9px 18px; border-top: 1px solid var(--rule-lighter); background: rgba(15,23,42,0.015); display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--ink-3); }
+  .registration-address .addr-label { font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-size: 9px; white-space: nowrap; }
+  .registration-address .addr-value { color: var(--ink-2); font-style: italic; }
+
+  /* Estate overview */
+  .estate-overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0 56px 18px; padding: 14px 0; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .estate-stat { padding: 0 22px; border-right: 1px solid var(--rule-lighter); }
+  .estate-stat:last-child { border-right: none; }
+  .estate-stat-num { font-size: 26px; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .estate-stat-num.alert { color: #B91C1C; }
+  .estate-stat-num.warn  { color: #B45309; }
+  .estate-stat-num.good  { color: #15803D; }
+  .estate-stat-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); line-height: 1.3; }
+  .estate-callout { margin: 0 56px 14px; padding: 12px 18px; border-radius: 8px; font-size: 11.5px; line-height: 1.55; display: flex; gap: 12px; align-items: flex-start; }
+  .estate-callout.warn { background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.25); color: var(--ink-2); }
+  .estate-callout.good { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.25); color: var(--ink-2); }
+  .estate-callout strong { color: var(--ink); font-weight: 600; }
+  .estate-callout .icon { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: white; }
+  .estate-callout.warn .icon { background: #F59E0B; }
+  .estate-callout.good .icon { background: var(--good); }
+  .subdomain-sample-table-wrap { margin: 0 56px 18px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .subdomain-sample-header { padding: 10px 18px; background: rgba(15,23,42,0.02); border-bottom: 1px solid var(--rule-light); font-size: 11px; font-weight: 700; color: var(--ink); display: flex; justify-content: space-between; align-items: center; }
+  .subdomain-sample-header .meta { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; }
+  .sample-table { width: 100%; border-collapse: collapse; }
+  .sample-table thead th { text-align: left; padding: 7px 14px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); border-bottom: 1px solid var(--rule-light); }
+  .sample-table tbody td { padding: 8px 14px; font-size: 11px; border-bottom: 1px solid var(--rule-lighter); vertical-align: middle; color: var(--ink-2); }
+  .sample-table tbody tr:last-child td { border-bottom: none; }
+  .sample-table .host-cell { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--ink); }
+  .sample-table .risk-cell { width: 88px; }
+  .risk-mini { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 100px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid; }
+  .risk-mini .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .risk-mini.high     { color: #B91C1C; background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.32); }
+  .risk-mini.high .dot     { background: #EF4444; }
+  .risk-mini.med      { color: #92400E; background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.28); }
+  .risk-mini.med  .dot     { background: #F59E0B; }
+  .risk-mini.low      { color: var(--ink-3); background: rgba(100,116,139,0.06); border-color: rgba(100,116,139,0.22); }
+  .risk-mini.low  .dot     { background: var(--ink-4); }
+
+  /* ============ Section 08 — Timeline ============ */
+  .timeline-summary { margin: 0 56px 16px; padding: 14px 20px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .timeline-summary strong { color: var(--ink); font-weight: 600; }
+  .signal-grid { margin: 0 56px 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .signal-card { background: var(--white); border: 1px solid var(--rule-light); border-radius: 8px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .signal-card.active { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.04); }
+  .signal-card.inactive { opacity: 0.7; }
+  .signal-label { font-size: 11px; font-weight: 600; color: var(--ink); }
+  .signal-state { font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 100px; }
+  .signal-state.stable { color: var(--ink-3); background: rgba(100,116,139,0.08); }
+  .signal-state.changed { color: #B45309; background: rgba(245,158,11,0.12); }
+  .timeline-baseline { margin: 0 56px 0; padding: 14px 18px; background: rgba(0,150,204,0.04); border: 1px solid rgba(0,150,204,0.18); border-radius: 8px; font-size: 11.5px; color: var(--ink-2); line-height: 1.55; }
+  .timeline-baseline strong { color: var(--ink); }
+
+  /* ============ Section 09 — Roadmap ============ */
+  .roadmap-grid { margin: 0 56px 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .roadmap-col { background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 16px 18px; border-top: 3px solid var(--ink-4); }
+  .roadmap-col.fortnight { border-top-color: #EF4444; }
+  .roadmap-col.quarter   { border-top-color: #F59E0B; }
+  .roadmap-col.year      { border-top-color: var(--cyan-page); }
+  .roadmap-col-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--rule-lighter); }
+  .roadmap-col-title { font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; }
+  .roadmap-col-count { font-size: 18px; font-weight: 900; color: var(--ink-4); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .roadmap-col.fortnight .roadmap-col-count { color: #B91C1C; }
+  .roadmap-col.quarter   .roadmap-col-count { color: #B45309; }
+  .roadmap-col.year      .roadmap-col-count { color: var(--cyan-deep); }
+  .roadmap-item { padding: 8px 0; border-bottom: 1px dashed var(--rule-lighter); }
+  .roadmap-item:last-child { border-bottom: none; }
+  .roadmap-item-title { font-size: 11.5px; font-weight: 700; color: var(--ink); line-height: 1.35; margin-bottom: 2px; }
+  .roadmap-item-meta  { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; }
+  .roadmap-empty { color: var(--ink-4); font-size: 11px; font-style: italic; padding: 6px 0; }
+  .roadmap-narrative { margin: 0 56px 0; padding: 14px 18px; background: rgba(194,65,12,0.04); border: 1px solid rgba(194,65,12,0.18); border-radius: 8px; font-size: 11.5px; color: var(--ink-2); line-height: 1.6; }
+  .roadmap-narrative strong { color: var(--ink); font-weight: 600; }
+
+  /* ============ Section 10 — Glossary ============ */
+  .glossary-grid { margin: 0 56px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+  .glossary-item { padding: 10px 0; border-bottom: 1px solid var(--rule-lighter); }
+  .glossary-term { font-size: 11.5px; font-weight: 800; color: var(--ink); letter-spacing: -0.005em; margin-bottom: 2px; }
+  .glossary-term .acronym { font-family: 'JetBrains Mono', monospace; color: var(--cyan-deep); font-size: 11px; }
+  .glossary-def { font-size: 10.5px; color: var(--ink-2); line-height: 1.5; }
+  .methodology-block { margin: 0 56px 0; padding: 16px 20px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .methodology-block h4 { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.005em; }
+  .methodology-block p { font-size: 11px; color: var(--ink-2); line-height: 1.6; margin-bottom: 8px; }
+  .methodology-block p:last-child { margin-bottom: 0; }
+  .methodology-block strong { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+
+<div class="page">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right">
+      <div class="topbar-id">
+        Q2 2026 · Confidential
+        <strong>coffeecupsolutions.com</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover">
+    <span class="eyebrow">
+      <span class="dot"></span>
+      Q2 2026 &middot; Attack surface assessment
+    </span>
+
+    <h1 class="cover-title">
+      Trusted-platform and brand-impersonation attack surface for <span class="cover-domain">coffeecupsolutions.com</span>.
+    </h1>
+
+    <p class="cover-deck">
+      Every digital estate has an attack surface &mdash; the parts of it that an attacker can leverage. This report maps yours from <strong>public DNS, certificate, and registration data</strong> &mdash; no access to your systems required. <strong>The same data is available to bad actors performing reconnaissance.</strong> Two slices follow, and a roadmap to minimise both.
+    </p>
+
+    <div class="dual-score">
+      <div class="dual-score-card platform">
+        <div class="dsc-label">
+          <span class="dsc-icon">▲</span>
+          Platform attack surface
+          <span class="dsc-grade-ref">B &middot; 23/100</span>
+        </div>
+        <div class="dsc-state">Lean &mdash; 1 trusted platforms</div>
+        <p class="dsc-qualifier">Small SaaS footprint — fewer lures attackers can deploy against your staff.</p>
+        <div class="dsc-platform-list">
+<span class="dsc-platform-name">Microsoft 365</span>        </div>
+        <div class="dsc-actions">
+          <div class="dsc-actions-label">Hardening checklist <span class="dsc-actions-caption">externally unverifiable</span></div>
+          <ul class="dsc-actions-list">
+            <li>If not already enforced: phishing-resistant MFA on Microsoft 365 admin accounts, block legacy auth in Conditional Access.</li>
+            <li>Brief staff on impersonation lure patterns for Microsoft 365 — what real login pages look like vs. fake ones. Recurring activity.</li>
+          </ul>
+        </div>
+        <p class="dsc-context">
+          Datazag observes <strong>85&ndash;90%</strong> of certificate-based impersonation activity targeting platforms like these &mdash; which is why this surface matters.
+        </p>
+      </div>
+
+      <div class="dual-score-card infra">
+        <div class="dsc-label">
+          <span class="dsc-icon">◉</span>
+          Infrastructure attack surface
+          <span class="dsc-grade-ref">C &middot; 40/100</span>
+        </div>
+        <div class="dsc-state">Moderate exposure</div>
+        <p class="dsc-qualifier">What attackers can exploit if not configured &mdash; DMARC, SPF, BIMI, CAA, certificates, and the subdomains attached to your domain.</p>
+        <div class="dsc-actions">
+          <div class="dsc-actions-label">Current state</div>
+          <ul class="dsc-actions-list compact">
+            <li>DMARC monitor only</li>
+            <li>CAA not deployed</li>
+            <li>DNSSEC not enabled</li>
+          </ul>
+        </div>
+        <p class="dsc-context">
+          Each item is fixable through DNS, certificate, or email-auth changes you control. Detailed minimisation steps in <strong>section 09</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="overall-grade-band">
+      <div class="ogb-letter">C</div>
+      <div class="ogb-body">
+        <div class="ogb-label">Overall Trust Grade &middot; how exposed your attack surface is today</div>
+        <div class="ogb-headline">Moderate exposure.</div>
+        <div class="ogb-detail">
+          Most surface-minimisation payoff is on the infrastructure side &mdash; the open items are short-effort DNS, certificate, and email-auth changes. See section 09 for prioritised steps.
+        </div>
+      </div>
+    </div>
+
+    <div class="meta-strip">
+      <div class="meta-cell"><div class="meta-label">Prepared for</div><div class="meta-value">coffeecupsolutions.com<span class="meta-sub"></span></div></div>
+      <div class="meta-cell"><div class="meta-label">Domain</div><div class="meta-value">coffeecupsolutions.com<span class="meta-sub">0 subdomains observed</span></div></div>
+      <div class="meta-cell"><div class="meta-label">Snapshot</div><div class="meta-value">09 May 2026<span class="meta-sub">Q2 2026</span></div></div>
+      <div class="meta-cell"><div class="meta-label">Corpus</div><div class="meta-value">320M domains<span class="meta-sub">Hourly refresh</span></div></div>
+    </div>
+
+    <div class="corpus">
+      <div class="corpus-pulse"></div>
+      <div class="corpus-text"><strong>Live</strong> — cross-referenced against 40+ threat feeds &middot; updated continuously</div>
+      <div class="corpus-bar"></div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <span>Datazag Health Report · Confidential</span>
+    <span class="right">Page 1 of 12</span>
+  </div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Inside this report<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="toc-header">
+    <div class="toc-eyebrow">A guided tour</div>
+    <h2 class="toc-title">Mapping your attack surface, in ten sections.</h2>
+    <p class="toc-lede">This report describes your attack surface and gives you a roadmap to minimise it. Each section is one of three kinds: <strong>Context</strong> orients you, <strong>Findings</strong> tell you what we observed, <strong>Action</strong> tells you what to do about it. The report is designed to be read in order, but each section also stands alone &mdash; if you only have ten minutes, sections 01, 02 and 09 are the spine.</p>
+  </div>
+  <ol class="toc-list">
+    <li class="toc-item">
+      <span class="toc-num">01</span>
+      <div class="toc-content">
+        <h4>At-a-glance</h4>
+        <p>Your overall Trust Grade, how the two slices of your attack surface compare, and the three things to address first.</p>
+      </div>
+      <span class="toc-tag context"><span class="tag-dot"></span>Context</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">02</span>
+      <div class="toc-content">
+        <h4>Why this matters</h4>
+        <p>Why 85&ndash;90% of impersonation attacks target trusted technology platforms, and how to read both the inbound (platform) and outbound (brand) sides of your attack surface.</p>
+      </div>
+      <span class="toc-tag context"><span class="tag-dot"></span>Context</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">03</span>
+      <div class="toc-content">
+        <h4>Your vendor footprint</h4>
+        <p>The technology platforms your stack actually depends on, ordered by attacker desirability rather than internal priority.</p>
+      </div>
+      <span class="toc-tag findings"><span class="tag-dot"></span>Findings</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">04</span>
+      <div class="toc-content">
+        <h4>Trusted platform-impersonation exposure</h4>
+        <p>For each detected platform: the active attacker infrastructure imitating it, recently observed lures, and what those campaigns look like to your staff. <em>Highest-volume slice of the attack surface.</em></p>
+      </div>
+      <span class="toc-tag findings"><span class="tag-dot"></span>Findings</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">05</span>
+      <div class="toc-content">
+        <h4>Brand-impersonation exposure</h4>
+        <p>Lookalike domains, suspicious certificates, and typosquats targeting your own brand &mdash; the campaigns aimed at your customers, not your staff.</p>
+      </div>
+      <span class="toc-tag findings"><span class="tag-dot"></span>Findings</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">06</span>
+      <div class="toc-content">
+        <h4>Outbound posture</h4>
+        <p>Your domain authentication: DMARC, SPF, BIMI, CAA, MTA-STS. The technical defences that constrain how far a brand-impersonation campaign can travel.</p>
+      </div>
+      <span class="toc-tag findings"><span class="tag-dot"></span>Findings</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">07</span>
+      <div class="toc-content">
+        <h4>Hidden infrastructure</h4>
+        <p>Forgotten subdomains, dormant services, certificate hygiene across your wider estate &mdash; the assets attackers find that you may not know exist.</p>
+      </div>
+      <span class="toc-tag findings"><span class="tag-dot"></span>Findings</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">08</span>
+      <div class="toc-content">
+        <h4>Twelve-month timeline</h4>
+        <p>Every infrastructure change observed in the past year &mdash; including any that look unusual against your baseline.</p>
+      </div>
+      <span class="toc-tag findings"><span class="tag-dot"></span>Findings</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">09</span>
+      <div class="toc-content">
+        <h4>Your minimisation roadmap</h4>
+        <p>How to minimise your attack surface, sequenced by impact &mdash; this fortnight, this quarter, this year &mdash; with effort estimates and ownership recommendations.</p>
+      </div>
+      <span class="toc-tag action"><span class="tag-dot"></span>Action</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-num">10</span>
+      <div class="toc-content">
+        <h4>Glossary &amp;amp; methodology</h4>
+        <p>Plain-English definitions of every technical term used, plus how the evidence behind each finding was gathered.</p>
+      </div>
+      <span class="toc-tag context"><span class="tag-dot"></span>Context</span>
+    </li>
+  </ol>
+  <div class="toc-callout">
+    <div class="toc-callout-icon">★</div>
+    <div>
+      <h5>How to read this report</h5>
+      <p>If you have <strong>ten minutes</strong>, read sections 01, 02 and 09. If you have <strong>thirty minutes</strong>, add 03 and 04 &mdash; the platform surface where most attacks now originate. The full report is designed for technical and non-technical readers in parallel: every section opens with plain-English context before the technical detail.</p>
+    </div>
+  </div>
+  <div class="toc-spacer"></div>
+  <div class="cover-footer">
+    <span>Datazag Health Report · Confidential</span>
+    <span class="right">Page 2 of 12</span>
+  </div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 01 · At a glance<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 01</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
+    <h1 class="section-title-h1">At a glance.</h1>
+    <p class="section-headline"><strong>coffeecupsolutions.com&rsquo;s attack surface is at moderate exposure.</strong> The platform side &mdash; the trusted technology platforms your staff log into &mdash; is largely a function of normal SaaS dependence; the infrastructure side has several short-effort improvements available. Most minimisation work is in the next 90 days.</p>
+  </div>
+  <div class="grade-band">
+    <div class="grade-band-letter">C</div>
+    <div class="grade-band-body">
+      <div class="grade-band-scale">
+        <div class="grade-scale-track"></div>
+        <div class="grade-scale-marks">
+<span class="grade-scale-mark"></span><span class="grade-scale-mark"></span><span class="grade-scale-mark"></span><span class="grade-scale-mark"></span><span class="grade-scale-mark"></span><span class="grade-scale-mark"></span>        </div>
+        <div class="grade-scale-pin" style="left: 42.0%;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9.5px;font-weight:700;color:var(--ink-4);letter-spacing:0.05em;padding:0 2px;">
+<span>A</span><span>B</span><span style="color:var(--ink);">C</span><span>D</span><span>E</span><span>F</span>      </div>
+      <div class="grade-band-text" style="margin-top:4px;">Most C-grade organisations move toward a higher grade within a quarter by completing the items in section 09. The grade reflects trusted-platform exposure (the active risk), brand exposure (the watchlist), and outbound posture (the fixable item).</div>
+    </div>
+  </div>
+  <div class="scorecards">
+    <div class="scorecard bad">
+      <div class="scorecard-label"><span class="scorecard-icon">▲</span>Trusted platform impersonation</div>
+      <div class="scorecard-state">Elevated</div>
+      <div class="scorecard-text"><strong>1 of your detected platforms</strong> are being actively impersonated by attacker infrastructure issued in the last 30 days. <em>The active risk.</em></div>
+    </div>
+    <div class="scorecard warn">
+      <div class="scorecard-label"><span class="scorecard-icon">◆</span>Brand impersonation</div>
+      <div class="scorecard-state">Moderate</div>
+      <div class="scorecard-text"><strong>0 lookalike domains</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">coffeecupsolutions</code> observed in certificate logs. <em>The watchlist.</em></div>
+    </div>
+    <div class="scorecard neutral">
+      <div class="scorecard-label"><span class="scorecard-icon">◉</span>Outbound posture</div>
+      <div class="scorecard-state">Weak</div>
+      <div class="scorecard-text"><strong>DMARC at p=none, no CAA, no BIMI. Your domain remains spoofable</strong>. <em>The fixable item.</em></div>
+    </div>
+  </div>
+  <div class="assessment-strip">
+    <span class="assessment-strip-icon">i</span>
+    <span><strong>First assessment.</strong> No quarter-on-quarter delta in this report. From the next snapshot onward, this strip will surface what changed since the last assessment &mdash; new platforms detected, posture changes, new lookalike registrations.</span>
+  </div>
+  <div class="priorities-header">
+    <h3>Three things to address first.</h3>
+    <span class="sub">One per surface — platform, brand, infrastructure.</span>
+  </div>
+  <div class="priority-list">
+    <div class="priority-card">
+      <div class="priority-num">01</div>
+      <div class="priority-body">
+        <div class="priority-pills">
+          <span class="pri-pill crit">Critical</span>
+          <span class="pri-pill vendor">▲ Platform</span>
+        </div>
+        <div class="priority-title">Active impersonation campaign against Microsoft 365 likely</div>
+        <div class="priority-action">Brief staff who use the Microsoft 365 tenant on the active phishing wave; verify MFA enforcement on the tenant and review session timeouts.</div>
+        <div class="priority-why">Microsoft 365 is the most-impersonated trusted platform in our certificate-issuance data. Tenants matching your profile are routinely targeted.</div>
+      </div>
+      <div class="priority-meta">
+        <div class="priority-meta-row"><span class="priority-meta-key">Owner</span><span class="priority-meta-val">Marketing/IT ops</span></div>
+        <div class="priority-meta-row"><span class="priority-meta-key">Effort</span><span class="priority-meta-val">&lt; 1 day</span></div>
+        <div class="priority-meta-row"><span class="priority-meta-key">When</span><span class="priority-meta-val">Fortnight</span></div>
+      </div>
+    </div>
+    <div class="priority-card">
+      <div class="priority-num">02</div>
+      <div class="priority-body">
+        <div class="priority-pills">
+          <span class="pri-pill high">High</span>
+          <span class="pri-pill brand">◆ Brand</span>
+        </div>
+        <div class="priority-title">Move DMARC from p=none to p=quarantine</div>
+        <div class="priority-action">Escalate the existing p=none policy to p=quarantine after a 30-day reporting validation window confirming all legitimate senders are authenticated.</div>
+        <div class="priority-why">Your @coffeecupsolutions.com is currently spoofable by anyone. Brand-impersonation campaigns against your customers can be sent from real-looking addresses with no infrastructure cost.</div>
+      </div>
+      <div class="priority-meta">
+        <div class="priority-meta-row"><span class="priority-meta-key">Owner</span><span class="priority-meta-val">DNS / email</span></div>
+        <div class="priority-meta-row"><span class="priority-meta-key">Effort</span><span class="priority-meta-val">30 min</span></div>
+        <div class="priority-meta-row"><span class="priority-meta-key">When</span><span class="priority-meta-val">Quarter</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 3 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 02 · Why this matters<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 02</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
+    <h1 class="section-title-h1">Why attackers prefer trusted platforms.</h1>
+    <p class="section-headline">Imitating a single company gives an attacker access to that company&rsquo;s customers. <strong>Imitating a platform your staff already trusts gives them access to every company&rsquo;s staff.</strong> That asymmetry is why platform-impersonation is the largest single slice of your attack surface &mdash; and why this report describes it before the brand-impersonation side.</p>
+  </div>
+  <div class="data-panel">
+    <div class="data-panel-inner">
+      <div class="data-panel-eyebrow">Datazag certificate-issuance observation · April 2026</div>
+      <div class="data-panel-row">
+        <div><span class="data-panel-pct">85&ndash;90%</span></div>
+        <div class="data-panel-bar">
+          <div class="data-panel-bar-fill">Trusted platforms · 85&ndash;90%</div>
+          <div class="data-panel-bar-rest">Everything else · 10&ndash;15%</div>
+        </div>
+      </div>
+      <p class="data-panel-claim">Of all suspicious certificate registrations Datazag observed in April 2026, <strong>between 85 and 90 per cent imitated a trusted technology platform</strong> &mdash; Microsoft 365, Google Workspace, Apple, DocuSign, Mailchimp, PayPal, Amazon, Cloudflare, and the rest of the platforms most companies log into every day. Single-company brand impersonation accounted for the remainder. One phishing kit imitating Microsoft 365 can be used against thousands of tenants; a kit imitating any single company only works against that company&rsquo;s customers. <strong>Attackers follow the volume &mdash; and the volume is wherever the platforms are.</strong> Which is why your platform-footprint shapes the recon picture: the same DNS, certificate, and CNAME data that surfaced your stack on the cover is what an attacker reads first.</p>
+    </div>
+  </div>
+  <div class="surfaces-grid">
+    <div class="surface-panel inbound">
+      <div class="surface-eyebrow"><span class="surface-icon">▲</span>Surface 1 · Inbound</div>
+      <h2 class="surface-title">Trusted platform impersonation</h2>
+      <p class="surface-thesis">Attackers imitate the platforms your staff trusts, to capture credentials.</p>
+      <div class="surface-attrs">
+        <div class="surface-attr"><span class="surface-attr-key">Lure</span><span class="surface-attr-val">A trusted platform login or notification &mdash; Microsoft 365, Google Workspace, Mailchimp, DocuSign.</span></div>
+        <div class="surface-attr"><span class="surface-attr-key">Target</span><span class="surface-attr-val"><strong>Your staff.</strong> The credentials they use every day.</span></div>
+        <div class="surface-attr"><span class="surface-attr-key">Volume</span><span class="surface-attr-val"><span class="vol-badge">85&ndash;90% of observed activity</span></span></div>
+        <div class="surface-attr"><span class="surface-attr-key">Defence</span><span class="surface-attr-val">Awareness of active campaigns, MFA enforcement on platform tenants, platform-side phish reporting.</span></div>
+        <div class="surface-attr"><span class="surface-attr-key">In report</span><span class="surface-attr-val">Sections <strong>03</strong> &amp; <strong>04</strong> &mdash; your vendor footprint, then per-platform exposure.</span></div>
+      </div>
+    </div>
+    <div class="surface-panel outbound">
+      <div class="surface-eyebrow"><span class="surface-icon">◆</span>Surface 2 · Outbound</div>
+      <h2 class="surface-title">Brand impersonation</h2>
+      <p class="surface-thesis">Attackers imitate your brand, to get to your customers.</p>
+      <div class="surface-attrs">
+        <div class="surface-attr"><span class="surface-attr-key">Lure</span><span class="surface-attr-val">Your own domain, logo, brand language &mdash; lookalikes, typosquats, fraudulent certificates.</span></div>
+        <div class="surface-attr"><span class="surface-attr-key">Target</span><span class="surface-attr-val"><strong>Your customers.</strong> Their trust in your name.</span></div>
+        <div class="surface-attr"><span class="surface-attr-key">Volume</span><span class="surface-attr-val"><span class="vol-badge">10&ndash;15% of observed activity</span></span></div>
+        <div class="surface-attr"><span class="surface-attr-key">Defence</span><span class="surface-attr-val">DMARC, SPF, BIMI, CAA, lookalike monitoring, takedown workflow.</span></div>
+        <div class="surface-attr"><span class="surface-attr-key">In report</span><span class="surface-attr-val">Sections <strong>05</strong> &amp; <strong>06</strong> &mdash; brand exposure, then your outbound posture.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="causal-section">
+    <div class="causal-header"><h3>How they connect.</h3><span class="sub">Trusted platform impersonation is often upstream of brand impersonation. The path below shows one common example &mdash; there are others.</span></div>
+    <div class="causal-example-eyebrow">A Microsoft 365-led attack chain</div>
+    <div class="causal-chain">
+      <div class="causal-step start"><span class="causal-step-num">Step 1</span><span class="causal-step-title">Cloned M365 login</span><span class="causal-step-detail">Attacker registers a lookalike domain and sends a phishing email. Office manager clicks and enters credentials.</span></div>
+      <div class="causal-arrow">→</div>
+      <div class="causal-step"><span class="causal-step-num">Step 2</span><span class="causal-step-title">Tenant compromise</span><span class="causal-step-detail">Credentials work. Attacker is inside your real Microsoft 365 tenant.</span></div>
+      <div class="causal-arrow">→</div>
+      <div class="causal-step"><span class="causal-step-num">Step 3</span><span class="causal-step-title">Email from your domain</span><span class="causal-step-detail">Attacker sends a real email from <code style="font-family:'JetBrains Mono',monospace;font-size:9.5px;">@coffeecupsolutions.com</code>. DMARC, SPF and DKIM all pass.</span></div>
+      <div class="causal-arrow">→</div>
+      <div class="causal-step end"><span class="causal-step-num">Step 4</span><span class="causal-step-title">Customer fraud</span><span class="causal-step-detail">A genuine-looking 'updated invoice' lands in your customer&rsquo;s inbox. They pay an attacker bank account.</span></div>
+    </div>
+    <div class="causal-tags"><span class="tag-vendor">▲ Trusted platform impersonation</span><span class="tag-brand">◆ Brand impersonation</span></div>
+  </div>
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 4 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 03 · Your vendor footprint<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 03</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Your stack, ordered by attacker preference.</h1>
+    <p class="section-headline">Attackers don&rsquo;t imitate platforms at random. They imitate the ones that <em>work</em> &mdash; platforms with universal staff recognition, credentials that unlock other systems, or customer lists that monetise quickly. Below: <strong>the SaaS we detected in your stack</strong>, ordered by how often each platform is impersonated in our certificate-issuance observations.</p>
+  </div>
+  <div class="footprint-summary">
+    <div class="footprint-stat"><div class="footprint-stat-num">1</div><div class="footprint-stat-label">Platforms detected</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num alert">1</div><div class="footprint-stat-label">High desirability</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num accent">1</div><div class="footprint-stat-label">Evidence signals</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num">DNS, SPF, TXT</div><div class="footprint-stat-label">Detection sources</div></div>
+  </div>
+
+  <div class="top-vendors">
+    <div class="vendor-card high">
+      <div class="vendor-rank"><div class="vendor-rank-num">1</div><div class="vendor-rank-label">Rank</div></div>
+      <div class="vendor-body">
+        <h3 class="vendor-name">Microsoft 365</h3>
+        <p class="vendor-role">Email, identity, productivity · primary work environment</p>
+        <div class="vendor-evidence">
+<span class="vendor-evi"><span class="vendor-evi-key">MX</span>Microsoft</span>        </div>
+        <div class="vendor-quote"><strong>Why attackers prefer it:</strong> A fake M365 login works on virtually any office worker. Captured credentials unlock email, files, calendar, and frequent SSO into other tools. The most-impersonated trusted platform in our certificate-issuance data globally.</div>
+      </div>
+      <div class="vendor-meta">
+        <span class="vendor-desirability high"><span class="des-dot"></span>High desirability</span>
+        <span class="vendor-evidence-count"><strong>1</strong>signals</span>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="next-section-cta">
+    <div class="next-section-cta-text"><strong>The next section</strong> shows the active attacker infrastructure currently imitating each of your top three trusted platforms &mdash; what those campaigns look like and what your staff are likely to encounter.</div>
+    <div class="next-section-cta-arrow">Section 04 →</div>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 5 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 04 · Platform-impersonation exposure<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 04</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Active campaigns against your platforms.</h1>
+    <p class="section-headline">For each detected platform, Datazag continuously watches certificate-issuance and DNS activity for new infrastructure that imitates it. When a campaign matches your platform stack, the section below populates with what your staff are likely to encounter — the lure, the domain pattern, and the time it&rsquo;s been live.</p>
+  </div>
+
+  <div class="monitoring-state-panel">
+    <div class="monitoring-state-icon">◉</div>
+    <div class="monitoring-state-body">
+      <h3>Monitoring active — no current high-confidence campaigns against your platforms.</h3>
+      <p>Your 1 detected platforms are under continuous surveillance against the trusted-platform-impersonation corpus. At the time of this snapshot, <strong>no attacker infrastructure currently in our 30-day observation window matches your platform stack with high confidence</strong>.</p>
+      <p>This is the expected steady-state for a first assessment. Active campaigns are intermittent by nature — when one emerges that targets a platform you depend on, this section will populate with the campaign signature, observed lure domains, and recommended staff briefing language.</p>
+      <div class="monitoring-state-meta">
+        <span><strong>Watch window:</strong> last 30 days</span>
+        <span class="sep">·</span>
+        <span><strong>Platforms covered:</strong> 1 of 1</span>
+        <span class="sep">·</span>
+        <span><strong>Next refresh:</strong> hourly</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="platform-preview-header">
+    <h4>What we monitor for each platform</h4>
+    <p>Per-platform watch state. Each platform below has a continuous certificate-issuance and DNS subscription against attacker-infrastructure patterns matching that brand.</p>
+  </div>
+  <div class="platform-preview-grid">
+    <div class="platform-preview-row">
+      <div class="platform-preview-name">Microsoft 365 <span class="sub">Email, identity, productivity · primary work environment</span></div>
+      <span class="platform-preview-state"><span class="dot"></span>Monitoring · no matches</span>
+    </div>
+  </div>
+
+  <div class="methodology-card">
+    <h5>How this section will populate</h5>
+    <p>Datazag&rsquo;s certificate-issuance pipeline observes new SSL certificates as they&rsquo;re issued, cross-references against a corpus of known trusted-platform brand signatures, and flags clusters of new attacker infrastructure imitating each platform. When the volume targeting a platform you depend on exceeds the alert threshold, this section will populate with the cluster details, sample lure domains, and a staff briefing snippet. Continuous-monitoring customers also receive immediate alerts when new campaigns appear, rather than waiting for the next quarterly snapshot.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 6 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 05 · Brand-impersonation exposure<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 05</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Attacks aimed at your customers.</h1>
+    <p class="section-headline">Lookalike domains, suspicious certificates, and typosquats targeting <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">coffeecupsolutions</code> &mdash; the campaigns where <strong>your brand is the lure and your customers are the target</strong>. Continuously refreshed against our certificate-issuance and DNS corpus.</p>
+  </div>
+
+  <div class="brand-summary-grid">
+    <div class="brand-summary-card primary">
+      <div class="brand-summary-label">Lookalike domains</div>
+      <div class="brand-summary-num good">0</div>
+      <div class="brand-summary-detail">No active lookalikes detected in the current observation window.</div>
+    </div>
+    <div class="brand-summary-card">
+      <div class="brand-summary-label">Recent certs for your brand</div>
+      <div class="brand-summary-num">—</div>
+      <div class="brand-summary-detail">Cert-issuance corpus search for <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.04);padding:1px 3px;border-radius:3px;">coffeecupsolutions</code> populating in next snapshot.</div>
+    </div>
+    <div class="brand-summary-card">
+      <div class="brand-summary-label">Takedown queue</div>
+      <div class="brand-summary-num good">0</div>
+      <div class="brand-summary-detail">No domains currently queued for takedown action.</div>
+    </div>
+  </div>
+
+  <div class="brand-watchlist">
+    <div class="brand-watchlist-empty">
+      <strong>Watch is live; no current matches.</strong>
+      Lookalike-domain detection across our 320M-domain corpus is running continuously for <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">coffeecupsolutions</code> and its common typosquat patterns. When a match emerges, it will appear in this watchlist with the registration date, observed activity, and recommended takedown path.
+    </div>
+  </div>
+
+  <div class="methodology-card">
+    <h5>What this section watches</h5>
+    <p>Three signal sources: <strong>(1)</strong> certificate-issuance logs for new SSL certs containing your brand string, <strong>(2)</strong> DNS registration data for typosquats and homoglyph variants of your domain, <strong>(3)</strong> our active-infrastructure corpus where any of the above start sending mail or hosting pages. Detection is continuous; this section reflects the state at the snapshot timestamp.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 7 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 06 · Defensive controls<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 06</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Defensive controls — what we can see externally.</h1>
+    <p class="section-headline">Every control here is <strong>directly observable</strong> from DNS, SSL, or RDAP — no tenant access required. Items marked <strong>deployed</strong> are credit for work already done. Items marked <strong>partial</strong> or <strong>missing</strong> are minimisation opportunities, each with the exact remediation step underneath.</p>
+  </div>
+
+  <div class="controls-summary-strip">
+    <div class="css-headline"><strong>4 of 12</strong> externally verifiable controls deployed · 1 not externally testable</div>
+    <div class="css-counts">
+      <span class="css-count good"><span class="css-dot"></span>4 deployed</span>
+      <span class="css-count warn"><span class="css-dot"></span>3 partial</span>
+      <span class="css-count bad"><span class="css-dot"></span>5 missing</span>
+    </div>
+  </div>
+
+  <div class="mandate-callout">
+    <div class="mandate-callout-icon">!</div>
+    <div class="mandate-callout-body">
+      <div class="mandate-callout-title">DMARC has moved from best practice to operational requirement.</div>
+      <div class="mandate-callout-text">
+        Google and Yahoo have required DMARC for bulk senders (5,000+ msgs/day) since <strong>February 2024</strong>; Microsoft since <strong>May 2025</strong>; Apple and Comcast are aligned with the same requirements. Non-compliant senders now face permanent rejections rather than delays. Even for estates below the bulk-sender threshold, the trajectory means deliverability problems are arriving &mdash; ahead of any consideration of the impersonation-defence value.
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-category">
+    <div class="cc-header">
+      <span class="cc-title">Email authentication</span>
+      <span class="cc-count">0 of 5 deployed</span>
+    </div>
+    <div class="control-row partial">
+      <div class="control-name">DMARC enforcement</div>
+      <div class="control-mid">
+        <span class="control-badge partial">
+◐ Partial        </span>
+        <span class="control-evidence">p=none (monitoring only, no enforcement)</span>
+      </div>
+      <div class="control-action">→ After 30-day reporting validation, move to p=quarantine, then p=reject. Increasingly required by Google, Yahoo, Microsoft, Apple, and Comcast for bulk-sender deliverability.</div>
+    </div>
+    <div class="control-row partial">
+      <div class="control-name">SPF strict mode</div>
+      <div class="control-mid">
+        <span class="control-badge partial">
+◐ Partial        </span>
+        <span class="control-evidence">Apex SPF -all, but mail subdomain has no SPF record of its own (SPF does not inherit — mail.* is unprotected)</span>
+      </div>
+      <div class="control-action">→ Publish SPF record at mail.coffeecupsolutions.com matching the sending infrastructure used from that subdomain.</div>
+    </div>
+    <div class="control-row missing">
+      <div class="control-name">BIMI</div>
+      <div class="control-mid">
+        <span class="control-badge missing">
+✗ Missing        </span>
+        <span class="control-evidence">No BIMI record at default._bimi</span>
+      </div>
+      <div class="control-action">→ Publish BIMI record (requires DMARC at p=quarantine or stronger; VMC ~$1,500/year from DigiCert or Entrust gives the verified logo).</div>
+    </div>
+    <div class="control-row limited">
+      <div class="control-name">DKIM signing</div>
+      <div class="control-mid">
+        <span class="control-badge limited">
+◯ Limited visibility        </span>
+        <span class="control-evidence">Limited external visibility — selectors are arbitrary, not enumerable without internal knowledge</span>
+      </div>
+      <div class="control-action">→ Verify internally: Microsoft 365 typically uses selector1 and selector2; Google Workspace uses google. Each sending platform has its own selectors; each should be rotated annually.</div>
+    </div>
+    <div class="control-row partial">
+      <div class="control-name">MTA-STS</div>
+      <div class="control-mid">
+        <span class="control-badge partial">
+◐ Partial        </span>
+        <span class="control-evidence">Policy published in testing mode (senders observe but do not enforce)</span>
+      </div>
+      <div class="control-action">→ Move MTA-STS policy from mode=testing to mode=enforce once you&#39;ve validated that legitimate mail isn&#39;t being blocked.</div>
+    </div>
+    <div class="control-row missing">
+      <div class="control-name">TLS-RPT</div>
+      <div class="control-mid">
+        <span class="control-badge missing">
+✗ Missing        </span>
+        <span class="control-evidence">No TLS-RPT record at _smtp._tls</span>
+      </div>
+      <div class="control-action">→ Publish a TLS-RPT TXT record pointing to an inbox or aggregator that can receive TLS failure reports.</div>
+    </div>
+  </div>
+  <div class="controls-category">
+    <div class="cc-header">
+      <span class="cc-title">Certificate &amp; web</span>
+      <span class="cc-count">2 of 4 deployed</span>
+    </div>
+    <div class="control-row missing">
+      <div class="control-name">CAA records</div>
+      <div class="control-mid">
+        <span class="control-badge missing">
+✗ Missing        </span>
+        <span class="control-evidence">No CAA record — any CA can issue for this domain</span>
+      </div>
+      <div class="control-action">→ Publish CAA records restricting issuance to the CAs you actually use</div>
+    </div>
+    <div class="control-row deployed">
+      <div class="control-name">HSTS deployment</div>
+      <div class="control-mid">
+        <span class="control-badge deployed">
+✓ Deployed        </span>
+        <span class="control-evidence">No HSTS gaps detected</span>
+      </div>
+    </div>
+    <div class="control-row deployed">
+      <div class="control-name">HTTPS certificate health</div>
+      <div class="control-mid">
+        <span class="control-badge deployed">
+✓ Deployed        </span>
+        <span class="control-evidence">Certificate valid, 71 days remaining, issued by Sectigo</span>
+      </div>
+    </div>
+    <div class="control-row missing">
+      <div class="control-name">security.txt</div>
+      <div class="control-mid">
+        <span class="control-badge missing">
+✗ Missing        </span>
+        <span class="control-evidence">No /.well-known/security.txt — researchers have no documented channel to report vulnerabilities</span>
+      </div>
+      <div class="control-action">→ Publish a security.txt file at /.well-known/security.txt on coffeecupsolutions.com with a contact, expires date, and preferred languages.</div>
+    </div>
+  </div>
+  <div class="controls-category">
+    <div class="cc-header">
+      <span class="cc-title">DNS security</span>
+      <span class="cc-count">0 of 1 deployed</span>
+    </div>
+    <div class="control-row missing">
+      <div class="control-name">DNSSEC</div>
+      <div class="control-mid">
+        <span class="control-badge missing">
+✗ Missing        </span>
+        <span class="control-evidence">DNSSEC not enabled</span>
+      </div>
+      <div class="control-action">→ Enable DNSSEC at registrar; publish DS records</div>
+    </div>
+  </div>
+  <div class="controls-category">
+    <div class="cc-header">
+      <span class="cc-title">Domain registration</span>
+      <span class="cc-count">2 of 2 deployed</span>
+    </div>
+    <div class="control-row deployed">
+      <div class="control-name">Registrar locks</div>
+      <div class="control-mid">
+        <span class="control-badge deployed">
+✓ Deployed        </span>
+        <span class="control-evidence">4 client-side locks (transfer, delete, update, renew)</span>
+      </div>
+    </div>
+    <div class="control-row deployed">
+      <div class="control-name">Abuse contact published</div>
+      <div class="control-mid">
+        <span class="control-badge deployed">
+✓ Deployed        </span>
+        <span class="control-evidence">Contact: a@b.com</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="methodology-card">
+    <h5>Methodology notes</h5>
+    <p><strong>SPF doesn&rsquo;t inherit to subdomains.</strong> SPF records apply only to the exact domain they&rsquo;re published at. If subdomains send mail (e.g. <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">mailgun.coffeecupsolutions.com</code>, <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">support.coffeecupsolutions.com</code>), each one needs its own SPF record. The audit above shows the apex domain only. DMARC, in contrast, inherits to subdomains unless overridden via the <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">sp=</code> tag.</p>
+    <p><strong>DKIM cannot be reliably tested externally.</strong> DKIM records sit at <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">{selector}._domainkey.coffeecupsolutions.com</code> where the selector is an arbitrary subdomain chosen by the sending platform. Without internal knowledge or a real signed email to inspect, we cannot enumerate selectors. For platforms we recognise (Microsoft 365: selector1/selector2; Google Workspace: google), we can probe specific selectors &mdash; but absence there doesn&rsquo;t confirm DKIM is missing.</p>
+    <p><strong>What we can&rsquo;t see externally.</strong> Beyond the controls above &mdash; phishing-resistant MFA on platform tenants, Conditional Access policies, anti-phishing rules in Microsoft Defender or equivalents, internal SIEM rules, and staff training programmes. Those appear as checklist items on the cover platform card rather than as audited controls here.</p>
+  </div>
+
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 8 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 07 · Hidden infrastructure<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 07</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">The assets attackers find that you may not know exist.</h1>
+    <p class="section-headline">Domain registration, subdomains, dormant services, and certificate hygiene. The foundational facts about your estate — discovered through DNS enumeration, SSL transparency logs, and RDAP. <strong>0 live subdomains observed</strong> for coffeecupsolutions.com.</p>
+  </div>
+
+  <div class="registration-strip">
+    <div class="registration-strip-header">
+      <h4>Domain registration</h4>
+      <span class="meta">DNSSEC not enabled · RDAP source: rdap.org</span>
+    </div>
+    <div class="registration-cells">
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Domain age</div>
+        <div class="reg-cell-value">—</div>
+        <div class="reg-cell-sub">Registration date unavailable</div>
+      </div>
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Last updated</div>
+        <div class="reg-cell-value">—</div>
+        <div class="reg-cell-sub">No 'last changed' event in RDAP</div>
+      </div>
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Registrar</div>
+        <div class="reg-cell-value">—</div>
+        <div class="reg-cell-sub">&nbsp;</div>
+      </div>
+
+      <div class="registration-cell">
+        <div class="reg-cell-label">Abuse contact</div>
+        <div class="reg-cell-value email">a@b.com</div>
+        <div class="reg-cell-sub"><span class="risk-chip warn">DNSSEC off</span> &middot; <span class="risk-chip good">Locked</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="estate-overview">
+    <div class="estate-stat"><div class="estate-stat-num">0</div><div class="estate-stat-label">Total subdomains</div></div>
+    <div class="estate-stat"><div class="estate-stat-num">0</div><div class="estate-stat-label">High-risk</div></div>
+    <div class="estate-stat"><div class="estate-stat-num">0</div><div class="estate-stat-label">Missed cert renewals</div></div>
+    <div class="estate-stat"><div class="estate-stat-num">0</div><div class="estate-stat-label">Cross-domain SANs</div></div>
+  </div>
+
+  <div class="estate-callout good">
+    <span class="icon">✓</span>
+    <span><strong>Estate hygiene looks clean.</strong> No missed certificate renewals, no high-risk subdomains, and cross-domain SAN exposure is within normal range.</span>
+  </div>
+
+
+  <div class="methodology-card">
+    <h5>What we look for</h5>
+    <p>Subdomains discovered via DNS brute-force, SSL transparency logs (Certificate Transparency feeds), and zone enumeration. Each subdomain is checked for: dangling CNAMEs (deleted but still pointed at), takeover-vulnerable platforms (services that respond to abandoned subdomain claims), shared cross-domain SAN certificates (which leak relationships between unrelated estates), and certificates that missed auto-renewal.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 9 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 08 · Twelve-month timeline<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 08</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Infrastructure changes worth knowing.</h1>
+    <p class="section-headline">Every change Datazag has observed in your DNS and infrastructure over the past twelve months — flagged where it deviates from the baseline pattern for an estate of your shape.</p>
+  </div>
+
+  <div class="timeline-summary">Domain registered — (0 days old). <strong>Infrastructure has been stable</strong> over the past twelve months — no NS, IP, country, TTL, or MX changes outside normal operation.</div>
+
+  <div class="signal-grid">
+    <div class="signal-card inactive">
+      <span class="signal-label">NS provider</span>
+      <span class="signal-state stable">Stable</span>
+    </div>
+    <div class="signal-card inactive">
+      <span class="signal-label">Hosting IP</span>
+      <span class="signal-state stable">Stable</span>
+    </div>
+    <div class="signal-card inactive">
+      <span class="signal-label">Country</span>
+      <span class="signal-state stable">Stable</span>
+    </div>
+    <div class="signal-card inactive">
+      <span class="signal-label">TTL behaviour</span>
+      <span class="signal-state stable">Stable</span>
+    </div>
+    <div class="signal-card inactive">
+      <span class="signal-label">Dynamic DNS</span>
+      <span class="signal-state stable">Not used</span>
+    </div>
+    <div class="signal-card inactive">
+      <span class="signal-label">MX configuration</span>
+      <span class="signal-state stable">Healthy</span>
+    </div>
+  </div>
+
+  <div class="timeline-baseline">
+    <strong>First assessment.</strong> This snapshot establishes your baseline. From the next assessment onward, this section will show changes between snapshots — new subdomains appearing, NS or MX provider rotations, dynamic-DNS adoption, or any change that deviates from your established pattern.
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 10 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 09 · Your minimisation roadmap<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 09</span><span class="section-rule"></span><span class="section-tag" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
+    <h1 class="section-title-h1">Minimising your attack surface.</h1>
+    <p class="section-headline">Everything from the previous sections, sequenced by impact. <strong>This fortnight</strong> is what you should not wait on; <strong>this quarter</strong> is the substantive minimisation work; <strong>this year</strong> is structural improvement.</p>
+  </div>
+
+  <div class="roadmap-grid">
+    <div class="roadmap-col fortnight">
+      <div class="roadmap-col-header"><span class="roadmap-col-title">This fortnight</span><span class="roadmap-col-count">1</span></div>
+      <div class="roadmap-item"><div class="roadmap-item-title">Active impersonation campaign against Microsoft 365 likely</div><div class="roadmap-item-meta">Platform · &lt; 1 day</div></div>
+    </div>
+    <div class="roadmap-col quarter">
+      <div class="roadmap-col-header"><span class="roadmap-col-title">This quarter</span><span class="roadmap-col-count">1</span></div>
+      <div class="roadmap-item"><div class="roadmap-item-title">Move DMARC from p=none to p=quarantine</div><div class="roadmap-item-meta">Brand · 30 min</div></div>
+    </div>
+    <div class="roadmap-col year">
+      <div class="roadmap-col-header"><span class="roadmap-col-title">This year</span><span class="roadmap-col-count">0</span></div>
+      <div class="roadmap-empty">No structural changes recommended.</div>
+    </div>
+  </div>
+
+  <div class="roadmap-narrative">
+    <strong>How this prioritises:</strong> items affecting trusted-platform exposure or sensitive subdomains land in <strong>this fortnight</strong>. Outbound-posture work and brand-protection wiring is <strong>this quarter</strong>. Estate-wide hygiene improvements — CAA across all subdomains, MTA-STS, full BIMI deployment with verified mark certificate — are <strong>this year</strong>. Reassessment at the next snapshot will reorder as appropriate.
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 11 of 12</span></div>
+</div>
+
+<div class="page light">
+  <div class="topbar">
+    <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 7L12 3L20 7L12 11L4 7Z" fill="white" opacity="0.95"/>
+        <path d="M4 12L12 16L20 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+        <path d="M4 17L12 21L20 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+      </svg>
+    </div>
+    <div class="brand-wordmark">DATAZAG</div>
+    <div class="brand-divider"></div>
+    <div class="brand-product">Health Report</div>
+  </div>
+    <div class="topbar-right"><div class="topbar-id">Section 10 · Glossary &amp; methodology<strong>coffeecupsolutions.com</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-num">Section 10</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
+    <h1 class="section-title-h1">Plain-English definitions.</h1>
+    <p class="section-headline">Every technical term used in this report, defined for the cold reader. The methodology block below describes how the evidence was gathered.</p>
+  </div>
+
+  <div class="glossary-grid">
+    <div class="glossary-item">
+      <div class="glossary-term">Trusted platform impersonation</div>
+      <div class="glossary-def">Attackers imitate a platform your staff trusts (Microsoft 365, Google Workspace, etc.) to capture their credentials. The largest impersonation surface — 85&ndash;90% of observed activity.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">Brand impersonation</div>
+      <div class="glossary-def">Attackers imitate your own brand to defraud your customers. Lookalike domains, typosquats, fraudulent certificates.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><span class="acronym">DMARC</span></div>
+      <div class="glossary-def">Domain-based Message Authentication, Reporting &amp; Conformance. Tells receiving mail servers what to do with unauthenticated mail claiming to be from you (none / quarantine / reject).</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><span class="acronym">SPF</span></div>
+      <div class="glossary-def">Sender Policy Framework. Lists which mail servers are authorised to send email as your domain.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><span class="acronym">BIMI</span></div>
+      <div class="glossary-def">Brand Indicators for Message Identification. Displays your verified logo in supporting inboxes — requires DMARC enforcement.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><span class="acronym">CAA</span></div>
+      <div class="glossary-def">Certification Authority Authorisation. Restricts which certificate authorities can issue SSL/TLS certificates for your domain.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><span class="acronym">MTA-STS</span></div>
+      <div class="glossary-def">Mail Transfer Agent Strict Transport Security. Enforces TLS for inbound mail delivery, preventing downgrade attacks.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><span class="acronym">DNSSEC</span></div>
+      <div class="glossary-def">DNS Security Extensions. Cryptographically signs DNS responses so receivers can validate that records haven't been tampered with.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><span class="acronym">SSL stripping</span></div>
+      <div class="glossary-def">An attack that downgrades HTTPS to HTTP, allowing credentials and session data to be intercepted in plain text.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">HSTS</div>
+      <div class="glossary-def">HTTP Strict Transport Security. Tells browsers to only access your site over HTTPS, preventing SSL stripping.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">Dangling CNAME</div>
+      <div class="glossary-def">A subdomain CNAME pointing at a service that has been deleted. Attackers can claim the abandoned resource and serve content from your subdomain.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">Subdomain takeover</div>
+      <div class="glossary-def">An attack where a subdomain points at an abandoned third-party service that an attacker can claim — turning your subdomain into theirs.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">Cross-domain SAN</div>
+      <div class="glossary-def">Subject Alternative Name on an SSL certificate that covers unrelated domains. Reveals infrastructure relationships and creates joint failure modes.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">Certificate Transparency</div>
+      <div class="glossary-def">Public logs of every SSL certificate issued. Datazag observes these in real time to detect impersonation infrastructure as it appears.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">Trust Grade</div>
+      <div class="glossary-def">Datazag&rsquo;s six-band letter grade (A&ndash;F) summarising overall exposure. Derived from a composite 0&ndash;100 score with higher = worse.</div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term">CertStream</div>
+      <div class="glossary-def">Datazag&rsquo;s real-time certificate-issuance pipeline. Watches new SSL certificates as they&rsquo;re issued, cross-referenced against trusted-platform brand signatures.</div>
+    </div>
+  </div>
+
+  <div class="methodology-block">
+    <h4>Methodology</h4>
+    <p><strong>Data sources.</strong> Live DNS resolution at snapshot time; SSL transparency logs (Certificate Transparency feeds); Datazag&rsquo;s continuous certificate-issuance pipeline observing new SSL issuance across the public web; RDAP for domain registration data; ASN and BGP routing observations across 320 million domains, refreshed hourly.</p>
+    <p><strong>Trusted-platform corpus.</strong> Maintained list of identity platforms most-frequently impersonated in the certificate-issuance data. Currently includes Microsoft 365, Google Workspace, Apple, PayPal, Amazon, DocuSign, Mailchimp, Cloudflare, and the long tail of SaaS platforms used by typical SMB and mid-market estates.</p>
+    <p><strong>The 85&ndash;90% figure.</strong> Of all suspicious certificate registrations observed by Datazag in April 2026, between 85 and 90 per cent imitated a trusted technology platform. The figure is refreshed monthly; the range absorbs month-to-month variance.</p>
+    <p><strong>Trust Grade.</strong> A composite score 0&ndash;100 (higher = more exposed) mapped to a six-band letter grade (A&ndash;F). Drivers include platform-impersonation exposure, brand-impersonation exposure, outbound posture (DMARC/SPF/BIMI/CAA), and infrastructure findings.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 12 of 12</span></div>
+</div>
+
+</body>
+</html>

@@ -64,6 +64,7 @@ async def render_health(
     threat: str | None = None,
     skip_pdf: bool = False,
     skip_legacy: bool = False,
+    prepared_for: str | None = None,
 ) -> Path:
     """
     Run the upstream pipeline against the given domain or dns_file, then
@@ -74,6 +75,12 @@ async def render_health(
     skip_legacy=True if you only want the v8 health files. (Currently a no-op
     placeholder until upstream run.py is refactored to split data-build from
     rendering.)
+
+    The `prepared_for` parameter sets the "Prepared for" line on the report
+    cover. When unset, the cover shows the domain itself. Set this when the
+    report is being prepared for a specific buyer (e.g. an MSSP delivering it
+    to their client, or a Datazag-direct customer who has provided their
+    company name).
 
     Returns the output directory.
     """
@@ -91,6 +98,11 @@ async def render_health(
         threat_context=threat,
         output_dir=output_dir,
     )
+
+    # Inject the prepared_for override into the output dict if provided.
+    # The renderer reads this from output["prepared_for"].
+    if prepared_for:
+        output["prepared_for"] = prepared_for
     resolved_domain = output["domain"]
 
     # ── Step 2: render v8 Health Report ───────────────────────────────────
@@ -158,6 +170,10 @@ def main() -> None:
     parser.add_argument("--output",   help="Output directory (defaults to ./output)")
     parser.add_argument("--skip-pdf", action="store_true",
                         help="Skip Playwright PDF generation")
+    parser.add_argument("--prepared-for",
+                        help="Override the 'Prepared for' line on the report cover. "
+                             "When unset, the cover shows the domain itself. Set this when "
+                             "preparing the report for a specific named buyer.")
     args = parser.parse_args()
 
     out = Path(args.output) if args.output else None
@@ -169,6 +185,7 @@ def main() -> None:
         partner=args.partner,
         threat=args.threat,
         skip_pdf=args.skip_pdf,
+        prepared_for=args.prepared_for,
     ))
 
 
