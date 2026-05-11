@@ -401,7 +401,7 @@ async def run(
         fallback_ip = str(record.a_records[0])
     
     api = DomainIntelligenceAPI(db_path="/root/asn_data_v3/reporting_snapshot.duckdb")
-    medallion_intel = api.get_domain_intelligence(domain, profile=None, fallback_asn=fallback_asn, fallback_ip=fallback_ip)
+    medallion_intel = api.get_domain_intelligence(domain, profile=None, fallback_asn=fallback_asn, fallback_ip=fallback_ip, live_dns_report=raw)
     if "error" in medallion_intel:
         print(f"  [!] Medallion API returned error: {medallion_intel['error']}")
         medallion_intel = {}
