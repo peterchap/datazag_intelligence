@@ -21,7 +21,7 @@ from renderers import render_all
 from playwright.async_api import async_playwright
 from branding import BrandConfig
 
-DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
+DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", Path(__file__).parent / "output"))
 
 async def run(
     input_json: str     = None,
@@ -49,7 +49,7 @@ async def run(
             audience=audience,
             partner_context=partner_context,
             threat_context=threat_context,
-            output_dir=output_dir
+            output_dir=output_dir or DEFAULT_OUTPUT_DIR
         )
     else:
         raise ValueError("Must provide either --input_json or --domain")
