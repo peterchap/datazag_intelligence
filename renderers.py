@@ -100,7 +100,20 @@ class BaseRenderer:
         self.infra       = output["infrastructure"]
         self.certs       = output["certificates"]
         self.findings    = output.get("findings", [])
-        self.narrative   = output.get("narrative", {})
+        
+        aud_map = {
+            "InsurerRenderer": "insurer",
+            "ConsultantRenderer": "consultant",
+            "SalesRenderer": "sales",
+            "ITRenderer": "it"
+        }
+        my_aud = aud_map.get(self.__class__.__name__)
+        narratives = output.get("narratives", {})
+        if my_aud and my_aud in narratives:
+            self.narrative = narratives[my_aud]
+        else:
+            self.narrative = output.get("narrative", {})
+            
         self.changes     = output.get("change_signals", {})
         self.score_breakdown = output.get("risk_score_breakdown", [])
         self.dns         = output.get("dns_records", {})

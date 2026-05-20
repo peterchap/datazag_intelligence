@@ -24,7 +24,8 @@ from branding import BrandConfig
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
 
 async def run(
-    input_json: str,
+    input_json: str     = None,
+    domain: str         = None,
     audience: str       = "insurer",
     partner_context: str = None,
     threat_context: str  = None,
@@ -36,29 +37,57 @@ async def run(
     brand = BrandConfig.load(brand_profile)
     print(f"  Brand: {brand.brand_name}")
     
-    with open(input_json, "r") as fh:
-        output = json.load(fh)
+    if input_json:
+        with open(input_json, "r") as fh:
+            output = json.load(fh)
+    elif domain:
+        import sys
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from dnsproject.scripts.compile_intelligence import run as compile_intel
+        output = await compile_intel(
+            domain=domain,
+            audience=audience,
+            partner_context=partner_context,
+            threat_context=threat_context,
+            output_dir=output_dir
+        )
+    else:
+        raise ValueError("Must provide either --input_json or --domain")
     
-    domain = output.get("domain", "unknown")
+    domain = output.get("domain", domain or "unknown")
     findings = output.get("findings", [])
     
     output["audience"] = audience
     
     # ── Step 6: Narrative enrichment ─────────────────────────────────────
     if not skip_narrative and os.environ.get("ANTHROPIC_API_KEY"):
-        print(f"  Generating narrative ({audience} audience)...")
-        narrative = await enrich_with_narrative(
-            domain=domain,
-            score=output.get("display_score", 0),
-            risk_band=output.get("display_risk_band", "unknown"),
-            findings=findings,
-            output=output,
-            partner_context=partner_context,
-            threat_context=threat_context,
-            audience=audience,
-        )
-        output["narrative"] = narrative
-        print(f"  Key finding: {narrative.get('key_finding', '')[:80]}...")
+        if audience == "all":
+            audiences = ["insurer", "consultant", "it", "sales"]
+        else:
+            audiences = [audience]
+            
+        narratives = {}
+        
+        async def fetch_narrative(aud):
+            print(f"  Generating narrative ({aud} audience)...")
+            return aud, await enrich_with_narrative(
+                domain=domain,
+                score=output.get("display_score", 0),
+                risk_band=output.get("display_risk_band", "unknown"),
+                findings=findings,
+                output=output,
+                partner_context=partner_context,
+                threat_context=threat_context,
+                audience=aud,
+            )
+            
+        results = await asyncio.gather(*[fetch_narrative(a) for a in audiences])
+        for aud, nar in results:
+            narratives[aud] = nar
+            
+        output["narratives"] = narratives
+        output["narrative"] = narratives.get(audience if audience != "all" else "insurer", {})
+        print(f"  Key finding: {output['narrative'].get('key_finding', '')[:80]}...")
     else:
         if not os.environ.get("ANTHROPIC_API_KEY"):
             print("  Skipping narrative — ANTHROPIC_API_KEY not set")
@@ -111,10 +140,13 @@ async def run(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Datazag DNS Intelligence Renderer")
 
-    parser.add_argument("--input_json", required=True,
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--input_json",
                         help="Path to pre-collected Datazag Intelligence JSON payload (from compile_intelligence.py)")
-    parser.add_argument("--audience",     default="insurer",
-                        choices=["insurer", "consultant", "it", "sales"])
+    input_group.add_argument("--domain",
+                        help="Domain to scan and compile live before rendering")
+    parser.add_argument("--audience",     default="all",
+                        choices=["insurer", "consultant", "it", "sales", "all"])
     parser.add_argument("--partner",      default=None,
                         help="Partner context e.g. 'Atlassian Platinum Partner'")
     parser.add_argument("--threat",       default=None,
@@ -130,6 +162,7 @@ if __name__ == "__main__":
 
     asyncio.run(run(
         input_json=args.input_json,
+        domain=args.domain,
         audience=args.audience,
         partner_context=args.partner,
         threat_context=args.threat,
