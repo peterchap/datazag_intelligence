@@ -2922,10 +2922,10 @@ class HealthRenderer(BaseRenderer):
 
     def _get_platform_risk_score(self) -> int:
         base = len(self.tech.get("saas_platforms", [])) * 2 + len(self.tech.get("identity_providers", [])) * 5
-        return min(int(base + self.overall_risk / 2), 100)
+        return min(int(base + self.display_score / 2), 100)
 
     def _get_infra_risk_score(self) -> int:
-        return min(int(self.overall_risk), 100)
+        return min(int(self.display_score), 100)
 
     def _html_shell_branded(self, brand: "BrandConfig", report_type: str, body: str) -> str:
         return f"""<!DOCTYPE html>
