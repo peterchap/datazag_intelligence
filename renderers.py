@@ -2998,7 +2998,18 @@ h1, h2, h3, h4 {{ color: #0F172A; margin: 0; }}
         </div>
         """
 
-    def render_html(self, brand: "BrandConfig") -> str:
+    def to_markdown(self, brand: "BrandConfig" = None) -> str:
+        return f"# Datazag Health Report: {self.domain}\n\n## At a glance\n- **Trust Grade:** {self._get_trust_grade(max(self._get_platform_risk_score(), self._get_infra_risk_score()))}\n"
+
+    def to_dict(self, brand: "BrandConfig" = None) -> dict:
+        return {
+            "domain": self.domain,
+            "trust_grade": self._get_trust_grade(max(self._get_platform_risk_score(), self._get_infra_risk_score())),
+            "platform_exposure": self._get_platform_risk_score(),
+            "infrastructure_exposure": self._get_infra_risk_score()
+        }
+
+    def to_html(self, brand: "BrandConfig" = None) -> str:
         body = self._render_cover_html() + self._render_at_a_glance_html()
         return self._html_shell_branded(brand, "Health Report", body)
 
