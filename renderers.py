@@ -954,6 +954,15 @@ class BaseRenderer:
                 + "</span>"
             ) if a_recs else '<span style="color:#aaa;font-size:10px">—</span>'
 
+            # CNAME
+            cnames = s.get("cname_records", [])
+            cname_html = (
+                f'<span style="font-family:monospace;font-size:10px;color:#555">'
+                + "<br>".join(cnames[:2])
+                + ("..." if len(cnames) > 2 else "")
+                + "</span>"
+            ) if cnames else '<span style="color:#aaa;font-size:10px">—</span>'
+
             # PTR / provider
             provider = s.get("ptr_reveals_provider") or ""
             ptr_html = (
@@ -1011,6 +1020,7 @@ class BaseRenderer:
             </td>
             <td style="padding:5px 8px;white-space:nowrap">{risk_badge}</td>
             <td style="padding:5px 8px">{a_html}</td>
+            <td style="padding:5px 8px">{cname_html}</td>
             <td style="padding:5px 8px">{ptr_html}</td>
             <td style="padding:5px 8px;font-size:11px;color:#666">
                 {s.get("issuer_category","—")}
@@ -1035,6 +1045,7 @@ class BaseRenderer:
             <th style="padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Subdomain</th>
             <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Risk</th>
             <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">A records</th>
+            <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">CNAME</th>
             <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">PTR / provider</th>
             <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Issuer</th>
             <th style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Cert</th>
@@ -1139,7 +1150,7 @@ class BaseRenderer:
               <td style="padding:6px 10px;color:#888">Any server can send email as this domain</td></tr>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">DMARC</td>
               <td style="padding:6px 10px">{status_pill(reject_ok, 'p=reject', f"p={ea.get('dmarc_policy')}" if ea.get('dmarc_policy') else 'MISSING')}</td>
-              <td style="padding:6px 10px;color:#555">{f"pct={ea.get('dmarc_pct',0)} · aspf={ea.get('aspf','?')} · adkim={ea.get('adkim','?')}" if ea.get('dmarc_policy') else 'No DMARC record found'}</td>
+              <td style="padding:6px 10px;color:#555">{ea.get('dmarc_raw') if ea.get('dmarc_raw') else 'No DMARC record found'}</td>
               <td style="padding:6px 10px;color:#888">{'Full enforcement — spoofed mail rejected' if reject_ok else 'Spoofed mail quarantined — partial enforcement in place' if ea.get('dmarc_policy') == 'quarantine' else 'Monitoring only — p=none provides no enforcement, spoofed mail is delivered' if ea.get('dmarc_policy') == 'none' else 'Spoofed mail delivered without policy enforcement'}</td></tr>
             <tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 10px;font-weight:500">MTA-STS</td>
               <td style="padding:6px 10px">{status_pill(mta_ok, 'configured', 'MISSING')}</td>
@@ -2038,7 +2049,7 @@ class ConsultantRenderer(BaseRenderer):
             f"| SPF | {self.ea['spf'] or 'MISSING'} | "
             f"{'Hard fail' if self.ea['spf'] == '-all' else 'Soft fail' if self.ea['spf'] == '~all' else 'Not configured'} |",
             f"| DMARC | {'p=' + self.ea['dmarc_policy'] if self.ea['dmarc_policy'] else 'MISSING'} | "
-            f"pct={self.ea['dmarc_pct']}, aspf={self.ea.get('aspf','?')}, adkim={self.ea.get('adkim','?')} |",
+            f"{self.ea.get('dmarc_raw', 'No DMARC record found') if self.ea.get('dmarc_raw') else 'No DMARC record found'} |",
             f"| MTA-STS | {self.ea['mta_sts']} | — |",
             f"| TLS-RPT | {self.ea['tls_rpt']} | — |",
             f"| BIMI | {self.ea['bimi']} | — |",
@@ -2109,7 +2120,7 @@ class ConsultantRenderer(BaseRenderer):
             else "Not configured"),
             ("DMARC",
             ("p=" + self.ea["dmarc_policy"]) if self.ea["dmarc_policy"] else "MISSING",
-            f"pct={self.ea['dmarc_pct']} · aspf={self.ea.get('aspf','?')} · adkim={self.ea.get('adkim','?')}"),
+            self.ea.get("dmarc_raw") if self.ea.get("dmarc_raw") else "No DMARC record found"),
             ("MTA-STS", self.ea["mta_sts"],  "Inbound TLS enforcement"),
             ("TLS-RPT", self.ea["tls_rpt"],  "SMTP delivery failure reporting"),
             ("BIMI",    self.ea["bimi"],      "Brand logo in email clients"),
@@ -2895,18 +2906,119 @@ class SalesRenderer(BaseRenderer):
 # Factory
 # ---------------------------------------------------------------------------
 
+class HealthRenderer(BaseRenderer):
+    """
+    Renders the 10-section Datazag Health Report, focusing on Platform and Brand impersonation
+    for a business audience.
+    """
+
+    def _get_trust_grade(self, risk_score: float) -> str:
+        if risk_score <= 15: return "A"
+        if risk_score <= 30: return "B"
+        if risk_score <= 50: return "C"
+        if risk_score <= 70: return "D"
+        if risk_score <= 85: return "E"
+        return "F"
+
+    def _get_platform_risk_score(self) -> int:
+        base = len(self.tech.get("saas_platforms", [])) * 2 + len(self.tech.get("identity_providers", [])) * 5
+        return min(int(base + self.overall_risk / 2), 100)
+
+    def _get_infra_risk_score(self) -> int:
+        return min(int(self.overall_risk), 100)
+
+    def _html_shell_branded(self, brand: "BrandConfig", report_type: str, body: str) -> str:
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{brand.report_prefix}} — {{self.domain}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+body {{ font-family: 'Inter', sans-serif; font-size: 13px; color: #334155; margin: 0; background: #F8FAFC; line-height: 1.6; }}
+.page-container {{ background: #FFFFFF; margin: 0 auto; padding: 0; width: 100%; }}
+.cover {{ background: #0F172A; color: #FFFFFF; padding: 60px; min-height: 297mm; }}
+h1, h2, h3, h4 {{ color: #0F172A; margin: 0; }}
+.cover h1 {{ color: #FFFFFF; font-size: 42px; font-weight: 700; line-height: 1.1; margin: 30px 0; letter-spacing: -0.02em; }}
+.cover .accent {{ color: #00A3FF; }}
+.section {{ padding: 60px; page-break-before: always; }}
+.section-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 20px; margin-bottom: 30px; }}
+.section-title {{ font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }}
+.pill {{ display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }}
+.pill-context {{ background: #F1F5F9; color: #475569; }}
+.pill-findings {{ background: #E0F2FE; color: #0369A1; }}
+.pill-action {{ background: #FFEDD5; color: #C2410C; }}
+</style>
+</head>
+<body>
+<div class="page-container">
+    {{body}}
+</div>
+</body>
+</html>"""
+
+    def _render_cover_html(self) -> str:
+        platform_score = self._get_platform_risk_score()
+        infra_score = self._get_infra_risk_score()
+        overall_score = max(platform_score, infra_score)
+        grade = self._get_trust_grade(overall_score)
+        return f"""
+        <div class="cover">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:20px;">
+                <div style="font-size:24px; font-weight:800; letter-spacing:-0.02em;">DATAZAG <span style="font-weight:400; color:#94A3B8; margin-left:10px;">HEALTH REPORT</span></div>
+                <div style="font-size:12px; font-weight:500; color:#00A3FF;">{{self.domain}}</div>
+            </div>
+            <div style="margin-top:80px;">
+                <div style="display:inline-block; border:1px solid #00A3FF; color:#00A3FF; border-radius:20px; padding:6px 16px; font-size:11px; font-weight:700; letter-spacing:0.05em;">Q2 2026 &middot; ATTACK SURFACE ASSESSMENT</div>
+                <h1>Trusted-platform and brand-impersonation attack<br>surface for <span class="accent">{{self.domain}}</span>.</h1>
+            </div>
+            <div style="background:#1E293B; border-radius:12px; border:1px solid #334155; padding:30px; margin-top:24px; display:flex; gap:30px; align-items:center;">
+                <div style="background:#00A3FF; color:#0F172A; font-size:42px; font-weight:800; width:80px; height:80px; border-radius:16px; display:flex; align-items:center; justify-content:center;">{{grade}}</div>
+                <div>
+                    <div style="color:#94A3B8; font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px;">OVERALL TRUST GRADE</div>
+                    <div style="font-size:20px; font-weight:700; color:#FFFFFF;">Moderate exposure.</div>
+                </div>
+            </div>
+        </div>
+        """
+
+    def _render_at_a_glance_html(self) -> str:
+        return """
+        <div class="section">
+            <div class="section-header">
+                <div>
+                    <div style="color:#00A3FF; font-weight:700; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;">Section 01</div>
+                    <div class="section-title">At a glance.</div>
+                </div>
+                <div class="pill pill-context">Context</div>
+            </div>
+            <p>Your attack surface overview.</p>
+        </div>
+        """
+
+    def render_html(self, brand: "BrandConfig") -> str:
+        body = self._render_cover_html() + self._render_at_a_glance_html()
+        return self._html_shell_branded(brand, "Health Report", body)
+
+    def render_md(self, brand: "BrandConfig") -> str:
+        return f"# Datazag Health Report: {{self.domain}}\n\n## At a glance\n- **Trust Grade:** {{self._get_trust_grade(max(self._get_platform_risk_score(), self._get_infra_risk_score()))}}\n"
+
+
 RENDERERS = {
     "insurer":    InsurerRenderer,
     "consultant": ConsultantRenderer,
     "it":         ITRenderer,
     "sales":      SalesRenderer,
+    "health":     HealthRenderer,
 }
 
 
 def render_all(
     output: dict,
     formats: list[str] = ("json", "markdown", "html"),
-    audiences: list[str] = ("insurer", "consultant", "it", "sales"),
+    audiences: list[str] = ("insurer", "consultant", "it", "sales", "health"),
     brand: "BrandConfig" = None,
 ) -> dict[str, dict[str, str]]:
     brand = brand or BrandConfig.load()
