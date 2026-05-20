@@ -2933,7 +2933,7 @@ class HealthRenderer(BaseRenderer):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{brand.report_prefix}} — {{self.domain}}</title>
+<title>{brand.report_prefix} — {self.domain}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 * {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
@@ -2954,7 +2954,7 @@ h1, h2, h3, h4 {{ color: #0F172A; margin: 0; }}
 </head>
 <body>
 <div class="page-container">
-    {{body}}
+    {body}
 </div>
 </body>
 </html>"""
@@ -2968,14 +2968,14 @@ h1, h2, h3, h4 {{ color: #0F172A; margin: 0; }}
         <div class="cover">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:20px;">
                 <div style="font-size:24px; font-weight:800; letter-spacing:-0.02em;">DATAZAG <span style="font-weight:400; color:#94A3B8; margin-left:10px;">HEALTH REPORT</span></div>
-                <div style="font-size:12px; font-weight:500; color:#00A3FF;">{{self.domain}}</div>
+                <div style="font-size:12px; font-weight:500; color:#00A3FF;">{self.domain}</div>
             </div>
             <div style="margin-top:80px;">
                 <div style="display:inline-block; border:1px solid #00A3FF; color:#00A3FF; border-radius:20px; padding:6px 16px; font-size:11px; font-weight:700; letter-spacing:0.05em;">Q2 2026 &middot; ATTACK SURFACE ASSESSMENT</div>
-                <h1>Trusted-platform and brand-impersonation attack<br>surface for <span class="accent">{{self.domain}}</span>.</h1>
+                <h1>Trusted-platform and brand-impersonation attack<br>surface for <span class="accent">{self.domain}</span>.</h1>
             </div>
             <div style="background:#1E293B; border-radius:12px; border:1px solid #334155; padding:30px; margin-top:24px; display:flex; gap:30px; align-items:center;">
-                <div style="background:#00A3FF; color:#0F172A; font-size:42px; font-weight:800; width:80px; height:80px; border-radius:16px; display:flex; align-items:center; justify-content:center;">{{grade}}</div>
+                <div style="background:#00A3FF; color:#0F172A; font-size:42px; font-weight:800; width:80px; height:80px; border-radius:16px; display:flex; align-items:center; justify-content:center;">{grade}</div>
                 <div>
                     <div style="color:#94A3B8; font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px;">OVERALL TRUST GRADE</div>
                     <div style="font-size:20px; font-weight:700; color:#FFFFFF;">Moderate exposure.</div>
@@ -3013,8 +3013,7 @@ h1, h2, h3, h4 {{ color: #0F172A; margin: 0; }}
         body = self._render_cover_html() + self._render_at_a_glance_html()
         return self._html_shell_branded(brand, "Health Report", body)
 
-    def render_md(self, brand: "BrandConfig") -> str:
-        return f"# Datazag Health Report: {{self.domain}}\n\n## At a glance\n- **Trust Grade:** {{self._get_trust_grade(max(self._get_platform_risk_score(), self._get_infra_risk_score()))}}\n"
+
 
 
 RENDERERS = {
