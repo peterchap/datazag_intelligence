@@ -47,8 +47,30 @@ from playwright.async_api import async_playwright  # noqa: E402
 
 from branding import BrandConfig                   # noqa: E402
 from healthreport.renderer import HealthReportRenderer  # noqa: E402
+from intelligence_contract import DomainIntelligence, build_view_models  # noqa: E402
+from findings_rules import derive_findings         # noqa: E402
 
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
+
+
+def _view_model_from_legacy(output: dict):
+    """Build a ReportViewModel from the legacy compiled output dict.
+
+    The legacy dict carries the medallion payload under
+    `infrastructure_intelligence` (compile_intelligence passes it through).
+    When that is medallion-shaped, parse it and derive medallion findings;
+    otherwise return a no-intelligence view-model — the renderer then leans
+    on the legacy dict alone (scores, findings, sections all still work).
+    """
+    infra_intel = output.get("infrastructure_intelligence") or {}
+    if isinstance(infra_intel, dict) and "risk_assessment" in infra_intel:
+        payload = {**infra_intel, "domain": infra_intel.get("domain") or output.get("domain", "")}
+        di = DomainIntelligence.model_validate(payload)
+        findings = derive_findings(di)
+    else:
+        di = DomainIntelligence(domain=output.get("domain", ""), error="no_medallion", code=404)
+        findings = []
+    return build_view_models(di, findings=findings)
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +87,8 @@ async def render_health(
     skip_pdf: bool = False,
     skip_legacy: bool = False,
     prepared_for: str | None = None,
+    variant: str = "flagship",
+    tier: str = "full",
 ) -> Path:
     """
     Run the upstream pipeline against the given domain or dns_file, then
@@ -110,7 +134,8 @@ async def render_health(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     brand = BrandConfig.load() if hasattr(BrandConfig, "load") else BrandConfig.default()
-    renderer = HealthReportRenderer(output)
+    vm = _view_model_from_legacy(output)
+    renderer = HealthReportRenderer(vm, audience=variant, tier=tier, legacy=output)
 
     formats = {
         "html": ("health.html", renderer.to_html(brand=brand)),
@@ -174,6 +199,11 @@ def main() -> None:
                         help="Override the 'Prepared for' line on the report cover. "
                              "When unset, the cover shows the domain itself. Set this when "
                              "preparing the report for a specific named buyer.")
+    parser.add_argument("--variant", default="flagship",
+                        choices=["flagship", "insurer", "advisory", "remediation", "external_threat"],
+                        help="Report variant to render. Default: flagship.")
+    parser.add_argument("--tier", default="full", choices=["teaser", "full"],
+                        help="teaser = lead-gen edition (specifics redacted); full = paid edition.")
     args = parser.parse_args()
 
     out = Path(args.output) if args.output else None
@@ -186,6 +216,8 @@ def main() -> None:
         threat=args.threat,
         skip_pdf=args.skip_pdf,
         prepared_for=args.prepared_for,
+        variant=args.variant,
+        tier=args.tier,
     ))
 
 

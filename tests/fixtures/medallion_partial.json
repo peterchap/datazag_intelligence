@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-10T09:00:00",
+  "domain": "sparse.example",
+  "risk_assessment": {
+    "infra_score": 0.1,
+    "reason_codes": null
+  }
+}

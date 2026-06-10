@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-06-10T09:00:00",
+  "platforms": [
+    {
+      "platform": "microsoft365",
+      "category": "identity_provider",
+      "count_7d": 14,
+      "count_30d": 41,
+      "sample_domains": ["micros0ft-365-login.com", "ms365-secure.net", "office365-verify.co"]
+    },
+    {
+      "platform": "okta",
+      "category": "identity_provider",
+      "count_7d": 2,
+      "count_30d": 25,
+      "sample_domains": ["okta-sso-login.com", "okta-verify.net"]
+    },
+    {
+      "platform": "mailchimp",
+      "category": "email_marketing",
+      "count_7d": 1,
+      "count_30d": 4,
+      "sample_domains": ["mailch1mp-campaign.com"]
+    }
+  ],
+  "own_brand": {
+    "count_7d": 1,
+    "count_30d": 3,
+    "sample_domains": ["riskyexample-support.com"]
+  }
+}

@@ -32,9 +32,14 @@ from typing import Any
 
 from jinja2 import Environment, BaseLoader, select_autoescape
 
-from renderers import BaseRenderer  # parent project import
 from branding import BrandConfig
+from intelligence_contract import (
+    PlatformImpersonation,
+    ReportViewModel,
+    redact_for_teaser,
+)
 
+from .audiences import AudienceConfig, TIERS, get_audience
 from .grade import score_to_grade, TrustGrade
 
 
@@ -60,6 +65,17 @@ PLATFORM_DESIRABILITY: dict[str, dict[str, Any]] = {
                                   "Search Console access additionally lets attackers manipulate "
                                   "your search visibility — relevant to brand-impersonation "
                                   "campaigns covered in section 05."},
+    "okta":               {"weight": 85, "tier": "high",
+                           "role": "Identity provider · single sign-on",
+                           "why": "Okta credentials ARE the keys — a captured Okta login "
+                                  "unlocks every application behind the SSO. Identity "
+                                  "providers are among the most-imitated platforms in our "
+                                  "certificate-issuance data."},
+    "docusign":           {"weight": 70, "tier": "med-high",
+                           "role": "Document signing · contract workflow",
+                           "why": "DocuSign lures exploit urgency ('document awaiting "
+                                  "signature') and work on staff at every level. A staple "
+                                  "of credential-phishing campaigns."},
     "mailchimp":          {"weight": 75, "tier": "med-high",
                            "role": "Marketing email, customer mailing list · outbound channel",
                            "why": "Mailchimp credentials unlock the customer mailing list directly. "
@@ -284,7 +300,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Datazag Health Report — {{ domain }}</title>
+<title>Datazag {{ product_label }} — {{ domain }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -842,9 +858,29 @@ HEALTH_REPORT_TEMPLATE = r"""
   .methodology-block p { font-size: 11px; color: var(--ink-2); line-height: 1.6; margin-bottom: 8px; }
   .methodology-block p:last-child { margin-bottom: 0; }
   .methodology-block strong { color: var(--ink); font-weight: 600; }
+  /* Impersonation campaign table (page 6) */
+  .trend-pill { display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap; }
+  .trend-pill.up   { background: rgba(255,107,107,0.10); color: #C2410C; border: 1px solid rgba(255,107,107,0.35); }
+  .trend-pill.down { background: rgba(74,222,128,0.10); color: #15803D; border: 1px solid rgba(74,222,128,0.35); }
+  .trend-pill.flat { background: rgba(100,116,139,0.08); color: var(--ink-3); border: 1px solid var(--rule-light); }
+  .lure-chip { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; background: rgba(15,23,42,0.05); color: var(--ink-2); padding: 2px 7px; border-radius: 4px; margin: 1px 3px 1px 0; border: 1px solid var(--rule-light); }
+  .platform-preview-state.active { color: #C2410C; font-weight: 700; }
+  .platform-preview-state.active .dot { background: #C2410C; }
+  /* Brand watchlist (page 7, populated state) */
+  .brand-watchlist-header { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
+  .brand-watchlist-header span { font-weight: 500; color: var(--ink-3); }
+  .brand-watchlist-items { margin-bottom: 10px; }
+  .brand-watchlist-items .lure-chip { font-size: 11px; padding: 4px 10px; margin: 2px 6px 2px 0; }
+  .brand-watchlist-note { font-size: 11px; color: var(--ink-3); line-height: 1.55; margin: 0; }
+  /* Teaser CTA */
+  .teaser-cta { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: center; background: rgba(0,150,204,0.05); border: 1px solid rgba(0,150,204,0.25); border-radius: 12px; padding: 16px 20px; margin-top: 18px; }
+  .teaser-cta-icon { font-size: 22px; text-align: center; }
+  .teaser-cta-body h4 { font-size: 13px; font-weight: 800; color: var(--ink); margin: 0 0 4px; }
+  .teaser-cta-body p { font-size: 11.5px; color: var(--ink-2); line-height: 1.55; margin: 0; }
 </style>
 </head>
 <body>
+{% set ns = namespace(page=0) %}
 
 {# ============ MACROS ============ #}
 {% macro brand_block(light=False) -%}
@@ -858,11 +894,13 @@ HEALTH_REPORT_TEMPLATE = r"""
     </div>
     <div class="brand-wordmark">DATAZAG</div>
     <div class="brand-divider"></div>
-    <div class="brand-product">Health Report</div>
+    <div class="brand-product">{{ product_label }}{% if is_teaser %} · Teaser{% endif %}</div>
   </div>
 {%- endmacro %}
 
 {# ============ PAGE 1 — COVER ============ #}
+{% if "cover" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page">
   <div class="topbar">
     {{ brand_block() }}
@@ -897,6 +935,11 @@ HEALTH_REPORT_TEMPLATE = r"""
         </div>
         <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms</div>
         <p class="dsc-qualifier">{{ platform_state.qualifier }}</p>
+        {% if active_campaign_count > 0 %}
+        <p class="dsc-qualifier" style="color:var(--bad);font-weight:600;">
+          ⚠ {{ active_campaign_count }} of your platforms actively impersonated in the last 30 days &mdash; {{ impersonation_total_30d }} lookalike domains observed.
+        </p>
+        {% endif %}
         {% if platform_list.platforms %}
         <div class="dsc-platform-list">
           {% for item in platform_list.platforms %}<span class="dsc-platform-name{% if item.cname_only %} cname-only{% endif %}">{{ item.name }}{% if item.cname_only %}<span class="dsc-platform-marker">◆</span>{% endif %}</span>{% if not loop.last %} <span class="dsc-platform-sep">·</span> {% endif %}{% endfor %}
@@ -973,11 +1016,14 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="cover-footer">
     <span>Datazag Health Report · Confidential</span>
-    <span class="right">Page 1 of {{ total_pages }}</span>
+    <span class="right">Page {{ ns.page }} of {{ total_pages }}</span>
   </div>
 </div>
+{% endif %}
 
 {# ============ PAGE 2 — TOC ============ #}
+{% if "toc" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1010,11 +1056,14 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="toc-spacer"></div>
   <div class="cover-footer">
     <span>Datazag Health Report · Confidential</span>
-    <span class="right">Page 2 of {{ total_pages }}</span>
+    <span class="right">Page {{ ns.page }} of {{ total_pages }}</span>
   </div>
 </div>
+{% endif %}
 
 {# ============ PAGE 3 — AT A GLANCE ============ #}
+{% if "glance" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1042,15 +1091,15 @@ HEALTH_REPORT_TEMPLATE = r"""
     </div>
   </div>
   <div class="scorecards">
-    <div class="scorecard bad">
+    <div class="scorecard {% if active_campaign_count > 0 %}bad{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">▲</span>Trusted platform impersonation</div>
-      <div class="scorecard-state">Elevated</div>
-      <div class="scorecard-text"><strong>{{ pill_platforms_at_risk }} of your detected platforms</strong> are being actively impersonated by attacker infrastructure issued in the last 30 days. <em>The active risk.</em></div>
+      <div class="scorecard-state">{{ platform_scorecard_state }}</div>
+      <div class="scorecard-text">{% if active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your detected platforms</strong> are being actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains issued in the last 30 days. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your detected platforms observed in the last 30 days. Continuous watch in place. <em>The active risk.</em>{% endif %}</div>
     </div>
-    <div class="scorecard warn">
+    <div class="scorecard {% if pill_brand_exposures >= 10 %}bad{% elif pill_brand_exposures > 0 %}warn{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">◆</span>Brand impersonation</div>
-      <div class="scorecard-state">Moderate</div>
-      <div class="scorecard-text"><strong>{{ pill_brand_exposures }} lookalike domains</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> observed in certificate logs. <em>The watchlist.</em></div>
+      <div class="scorecard-state">{{ brand_scorecard_state }}</div>
+      <div class="scorecard-text">{% if pill_brand_exposures > 0 %}<strong>{{ pill_brand_exposures }} lookalike domain{% if pill_brand_exposures != 1 %}s{% endif %}</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> observed in certificate logs (30 days). <em>The watchlist.</em>{% else %}<strong>No lookalike domains</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> observed in the current window. <em>The watchlist.</em>{% endif %}</div>
     </div>
     <div class="scorecard neutral">
       <div class="scorecard-label"><span class="scorecard-icon">◉</span>Outbound posture</div>
@@ -1087,11 +1136,23 @@ HEALTH_REPORT_TEMPLATE = r"""
     </div>
     {% endfor %}
   </div>
+  {% if is_teaser %}
+  <div class="teaser-cta">
+    <div class="teaser-cta-icon">🔒</div>
+    <div class="teaser-cta-body">
+      <h4>This is the teaser edition.</h4>
+      <p>The full report names every lookalike domain, shows the evidence behind each finding, and includes step-by-step remediation guidance with effort estimates. <strong>{{ brand_cfg.contact_email }}</strong> &middot; {{ brand_cfg.contact_web }}</p>
+    </div>
+  </div>
+  {% endif %}
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 3 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 4 — WHY THIS MATTERS ============ #}
+{% if "why" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1156,10 +1217,13 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="causal-tags"><span class="tag-vendor">▲ Trusted platform impersonation</span><span class="tag-brand">◆ Brand impersonation</span></div>
   </div>
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 4 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 5 — VENDOR FOOTPRINT ============ #}
+{% if "vendor_footprint" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1223,10 +1287,13 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 5 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
-{# ============ PAGE 6 — SECTION 04 / PLATFORM EXPOSURE (monitoring state) ============ #}
+{# ============ PAGE 6 — SECTION 04 / PLATFORM EXPOSURE ============ #}
+{% if "platform_exposure" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1235,15 +1302,41 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 04</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Active campaigns against your platforms.</h1>
-    <p class="section-headline">For each detected platform, Datazag continuously watches certificate-issuance and DNS activity for new infrastructure that imitates it. When a campaign matches your platform stack, the section below populates with what your staff are likely to encounter — the lure, the domain pattern, and the time it&rsquo;s been live.</p>
+    <p class="section-headline">For each detected platform, Datazag continuously watches certificate-issuance and DNS activity for new infrastructure that imitates it. The table below shows <strong>observed impersonation volume over the last 7 and 30 days</strong> for the platforms in your stack — the lures your staff are most likely to encounter.</p>
   </div>
 
+  {% if active_campaign_count > 0 %}
+  <div class="footprint-summary">
+    <div class="footprint-stat"><div class="footprint-stat-num alert">{{ impersonation_total_30d }}</div><div class="footprint-stat-label">Lookalikes · 30 days</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num alert">{{ impersonation_total_7d }}</div><div class="footprint-stat-label">Lookalikes · 7 days</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num">{{ active_campaign_count }}</div><div class="footprint-stat-label">Platforms targeted</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num accent">{{ own_brand.count_30d }}</div><div class="footprint-stat-label">Own-brand lookalikes</div></div>
+  </div>
+
+  <div class="vendor-table-wrap">
+    <div class="vendor-table-header">Impersonation activity against your platform stack <span>&middot; certificate-issuance corpus, rolling windows</span></div>
+    <table class="vendor-table">
+      <thead><tr><th>Platform</th><th>7 days</th><th>30 days</th><th>Trend</th><th>Sample lure domains</th></tr></thead>
+      <tbody>
+        {% for imp in active_campaigns %}
+        <tr>
+          <td class="name-cell">{{ imp.platform }}</td>
+          <td class="rank-cell">{{ imp.count_7d }}</td>
+          <td class="rank-cell">{{ imp.count_30d }}</td>
+          <td><span class="trend-pill {{ imp.trend }}">{% if imp.trend == 'up' %}↑ rising{% elif imp.trend == 'down' %}↓ easing{% else %}→ steady{% endif %}</span></td>
+          <td class="evi-cell">{% for d in imp.sample_domains[:3] %}<span class="lure-chip">{{ d }}</span>{% endfor %}{% if not imp.sample_domains %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
   <div class="monitoring-state-panel">
     <div class="monitoring-state-icon">◉</div>
     <div class="monitoring-state-body">
       <h3>Monitoring active — no current high-confidence campaigns against your platforms.</h3>
       <p>Your {{ vendors | length }} detected platforms are under continuous surveillance against the trusted-platform-impersonation corpus. At the time of this snapshot, <strong>no attacker infrastructure currently in our 30-day observation window matches your platform stack with high confidence</strong>.</p>
-      <p>This is the expected steady-state for a first assessment. Active campaigns are intermittent by nature — when one emerges that targets a platform you depend on, this section will populate with the campaign signature, observed lure domains, and recommended staff briefing language.</p>
+      <p>Active campaigns are intermittent by nature — when one emerges that targets a platform you depend on, this section will populate with the campaign signature, observed lure domains, and recommended staff briefing language.</p>
       <div class="monitoring-state-meta">
         <span><strong>Watch window:</strong> last 30 days</span>
         <span class="sep">·</span>
@@ -1253,30 +1346,38 @@ HEALTH_REPORT_TEMPLATE = r"""
       </div>
     </div>
   </div>
+  {% endif %}
 
   <div class="platform-preview-header">
-    <h4>What we monitor for each platform</h4>
-    <p>Per-platform watch state. Each platform below has a continuous certificate-issuance and DNS subscription against attacker-infrastructure patterns matching that brand.</p>
+    <h4>Per-platform watch state</h4>
+    <p>Each platform below has a continuous certificate-issuance and DNS subscription against attacker-infrastructure patterns matching that brand.</p>
   </div>
   <div class="platform-preview-grid">
-    {% for v in vendors_top %}
+    {% for v in vendors %}
     <div class="platform-preview-row">
       <div class="platform-preview-name">{{ v.name }} <span class="sub">{{ v.role }}</span></div>
+      {% if v.impersonation and v.impersonation.count_30d > 0 %}
+      <span class="platform-preview-state active"><span class="dot"></span>{{ v.impersonation.count_30d }} matches · 30d</span>
+      {% else %}
       <span class="platform-preview-state"><span class="dot"></span>Monitoring · no matches</span>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
 
   <div class="methodology-card">
-    <h5>How this section will populate</h5>
-    <p>Datazag&rsquo;s certificate-issuance pipeline observes new SSL certificates as they&rsquo;re issued, cross-references against a corpus of known trusted-platform brand signatures, and flags clusters of new attacker infrastructure imitating each platform. When the volume targeting a platform you depend on exceeds the alert threshold, this section will populate with the cluster details, sample lure domains, and a staff briefing snippet. Continuous-monitoring customers also receive immediate alerts when new campaigns appear, rather than waiting for the next quarterly snapshot.</p>
+    <h5>How this data is gathered</h5>
+    <p>Datazag&rsquo;s certificate-issuance pipeline observes new SSL certificates as they&rsquo;re issued, cross-references against a corpus of known trusted-platform brand signatures, and counts the distinct attacker domains imitating each platform over rolling 7- and 30-day windows. Counts above reflect impersonation of the platforms <em>you use</em> — each one is a lure your staff could plausibly receive. Continuous-monitoring customers receive immediate alerts when new campaigns appear, rather than waiting for the next snapshot.</p>
   </div>
 
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 6 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 7 — SECTION 05 / BRAND EXPOSURE ============ #}
+{% if "brand_exposure" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1295,9 +1396,9 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div class="brand-summary-detail">{% if pill_brand_exposures > 0 %}Active lookalikes observed in certificate-issuance data targeting your brand string.{% else %}No active lookalikes detected in the current observation window.{% endif %}</div>
     </div>
     <div class="brand-summary-card">
-      <div class="brand-summary-label">Recent certs for your brand</div>
-      <div class="brand-summary-num">—</div>
-      <div class="brand-summary-detail">{# TODO(brand-pipeline): cert count for the brand string #}Cert-issuance corpus search for <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.04);padding:1px 3px;border-radius:3px;">{{ domain_root }}</code> populating in next snapshot.</div>
+      <div class="brand-summary-label">Last 7 days</div>
+      <div class="brand-summary-num{% if own_brand.count_7d > 0 %} warn{% else %} good{% endif %}">{{ own_brand.count_7d }}</div>
+      <div class="brand-summary-detail">{% if own_brand.count_7d > 0 %}New lookalikes of <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.04);padding:1px 3px;border-radius:3px;">{{ domain_root }}</code> observed this week.{% else %}No new lookalikes of <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.04);padding:1px 3px;border-radius:3px;">{{ domain_root }}</code> this week.{% endif %}</div>
     </div>
     <div class="brand-summary-card">
       <div class="brand-summary-label">Takedown queue</div>
@@ -1307,10 +1408,18 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="brand-watchlist">
+    {% if own_brand.sample_domains %}
+    <div class="brand-watchlist-header">Observed lookalikes <span>&middot; {{ own_brand.count_30d }} in the last 30 days</span></div>
+    <div class="brand-watchlist-items">
+      {% for d in own_brand.sample_domains %}<span class="lure-chip">{{ d }}</span>{% endfor %}
+    </div>
+    <p class="brand-watchlist-note">Each domain above was issued a certificate containing your brand string within the watch window. Review for active content or mail service; initiate takedown where warranted.</p>
+    {% else %}
     <div class="brand-watchlist-empty">
       <strong>Watch is live; no current matches.</strong>
       Lookalike-domain detection across our 320M-domain corpus is running continuously for <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> and its common typosquat patterns. When a match emerges, it will appear in this watchlist with the registration date, observed activity, and recommended takedown path.
     </div>
+    {% endif %}
   </div>
 
   <div class="methodology-card">
@@ -1319,10 +1428,13 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 7 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 8 — SECTION 06 / DEFENSIVE CONTROLS ============ #}
+{% if "controls" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1385,10 +1497,13 @@ HEALTH_REPORT_TEMPLATE = r"""
     <p><strong>What we can&rsquo;t see externally.</strong> Beyond the controls above &mdash; phishing-resistant MFA on platform tenants, Conditional Access policies, anti-phishing rules in Microsoft Defender or equivalents, internal SIEM rules, and staff training programmes. Those appear as checklist items on the cover platform card rather than as audited controls here.</p>
   </div>
 
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 8 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 9 — SECTION 07 / HIDDEN INFRASTRUCTURE ============ #}
+{% if "hidden_infra" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1484,10 +1599,13 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 9 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 10 — SECTION 08 / TIMELINE ============ #}
+{% if "timeline" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1515,10 +1633,13 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 10 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 11 — SECTION 09 / ROADMAP ============ #}
+{% if "roadmap" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1562,10 +1683,13 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 11 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 {# ============ PAGE 12 — SECTION 10 / GLOSSARY ============ #}
+{% if "glossary" in sections %}
+{% set ns.page = ns.page + 1 %}
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
@@ -1595,8 +1719,9 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="toc-spacer"></div>
-  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page 12 of {{ total_pages }}</span></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
+{% endif %}
 
 </body>
 </html>
@@ -1607,17 +1732,75 @@ HEALTH_REPORT_TEMPLATE = r"""
 # Renderer
 # ---------------------------------------------------------------------------
 
-class HealthReportRenderer(BaseRenderer):
+class HealthReportRenderer:
     """
-    Master Trusted-Platform-Impersonation Health Report (v8 design).
+    Flagship Trust + Threat Surface report (v8 design, medallion-driven).
 
-    Inherits all data-attribute binding from BaseRenderer; overrides render
-    methods to produce the new multi-page A4 design.
+    Primary input is the typed `ReportViewModel` built from riskscore's
+    medallion contract (intelligence_contract.build_view_models). An optional
+    `legacy` output dict (the pre-split compiled shape, present in --live mode)
+    enriches the sections that need live-scan data — vendor evidence, raw
+    email-auth strings, subdomains, RDAP. When `legacy` is absent those
+    sections degrade gracefully; nothing hard-requires it.
+
+    `audience` selects the report variant (see healthreport/audiences.py);
+    `tier` selects teaser vs full. Teaser redaction is applied to the
+    view-model BEFORE any template rendering, so redacted specifics never
+    reach the teaser HTML/PDF source.
     """
 
-    AUDIENCE = "health"
-    REPORT_TITLE = "Datazag Health Report"
-    TOTAL_PAGES = 12  # cover + TOC + sections 01-10
+    def __init__(
+        self,
+        vm: ReportViewModel,
+        audience: str = "flagship",
+        tier: str = "full",
+        legacy: dict | None = None,
+    ):
+        if tier not in TIERS:
+            raise ValueError(f"Unknown tier {tier!r}; expected one of {TIERS}")
+        self.audience: AudienceConfig = get_audience(audience)
+        self.tier = tier
+
+        legacy = legacy or {}
+        self.o = legacy
+        # Legacy-dict bindings — every one optional (live-scan enrichment only).
+        self.ea            = legacy.get("email_auth") or {}
+        self.tech          = legacy.get("technographics") or {}
+        self.txt_intel     = legacy.get("txt_intelligence") or {}
+        self.dns           = legacy.get("dns_records") or {}
+        self.subdomains    = legacy.get("subdomains") or []
+        self.cert_analysis = legacy.get("cert_analysis") or {}
+        self.rdap          = legacy.get("rdap") or {}
+        self.flags         = legacy.get("threat_flags") or {}
+        self.changes       = legacy.get("change_signals") or {}
+        self.infra         = legacy.get("infrastructure") or {}
+        self.certs         = legacy.get("certificates") or {}
+        self.narrative     = legacy.get("narrative") or {}
+
+        # Merge findings: medallion-derived (already on the vm) first, then any
+        # legacy live-scan findings, de-duplicated by finding key.
+        merged: list[dict] = []
+        seen: set[str] = set()
+        for f in list(vm.findings) + list(legacy.get("findings") or []):
+            key = str(f.get("finding") or f.get("title") or f)
+            if key not in seen:
+                seen.add(key)
+                merged.append(f)
+        vm = vm.model_copy(deep=True)
+        vm.findings = merged
+        if tier == "teaser":
+            vm = redact_for_teaser(vm)
+        self.vm = vm
+        self.findings = vm.findings
+
+        self.domain = vm.domain or legacy.get("domain", "")
+        self.generated_at = vm.generated_at or legacy.get("generated_at", "")
+        # Infrastructure composite: the medallion composite is authoritative;
+        # fall back to the legacy display_score when no intelligence exists.
+        if vm.has_intelligence:
+            self.display_score = vm.composite_score
+        else:
+            self.display_score = int(legacy.get("display_score") or 0)
 
     # ----- Public API ------------------------------------------------------
 
@@ -1630,24 +1813,39 @@ class HealthReportRenderer(BaseRenderer):
     def to_dict(self) -> dict:
         """Structured representation of what's rendered into the HTML.
         Useful for debugging and for downstream JSON consumers."""
+        ext = self.vm.external_threat
         return {
-            "report_type":   "trusted_platform_health_report",
-            "version":       "v8.1",
+            "report_type":   "trust_threat_surface_report",
+            "version":       "v9.0",
+            "audience":      self.audience.key,
+            "tier":          self.tier,
             "domain":        self.domain,
-            "generated_at":  self.o["generated_at"],
+            "generated_at":  self.generated_at,
+            "has_intelligence": self.vm.has_intelligence,
             "trust_grade":   {
                 "letter":      self._grade.letter,
                 "headline":    self._grade.headline,
                 "description": self._grade.description,
                 "score":       self.display_score,
             },
+            "pillars": {
+                "trust":  {"score": self.vm.trust.score,  "grade": self.vm.trust.grade.letter},
+                "threat": {"score": self.vm.threat.score, "grade": self.vm.threat.grade.letter},
+            },
             "platform_footprint": self._build_vendor_list(),
+            "external_threat": {
+                "detected_platforms": ext.detected_platforms,
+                "impersonations_7d":  ext.total_7d,
+                "impersonations_30d": ext.total_30d,
+                "own_brand_30d":      ext.own_brand.count_30d,
+            },
             "surface_counts": {
-                "platforms_at_risk": self._pill_platforms_at_risk(),  # TODO(section-04-data)
-                "brand_exposures":   self._pill_brand_exposures(),    # TODO(brand-pipeline)
+                "platforms_at_risk": self._pill_platforms_at_risk(),
+                "brand_exposures":   self._pill_brand_exposures(),
                 "defence_gaps":      self._pill_defence_gaps(),
             },
             "priorities":     self._build_priorities(),
+            "findings":       self.findings,
             "narrative":      self.narrative,
         }
 
@@ -1661,12 +1859,15 @@ class HealthReportRenderer(BaseRenderer):
         """Markdown variant for grep/diff workflows. Minimal — the HTML is the
         canonical output. Markdown carries the structured findings only."""
         g = self._grade
+        ext = self.vm.external_threat
         lines = [
-            f"# Datazag Health Report — {self.domain}",
+            f"# Datazag {self.audience.title} — {self.domain}",
             f"",
             f"**Trust Grade:** {g.letter} — {g.headline}",
-            f"**Score:** {self.display_score}/100",
-            f"**Snapshot:** {self.o['generated_at'][:10]}",
+            f"**Score:** {self.display_score}/100  "
+            f"(trust {self.vm.trust.score}/100 · threat {self.vm.threat.score}/100)",
+            f"**Snapshot:** {(self.generated_at or '')[:10]}",
+            f"**Tier:** {self.tier}",
             "",
             "## Platform footprint (ordered by attacker desirability)",
             "",
@@ -1674,6 +1875,16 @@ class HealthReportRenderer(BaseRenderer):
         for i, v in enumerate(self._build_vendor_list(), 1):
             lines.append(f"{i}. **{v['name']}** — {v['role']} ({v['tier_label']} desirability)")
         lines.append("")
+        if ext.impersonations or ext.own_brand.count_30d:
+            lines.append("## External threat — platform impersonation")
+            lines.append("")
+            for imp in ext.impersonations:
+                lines.append(f"- **{imp.platform}**: {imp.count_7d} in 7d / "
+                             f"{imp.count_30d} in 30d ({imp.trend})")
+            if ext.own_brand.count_30d:
+                lines.append(f"- **Own brand**: {ext.own_brand.count_7d} in 7d / "
+                             f"{ext.own_brand.count_30d} in 30d")
+            lines.append("")
         lines.append("## Three things to address first")
         lines.append("")
         for i, p in enumerate(self._build_priorities(), 1):
@@ -1682,13 +1893,42 @@ class HealthReportRenderer(BaseRenderer):
             lines.append("")
         return "\n".join(lines)
 
+    # ----- Impersonation lookups -------------------------------------------
+
+    @staticmethod
+    def _norm_platform_key(name: str) -> str:
+        """Normalise a platform name for matching the impersonation rollup
+        against vendor detection: 'Microsoft 365' / 'microsoft365' → 'microsoft365'."""
+        return (name or "").strip().lower().replace(" ", "").replace("-", "").replace("_", "")
+
+    @property
+    def _impersonations_by_key(self) -> dict[str, PlatformImpersonation]:
+        if not hasattr(self, "_imp_by_key_cache"):
+            self._imp_by_key_cache = {
+                self._norm_platform_key(i.platform): i
+                for i in self.vm.external_threat.impersonations
+            }
+        return self._imp_by_key_cache
+
+    def _impersonation_for(self, name_key: str) -> PlatformImpersonation | None:
+        return self._impersonations_by_key.get(self._norm_platform_key(name_key))
+
+    def _active_impersonations(self) -> list[PlatformImpersonation]:
+        """Platforms with observed impersonation activity in the 30-day window,
+        highest volume first."""
+        return sorted(
+            (i for i in self.vm.external_threat.impersonations if i.count_30d > 0),
+            key=lambda i: -i.count_30d,
+        )
+
     # ----- Cached lazy properties ------------------------------------------
 
     @property
     def _platform_score(self) -> int:
         """Platform exposure score 0-100. Reflects the size of the attack
         surface the customer faces — more high-desirability platforms in the
-        stack means more lures attackers can deploy.
+        stack means more lures attackers can deploy — plus OBSERVED campaign
+        volume against those platforms from the impersonation rollup.
 
         Calibration (v1):
             base = 15  (everyone has some baseline platform exposure)
@@ -1696,16 +1936,19 @@ class HealthReportRenderer(BaseRenderer):
             +5 per med-high-desirability platform (Mailchimp, ...)
             +3 per med-desirability platform      (Zoho, Citrix, ...)
             +1 per low-desirability platform      (Mailgun, Email Signatures, ...)
+            +4 per platform with active impersonation in the last 30 days,
+            +8 instead when that platform saw >= 20 lookalikes (capped +24 total)
             capped at 100
-
-        TODO(section-04-data): once per-platform exposure data exists (active
-        attacker certs imitating each detected platform), this score will
-        incorporate observed campaign volume not just stack composition.
         """
         if not hasattr(self, "_platform_score_cache"):
             vendors = self._build_vendor_list()
             weights = {"high": 8, "med-high": 5, "med": 3, "low": 1}
             score = 15 + sum(weights.get(v["tier"], 3) for v in vendors)
+            campaign_uplift = sum(
+                8 if imp.count_30d >= 20 else 4
+                for imp in self._active_impersonations()
+            )
+            score += min(24, campaign_uplift)
             self._platform_score_cache = min(100, score)
         return self._platform_score_cache
 
@@ -1723,22 +1966,32 @@ class HealthReportRenderer(BaseRenderer):
         return max(self._platform_score, self._infrastructure_score)
 
     @property
+    def _assessed(self) -> bool:
+        """True when we have ANY basis for a grade — medallion intelligence or
+        a legacy live-scan dict. Without either, grades must read 'not yet
+        assessed' rather than defaulting to a misleading A."""
+        return self.vm.has_intelligence or bool(self.o)
+
+    @property
     def _platform_grade(self) -> TrustGrade:
         if not hasattr(self, "_platform_grade_cache"):
-            self._platform_grade_cache = score_to_grade(self._platform_score)
+            self._platform_grade_cache = score_to_grade(
+                self._platform_score if self._assessed else None)
         return self._platform_grade_cache
 
     @property
     def _infrastructure_grade(self) -> TrustGrade:
         if not hasattr(self, "_infra_grade_cache"):
-            self._infra_grade_cache = score_to_grade(self._infrastructure_score)
+            self._infra_grade_cache = score_to_grade(
+                self._infrastructure_score if self._assessed else None)
         return self._infra_grade_cache
 
     @property
     def _grade(self) -> TrustGrade:
         """Overall Trust Grade — derived from the worse of the two sub-scores."""
         if not hasattr(self, "_grade_cache"):
-            self._grade_cache = score_to_grade(self._overall_score)
+            self._grade_cache = score_to_grade(
+                self._overall_score if self._assessed else None)
         return self._grade_cache
 
     @property
@@ -1861,7 +2114,7 @@ class HealthReportRenderer(BaseRenderer):
     # ----- Context assembly ------------------------------------------------
 
     def _build_context(self, brand: BrandConfig) -> dict[str, Any]:
-        gen_iso = self.o.get("generated_at", "")
+        gen_iso = self.generated_at or ""
         snapshot_date = gen_iso[:10] if gen_iso else ""
         snapshot_pretty = self._pretty_date(snapshot_date)
         quarter = self._quarter_label(snapshot_date)
@@ -1870,7 +2123,20 @@ class HealthReportRenderer(BaseRenderer):
         vendors_top = vendors[:3]
         vendors_rest = vendors[3:]
 
+        ext = self.vm.external_threat
+        actives = self._active_impersonations()
+        own = ext.own_brand
+        sections = self.audience.sections
+        toc_items = [t for t in self._toc_items() if t["section"] in sections]
+
         return {
+            # Variant / tier
+            "sections":          sections,
+            "product_label":     self.audience.title,
+            "tier":              self.tier,
+            "is_teaser":         self.tier == "teaser",
+            "has_intelligence":  self.vm.has_intelligence,
+            "brand_cfg":         brand,
             # Identity
             "domain":            self.domain,
             "domain_root":       self.domain.split(".")[0],
@@ -1881,7 +2147,20 @@ class HealthReportRenderer(BaseRenderer):
             "quarter_label":     quarter,
             "research_month":    "April 2026",  # TODO(research-publishing): pull from config when published
             "subdomain_count":   len(self.subdomains),
-            "total_pages":       self.TOTAL_PAGES,
+            "total_pages":       len(sections),
+            # External threat / platform impersonation
+            "active_campaigns":        actives,
+            "active_campaign_count":   len(actives),
+            "impersonation_total_7d":  ext.total_7d,
+            "impersonation_total_30d": ext.total_30d,
+            "own_brand":               own,
+            "platform_scorecard_state": "Elevated" if actives else "Monitoring",
+            "brand_scorecard_state":    ("Elevated" if own.count_30d >= 10
+                                         else "Moderate" if own.count_30d > 0
+                                         else "Clear"),
+            # Trust / threat pillars (medallion)
+            "trust_pillar":      self.vm.trust,
+            "threat_pillar":     self.vm.threat,
             # Trust grade
             "grade":             self._grade,
             "platform_grade":    self._platform_grade,
@@ -1908,8 +2187,8 @@ class HealthReportRenderer(BaseRenderer):
             "vendors_rest":         vendors_rest,
             "vendors_high_count":   sum(1 for v in vendors if v["tier"] == "high"),
             "total_evidence_signals": sum(len(v["evidence"]) for v in vendors),
-            # TOC
-            "toc_items":         self._toc_items(),
+            # TOC (filtered to enabled sections)
+            "toc_items":         toc_items,
             # Section 06 — Outbound posture
             "posture_layers":    self._build_posture_layers(),
             "controls_audit":    self._controls_categories(),
@@ -1985,44 +2264,82 @@ class HealthReportRenderer(BaseRenderer):
         except (ValueError, TypeError):
             return "—"
 
-    # ----- Surface counts (TODO placeholders) ------------------------------
+    # ----- Surface counts ---------------------------------------------------
 
     def _pill_platforms_at_risk(self) -> int:
-        """TODO(section-04-data): currently a placeholder. Once the AII pipeline
-        produces per-platform exposure (active attacker certs imitating each
-        detected platform), replace with the real count."""
-        return min(len(self._build_vendor_list()), 4)
+        """Detected platforms with active impersonation observed in the last
+        30 days — from the riskscore platform-impersonation rollup."""
+        return len(self._active_impersonations())
 
     def _pill_brand_exposures(self) -> int:
-        """TODO(brand-pipeline): lookalike-domain detection for the customer's
-        own brand. Detection logic exists upstream but isn't surfaced into the
-        output dict yet. Placeholder: 0 if no signal, else heuristic."""
-        return 0
+        """Lookalike domains targeting the customer's OWN brand observed in
+        the last 30 days — from the riskscore brand_hits rollup."""
+        return self.vm.external_threat.own_brand.count_30d
 
     def _pill_defence_gaps(self) -> int:
         """Defence gaps = critical+high posture findings. Real value, no placeholder."""
         return sum(1 for f in self.findings if f.get("severity") in ("critical", "high"))
 
     def _outbound_state(self) -> str:
-        if self.ea.get("is_spoofable"):
-            sev = self.ea.get("spoofing_severity", "high")
-            return {"high": "Weak", "medium": "Mixed"}.get(sev, "Mixed")
+        if self.ea:
+            if self.ea.get("is_spoofable"):
+                sev = self.ea.get("spoofing_severity", "high")
+                return {"high": "Weak", "medium": "Mixed"}.get(sev, "Mixed")
+            return "Configured"
+        # Medallion fallback (no live scan attached)
+        t = self.vm.trust
+        if t.dmarc_risk:
+            return "Weak"
+        if t.spf_risk or not t.modern_security_present:
+            return "Mixed"
         return "Configured"
 
     def _outbound_summary(self) -> str:
-        ea = self.ea
+        if self.ea:
+            ea = self.ea
+            bits = []
+            dmarc = ea.get("dmarc_policy") or "missing"
+            bits.append(f"DMARC at p={dmarc}")
+            if not self.flags.get("has_caa"):
+                bits.append("no CAA")
+            if "BIMI" in (ea.get("missing_layers") or []):
+                bits.append("no BIMI")
+            return ", ".join(bits) + (". Your domain remains spoofable" if ea.get("is_spoofable") else "")
+        # Medallion fallback
+        t = self.vm.trust
         bits = []
-        dmarc = ea.get("dmarc_policy") or "missing"
-        bits.append(f"DMARC at p={dmarc}")
-        if not self.flags.get("has_caa"):
-            bits.append("no CAA")
-        if "BIMI" in (ea.get("missing_layers") or []):
-            bits.append("no BIMI")
-        return ", ".join(bits) + (". Your domain remains spoofable" if ea.get("is_spoofable") else "")
+        bits.append("DMARC not enforced" if t.dmarc_risk else "DMARC enforced")
+        if t.spf_risk:
+            bits.append("SPF not strict")
+        if not t.modern_security_present:
+            bits.append("modern email controls incomplete")
+        return ", ".join(bits) + (". Your domain remains spoofable" if t.dmarc_risk else "")
 
     def _infra_summary_bits(self) -> list[str]:
         """Three short bullets describing the customer's infrastructure posture,
-        for the cover sub-score card. Each bullet is ≤ 6 words."""
+        for the cover sub-score card. Each bullet is ≤ 6 words.
+
+        Prefers live-scan (legacy) detail when attached; otherwise derives the
+        bullets from the medallion trust/threat pillars."""
+        if not self.ea and self.vm.has_intelligence:
+            t, th = self.vm.trust, self.vm.threat
+            bits = []
+            bits.append("DMARC not enforced" if t.dmarc_risk else "DMARC enforced")
+            if t.rpki_state == "invalid":
+                bits.append("RPKI invalid — hijack exposure")
+            elif t.rpki_state == "unknown":
+                bits.append("RPKI not deployed")
+            if th.listed_feeds:
+                n = len(th.listed_feeds)
+                bits.append(f"{n} threat-feed listing{'s' if n != 1 else ''}")
+            elif th.is_dangling_cname:
+                bits.append("dangling CNAME — takeover risk")
+            elif t.moas_detected:
+                bits.append("MOAS routing anomaly")
+            elif t.spf_risk:
+                bits.append("SPF not strict")
+            return bits[:3]
+
         ea = self.ea or {}
         rdap = self.rdap or {}
         flags = self.flags or {}
@@ -2064,18 +2381,42 @@ class HealthReportRenderer(BaseRenderer):
     # ----- Priorities ------------------------------------------------------
 
     def _build_priorities(self) -> list[dict[str, Any]]:
-        """Three priorities spanning the three surfaces.
-
-        TODO(section-04-data): the platform-priority is currently synthesised
-        from the highest-tier detected vendor. Once per-platform exposure data
-        exists, this will reference an actual active campaign.
-        """
+        """Three priorities spanning the three surfaces — platform, brand,
+        infrastructure. The platform priority references OBSERVED impersonation
+        activity from the rollup when present; otherwise it is synthesised from
+        the highest-desirability detected vendor."""
         priorities = []
         used_findings: set[str] = set()
 
-        # 1. Platform priority — synthesised from top vendor
+        # 1. Platform priority — observed campaign first, synthesis fallback
         vendors = self._build_vendor_list()
-        if vendors:
+        actives = self._active_impersonations()
+        if actives:
+            top_imp = actives[0]
+            name = self._display_name(self._normalise_vendor_name(top_imp.platform))
+            trend_note = {
+                "up":   "Volume is rising week-on-week.",
+                "down": "Volume is easing but infrastructure remains live.",
+                "flat": "Volume is steady.",
+            }[top_imp.trend]
+            priorities.append({
+                "severity": "crit",
+                "severity_label": "Critical",
+                "surface": "vendor",
+                "surface_label": "Platform",
+                "surface_glyph": "▲",
+                "title": f"{top_imp.count_30d} lookalikes of {name} active in the last 30 days",
+                "action": (f"Brief staff who use {name} on the active impersonation wave "
+                           f"({top_imp.count_7d} new lookalike domains this week); verify "
+                           "phishing-resistant MFA on the tenant."),
+                "why": (f"Your organisation uses {name}; attackers have stood up "
+                        f"{top_imp.count_30d} lookalike domains imitating it in the last "
+                        f"30 days. {trend_note}"),
+                "owner": "IT ops / security",
+                "effort": "< 1 day",
+                "when": "Fortnight",
+            })
+        elif vendors:
             top = vendors[0]
             priorities.append({
                 "severity": "crit",
@@ -2093,17 +2434,37 @@ class HealthReportRenderer(BaseRenderer):
                 "when": "Fortnight",
             })
 
-        # 2. Brand priority — DMARC if spoofable
+        # 2. Brand priority — own-brand lookalikes first, then DMARC
+        own = self.vm.external_threat.own_brand
         dmarc_finding_key = "dmarc_p_none"
-        if self.ea.get("is_spoofable") and self.ea.get("dmarc_policy") in (None, "none", ""):
+        legacy_spoofable = self.ea.get("is_spoofable") and self.ea.get("dmarc_policy") in (None, "none", "")
+        medallion_dmarc_risk = not self.ea and self.vm.trust.dmarc_risk
+        if own.count_30d > 0:
             priorities.append({
                 "severity": "high",
                 "severity_label": "High",
                 "surface": "brand",
                 "surface_label": "Brand",
                 "surface_glyph": "◆",
-                "title": "Move DMARC from p=none to p=quarantine",
-                "action": ("Escalate the existing p=none policy to p=quarantine after a 30-day reporting "
+                "title": f"{own.count_30d} lookalike domain{'s' if own.count_30d != 1 else ''} "
+                         f"targeting your brand (30 days)",
+                "action": ("Review the lookalike watchlist in the brand-exposure section; "
+                           "initiate takedown for any serving content or mail."),
+                "why": ("Lookalikes of your own domain are the launchpad for customer-facing "
+                        "fraud — invoice redirection, credential phishing in your name."),
+                "owner": "Brand / legal",
+                "effort": "varies",
+                "when": "Fortnight",
+            })
+        elif legacy_spoofable or medallion_dmarc_risk:
+            priorities.append({
+                "severity": "high",
+                "severity_label": "High",
+                "surface": "brand",
+                "surface_label": "Brand",
+                "surface_glyph": "◆",
+                "title": "Move DMARC to an enforcing policy",
+                "action": ("Escalate the DMARC policy to p=quarantine after a 30-day reporting "
                            "validation window confirming all legitimate senders are authenticated."),
                 "why": (f"Your @{self.domain} is currently spoofable by anyone. Brand-impersonation campaigns "
                         "against your customers can be sent from real-looking addresses with no infrastructure cost."),
@@ -2112,6 +2473,7 @@ class HealthReportRenderer(BaseRenderer):
                 "when": "Quarter",
             })
             used_findings.add(dmarc_finding_key)
+            used_findings.add("no_dmarc_enforcement")
 
         # 3. Infra priority — top critical/high finding that isn't already in priorities
         for f in self.findings:
@@ -2230,6 +2592,19 @@ class HealthReportRenderer(BaseRenderer):
                     })
                     break  # one vendor per CNAME match
 
+        # Corpus-detected platform stack (vm.external_threat.detected_platforms).
+        # In --live mode these usually duplicate the DNS-evidence detections
+        # above; in snapshot/fixture mode they are the only source.
+        existing_norms = {self._norm_platform_key(k) for k in evidence_map}
+        for platform in self.vm.external_threat.detected_platforms:
+            key = self._normalise_vendor_name(platform)
+            if self._norm_platform_key(key) not in existing_norms:
+                existing_norms.add(self._norm_platform_key(key))
+                evidence_map.setdefault(key, []).append({
+                    "key": "CORPUS",
+                    "val": "platform stack detection",
+                })
+
         # De-duplicate evidence per vendor (same key+val collapsing)
         for key, items in evidence_map.items():
             seen: set[tuple[str, str]] = set()
@@ -2241,13 +2616,15 @@ class HealthReportRenderer(BaseRenderer):
                     deduped.append(item)
             evidence_map[key] = deduped
 
-        # Build vendor records, applying desirability lookup
+        # Build vendor records, applying desirability lookup + observed
+        # impersonation activity from the rollup
         vendors = []
         for name_key, evidence in evidence_map.items():
             entry = self._lookup_platform(name_key)
             tier = entry["tier"]
             tier_label = {"high": "High", "med-high": "Med-high", "med": "Med", "low": "Low"}[tier]
             tier_short = {"high": "med", "med-high": "med", "med": "med", "low": "low"}[tier]
+            imp = self._impersonation_for(name_key)
             vendors.append({
                 "name":             self._display_name(name_key),
                 "name_key":         name_key,
@@ -2259,6 +2636,7 @@ class HealthReportRenderer(BaseRenderer):
                 "weight":           entry["weight"],
                 "evidence":         evidence,
                 "evidence_short":   ", ".join(f"{e['key']}: {e['val']}" for e in evidence[:2]),
+                "impersonation":    imp,
             })
 
         vendors.sort(key=lambda v: -v["weight"])
@@ -2357,6 +2735,8 @@ class HealthReportRenderer(BaseRenderer):
         return {
             "microsoft 365":    "Microsoft 365",
             "google workspace": "Google Workspace",
+            "okta":             "Okta",
+            "docusign":         "DocuSign",
             "mailchimp":        "Mailchimp",
             "apple":            "Apple",
             "zoho":             "Zoho",
@@ -3251,24 +3631,24 @@ class HealthReportRenderer(BaseRenderer):
     @staticmethod
     def _toc_items() -> list[dict[str, str]]:
         return [
-            {"title": "At-a-glance", "kind": "context",
+            {"title": "At-a-glance", "kind": "context", "section": "glance",
              "desc": "Your overall Trust Grade, how the two slices of your attack surface compare, and the three things to address first."},
-            {"title": "Why this matters", "kind": "context",
+            {"title": "Why this matters", "kind": "context", "section": "why",
              "desc": "Why 85&ndash;90% of impersonation attacks target trusted technology platforms, and how to read both the inbound (platform) and outbound (brand) sides of your attack surface."},
-            {"title": "Your vendor footprint", "kind": "findings",
+            {"title": "Your vendor footprint", "kind": "findings", "section": "vendor_footprint",
              "desc": "The technology platforms your stack actually depends on, ordered by attacker desirability rather than internal priority."},
-            {"title": "Trusted platform-impersonation exposure", "kind": "findings",
+            {"title": "Trusted platform-impersonation exposure", "kind": "findings", "section": "platform_exposure",
              "desc": "For each detected platform: the active attacker infrastructure imitating it, recently observed lures, and what those campaigns look like to your staff. <em>Highest-volume slice of the attack surface.</em>"},
-            {"title": "Brand-impersonation exposure", "kind": "findings",
+            {"title": "Brand-impersonation exposure", "kind": "findings", "section": "brand_exposure",
              "desc": "Lookalike domains, suspicious certificates, and typosquats targeting your own brand &mdash; the campaigns aimed at your customers, not your staff."},
-            {"title": "Outbound posture", "kind": "findings",
+            {"title": "Outbound posture", "kind": "findings", "section": "controls",
              "desc": "Your domain authentication: DMARC, SPF, BIMI, CAA, MTA-STS. The technical defences that constrain how far a brand-impersonation campaign can travel."},
-            {"title": "Hidden infrastructure", "kind": "findings",
+            {"title": "Hidden infrastructure", "kind": "findings", "section": "hidden_infra",
              "desc": "Forgotten subdomains, dormant services, certificate hygiene across your wider estate &mdash; the assets attackers find that you may not know exist."},
-            {"title": "Twelve-month timeline", "kind": "findings",
+            {"title": "Twelve-month timeline", "kind": "findings", "section": "timeline",
              "desc": "Every infrastructure change observed in the past year &mdash; including any that look unusual against your baseline."},
-            {"title": "Your minimisation roadmap", "kind": "action",
+            {"title": "Your minimisation roadmap", "kind": "action", "section": "roadmap",
              "desc": "How to minimise your attack surface, sequenced by impact &mdash; this fortnight, this quarter, this year &mdash; with effort estimates and ownership recommendations."},
-            {"title": "Glossary &amp; methodology", "kind": "context",
+            {"title": "Glossary &amp; methodology", "kind": "context", "section": "glossary",
              "desc": "Plain-English definitions of every technical term used, plus how the evidence behind each finding was gathered."},
         ]

@@ -7,8 +7,121 @@ from aiohttp import TCPConnector
 from aiohttp.resolver import ThreadedResolver
 from typing import Optional
 
+from intelligence_contract import (
+    DomainIntelligence,
+    ReportViewModel,
+    build_view_models,
+)
 
-async def enrich_with_narrative(
+AUDIENCE_TONE = {
+    "insurer":     "a cyber insurance underwriter assessing policy risk and making underwriting decisions",
+    "consultant":  "a senior security consultant preparing a detailed technical briefing for a client",
+    "it":          "an IT security manager reviewing their own organisation's infrastructure posture",
+    "sales":       "a sales team preparing a compelling prospect outreach brief",
+    # Consolidated report set (healthreport/audiences.py)
+    "advisory":    "a senior security consultant briefing a client, blending technical findings "
+                   "with commercial talking points a sales conversation can use",
+    "remediation": "an IT lead planning the remediation queue, writing so a non-technical "
+                   "economic buyer can also follow the cost and business impact",
+    "flagship":    "an executive reader assessing their organisation's trust posture and "
+                   "threat/attack surface",
+    "external_threat": "a security lead assessing platform-impersonation and brand-lookalike "
+                       "threats targeting their staff and customers",
+}
+
+
+def _vm_from_output(output: dict) -> Optional[ReportViewModel]:
+    """Resolve a typed view-model from the legacy compiled output dict.
+
+    The pipeline passes riskscore's medallion payload through under
+    `infrastructure_intelligence`; when it is medallion-shaped, parse it.
+    Returns None when no corpus intelligence is present — the prompt then says
+    so explicitly instead of silently rendering NO_DATA on a wrong scale.
+    """
+    infra_intel = output.get("infrastructure_intelligence") or {}
+    if isinstance(infra_intel, dict) and "risk_assessment" in infra_intel:
+        payload = {**infra_intel,
+                   "domain": infra_intel.get("domain") or output.get("domain", "")}
+        di = DomainIntelligence.model_validate(payload)
+        if di.has_intelligence:
+            return build_view_models(di)
+    return None
+
+
+def _medallion_block(vm: Optional[ReportViewModel]) -> str:
+    """The Datazag corpus-intelligence section of the prompt, from the typed
+    medallion contract. All scores are 0.00-1.00 (higher = worse)."""
+    if vm is None or not vm.has_intelligence:
+        return (
+            "=== DATAZAG GLOBAL INFRASTRUCTURE INTELLIGENCE ===\n"
+            "No Datazag corpus intelligence is available for this domain "
+            "(first assessment or domain not yet in the corpus). Do not "
+            "fabricate infrastructure-intelligence claims."
+        )
+
+    t, th = vm.trust, vm.threat
+    hv = th.historical_velocity
+
+    reason_lines = "\n".join(f"  - {c}" for c in th.reason_codes) or "  (none)"
+    feed_line = ", ".join(th.listed_feeds) if th.listed_feeds else "none"
+    pivot_lines = "\n".join(
+        f"  - {pf.malicious_count} malicious domains share this {pf.dimension} "
+        f"({pf.value})" + (f" — e.g. {', '.join(pf.examples[:3])}" if pf.examples else "")
+        for pf in th.pivot_findings if pf.malicious_count > 0
+    ) or "  (no malicious co-tenancy observed)"
+
+    return f"""=== DATAZAG GLOBAL INFRASTRUCTURE INTELLIGENCE (medallion corpus) ===
+All scores 0.00-1.00, higher = worse. Composite: {vm.composite_score}/100 (grade {vm.grade.letter}).
+Risk assessment:
+  Infrastructure (ASN/prefix) risk: {th.infra_score:.2f}
+  IP direct threat score: {th.ip_direct_threat_score:.2f}
+  Fast-flux risk: {th.fast_flux_risk:.2f}
+  DGA risk: {th.dga_risk:.2f}
+  Concentration risk: {th.concentration_risk:.2f}
+  CertStream risk: {th.certstream_risk:.2f}
+  Dangling-CNAME risk: {th.dangling_cname_risk:.2f}{f" (target: {th.cname_target})" if th.is_dangling_cname and th.cname_target else ""}
+Corpus reason codes:
+{reason_lines}
+Active threat-feed listings: {feed_line}
+CertStream hits on serving infrastructure: {th.certstream_hits}
+Routing integrity: RPKI {t.rpki_state}; MOAS {"DETECTED" if t.moas_detected else "none"}; \
+prefix churn {t.prefixes_churn_total}; MANRS member: {"yes" if t.is_manrs_member else "no"}\
+{"; MANRS CULPRIT" if t.is_manrs_culprit else ""}
+Email security (corpus): mx_type={t.mx_type}, mx_risk={t.mx_risk_score:.2f}, \
+DMARC {"AT RISK (not enforced)" if t.dmarc_risk else "enforced"}, \
+SPF {"AT RISK (not strict)" if t.spf_risk else "strict"}, \
+modern controls {"present" if t.modern_security_present else "incomplete"}
+Historical velocity (30 days): {hv.ip_changes_30d} IP changes, \
+{hv.asn_diversity_30d} distinct ASNs, {hv.geo_diversity_30d} geographies, \
+IP churn score {hv.ip_churn_score:.2f}
+Malicious co-tenancy:
+{pivot_lines}"""
+
+
+def _external_threat_block(vm: Optional[ReportViewModel]) -> str:
+    """Platform-impersonation section: imitations of the platforms the
+    organisation uses, plus own-brand lookalikes (7/30-day windows)."""
+    if vm is None:
+        return ""
+    ext = vm.external_threat
+    if not ext.impersonations and not ext.own_brand.count_30d:
+        return ""
+
+    lines = ["=== EXTERNAL THREAT — PLATFORM IMPERSONATION (7/30-day windows) ==="]
+    if ext.detected_platforms:
+        lines.append(f"Detected platform stack: {', '.join(ext.detected_platforms)}")
+    for imp in ext.impersonations:
+        sample = f" — e.g. {', '.join(imp.sample_domains[:3])}" if imp.sample_domains else ""
+        lines.append(f"  {imp.platform}: {imp.count_7d} in 7d / {imp.count_30d} in 30d "
+                     f"({imp.trend}){sample}")
+    if ext.own_brand.count_30d:
+        ob = ext.own_brand
+        sample = f" — e.g. {', '.join(ob.sample_domains[:3])}" if ob.sample_domains else ""
+        lines.append(f"  Own-brand lookalikes: {ob.count_7d} in 7d / {ob.count_30d} in 30d{sample}")
+    return "\n".join(lines)
+
+
+def build_narrative_prompt(
     domain: str,
     score: int,
     risk_band: str,
@@ -17,14 +130,10 @@ async def enrich_with_narrative(
     partner_context: Optional[str] = None,
     threat_context: Optional[str] = None,
     audience: str = "insurer",
-) -> dict:
-
-    AUDIENCE_TONE = {
-        "insurer":    "a cyber insurance underwriter assessing policy risk and making underwriting decisions",
-        "consultant": "a senior security consultant preparing a detailed technical briefing for a client",
-        "it":         "an IT security manager reviewing their own organisation's infrastructure posture",
-        "sales":      "a sales team preparing a compelling prospect outreach brief",
-    }
+    vm: Optional[ReportViewModel] = None,
+) -> str:
+    """Assemble the narrative prompt. Pure function — extracted from
+    enrich_with_narrative so it can be tested without an API call."""
 
     ea          = output.get("email_auth", {})
     tech        = output.get("technographics", {})
@@ -37,7 +146,8 @@ async def enrich_with_narrative(
     dns         = output.get("dns_records", {})
     cs_raw      = output.get("composite_score", {})
     cs          = cs_raw if isinstance(cs_raw, dict) else {"score": cs_raw}
-    infra_intel = output.get("infrastructure_intelligence", {})
+    if vm is None:
+        vm = _vm_from_output(output)
 
     # ── Risk engine ───────────────────────────────────────────────────────
 
@@ -210,7 +320,7 @@ async def enrich_with_narrative(
 
     # ── Prompt ────────────────────────────────────────────────────────────
 
-    prompt = f"""You are producing a detailed DNS intelligence report for {AUDIENCE_TONE[audience]}.
+    prompt = f"""You are producing a detailed DNS intelligence report for {AUDIENCE_TONE.get(audience, AUDIENCE_TONE["consultant"])}.
 
 DOMAIN: {domain}
 SCANNED: {output.get('scanned_at', '')}
@@ -322,10 +432,9 @@ For each missing layer above, explain:
 2. What an attacker can do because it is missing
 3. The specific DNS record needed to fix it
 
-=== DATAZAG GLOBAL INFRASTRUCTURE INTELLIGENCE ===
-High-fidelity telemetry from the DuckLake Medallion Architecture (1.8B BGP and DNS events):
-- Infrastructure Risk Score: {infra_intel.get('domain_risk_score', 'NO_DATA')}/100
-- Detected Risk Vectors: {json.dumps(infra_intel.get('domain_risk_context', []), indent=2)}
+{_medallion_block(vm)}
+
+{_external_threat_block(vm)}
 
 === ALL FINDINGS ===
 {findings_detail}
@@ -336,12 +445,38 @@ Return ONLY a valid JSON object with exactly these fields:
 {{
   "key_finding": "The single most important finding in one precise sentence. Reference specific evidence. If a subdomain takeover, dangling CNAME, or malicious IP co-location is present, lead with that.",
   "executive_summary": "3-4 sentences. Lead with composite score and primary driver. Name specific services and risk signals. Mention subdomain count and any critical subdomain findings if present.",
-  "threat_narrative": "5-8 sentences of deep interpretive analysis. Reference specific DNS evidence throughout. If high-risk subdomains exist (VPN endpoints, staging, admin panels), explain the specific attack scenario each enables and name the subdomain. If takeover-vulnerable CNAMEs exist, explain what an attacker gains by claiming the target resource. If malicious IPs are present on subdomains, explain the contagion and trust risk. Interweave DuckLake Infrastructure Intelligence flags (MOAS anomalies, Fast Flux, Dangling CNAMEs) if present.",
+  "threat_narrative": "5-8 sentences of deep interpretive analysis. Reference specific DNS evidence throughout. If high-risk subdomains exist (VPN endpoints, staging, admin panels), explain the specific attack scenario each enables and name the subdomain. If takeover-vulnerable CNAMEs exist, explain what an attacker gains by claiming the target resource. If malicious IPs are present on subdomains, explain the contagion and trust risk. Interweave the Datazag corpus-intelligence signals (RPKI state, MOAS anomalies, fast-flux, DGA, threat-feed listings, malicious co-tenancy, 30-day velocity) if present. If platform-impersonation activity is present, name the most-targeted platform and its 30-day lookalike count, and explain the staff-phishing scenario it enables.",
   "positive_signals": "2-3 sentences identifying what this domain does well. Name specific providers, policies, and score contributions.",
   "remediation_priority": "For each critical or high finding, one sentence with the specific fix and expected impact. Numbered list. Lead with subdomain takeover or malicious IP findings if present.",
   "insurer_signals": "3-4 sentences translating technical findings into policy risk language. Mention attack vectors and likely claim types. Reference how Datazag Infrastructure Telemetry (BGP routing, infrastructure scores, subdomain exposure) impacts actuarial cyber risk premiums. Note any subdomain takeover or malicious co-location as direct premium loading signals.",
   "saas_stack_analysis": "2-3 sentences on the SaaS stack breadth, any high-risk services, what it reveals about the organisation, supply chain implications."
 }}"""
+
+    return prompt
+
+
+async def enrich_with_narrative(
+    domain: str,
+    score: int,
+    risk_band: str,
+    findings: list[dict],
+    output: dict,
+    partner_context: Optional[str] = None,
+    threat_context: Optional[str] = None,
+    audience: str = "insurer",
+    vm: Optional[ReportViewModel] = None,
+) -> dict:
+    prompt = build_narrative_prompt(
+        domain=domain,
+        score=score,
+        risk_band=risk_band,
+        findings=findings,
+        output=output,
+        partner_context=partner_context,
+        threat_context=threat_context,
+        audience=audience,
+        vm=vm,
+    )
 
     # ── API call ──────────────────────────────────────────────────────────
 
@@ -360,7 +495,7 @@ Return ONLY a valid JSON object with exactly these fields:
                 "https://api.anthropic.com/v1/messages",
                 headers=headers,
                 json={
-                    "model":      "claude-sonnet-4-20250514",
+                    "model":      "claude-sonnet-4-6",
                     "max_tokens": 3000,
                     "messages":   [{"role": "user", "content": prompt}],
                 },
@@ -374,7 +509,7 @@ Return ONLY a valid JSON object with exactly these fields:
                 "https://api.anthropic.com/v1/messages",
                 headers=headers,
                 json={
-                    "model":      "claude-sonnet-4-20250514",
+                    "model":      "claude-sonnet-4-6",
                     "max_tokens": 3000,
                     "messages":   [{"role": "user", "content": prompt}],
                 },

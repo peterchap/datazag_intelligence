@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-10T09:00:00",
+  "domain": "riskyexample.com",
+  "facts": {
+    "asn": 64500,
+    "prefix": "203.0.113.0/24",
+    "is_manrs_member": false,
+    "manrs_status": "Unknown",
+    "is_manrs_culprit": false
+  },
+  "routing": {
+    "moas_detected": true,
+    "prefixes_churn_total": 42,
+    "rpki_state": "invalid"
+  },
+  "email_security": {
+    "mx_type": "inhouse",
+    "mx_risk_score": 0.55,
+    "dmarc_risk": true,
+    "spf_risk": true,
+    "modern_security_present": false
+  },
+  "threat_feeds": {
+    "feodo": { "listed": true },
+    "urlhaus": { "listed": false },
+    "sslbl": { "listed": false },
+    "threatfox": { "listed": false },
+    "spamhaus": { "listed": false }
+  },
+  "certstream": { "hits": 3 },
+  "concentration": {
+    "pivot_findings": [
+      {
+        "dimension": "asn",
+        "value": "64500",
+        "malicious_count": 30,
+        "examples": ["bad1.example", "bad2.example", "bad3.example"]
+      }
+    ]
+  },
+  "domain_dns_facts": {
+    "lowest_ttl": 60,
+    "a_record_count": 6,
+    "is_dangling_cname": true,
+    "cname_target": "gone.cloudapp.net",
+    "dga_entropy": 3.9
+  },
+  "historical_velocity": {
+    "ip_changes_30d": 18,
+    "asn_diversity_30d": 5,
+    "geo_diversity_30d": 4,
+    "ip_churn_score": 0.7
+  },
+  "risk_assessment": {
+    "infra_score": 0.5,
+    "ip_direct_threat_score": 0.6,
+    "reason_codes": ["HIGH_BGP_CHURN", "SOME_NEW_UNMAPPED_CODE"],
+    "fast_flux_risk": 0.7,
+    "dga_risk": 0.65,
+    "concentration_risk": 0.75,
+    "certstream_risk": 0.6,
+    "dangling_cname_risk": 0.8
+  },
+  "data_freshness": {
+    "facts": "2026-06-10T06:00:00",
+    "routing": "2026-06-10T08:30:00",
+    "threat_feeds": "2026-06-10T08:45:00",
+    "concentration": "2026-06-10T06:00:00"
+  }
+}
