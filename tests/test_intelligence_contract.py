@@ -164,6 +164,22 @@ def test_findings_thresholds():
     assert "reason_some_new_unmapped_code" in by_key
 
 
+def test_reason_code_copy_and_positive_skip():
+    from findings_rules import REASON_CODE_COPY, REASON_CODE_SKIP
+    # the handover-named codes have presentable copy
+    for code in ("SPAMHAUS_PREFIX_OVERLAP", "FEODO_INFRA_OVERLAP", "HIGH_BGP_CHURN"):
+        assert code in REASON_CODE_COPY
+    # positive signals never become negative findings
+    assert "MANRS_MEMBER" in REASON_CODE_SKIP
+    di = DomainIntelligence.model_validate({
+        "schema_version": "1.0", "domain": "x.test",
+        "risk_assessment": {"reason_codes": ["MANRS_MEMBER", "SPAMHAUS_PREFIX_OVERLAP"]},
+    })
+    keys = {f["finding"] for f in derive_findings(di, [])}
+    assert "reason_manrs_member" not in keys
+    assert "reason_spamhaus_prefix_overlap" in keys
+
+
 def test_findings_empty_on_nxdomain():
     di = DomainIntelligence.model_validate(_load("medallion_nxdomain.json"))
     assert derive_findings(di, []) == []

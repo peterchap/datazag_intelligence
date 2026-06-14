@@ -203,6 +203,9 @@ class PlatformImpersonation(_Base):
     count_7d: int = 0
     count_30d: int = 0
     sample_domains: list[str] = Field(default_factory=list)
+    # "exact"   = certstream exact brand/platform match (rollup kind platform|brand)
+    # "lookalike" = fuzzy typosquat candidate (kind *_typosquat) — lower confidence
+    confidence: Literal["exact", "lookalike"] = "exact"
 
     @property
     def trend(self) -> Literal["up", "down", "flat"]:
@@ -220,6 +223,7 @@ class BrandExposure(_Base):
     count_7d: int = 0
     count_30d: int = 0
     sample_domains: list[str] = Field(default_factory=list)
+    confidence: Literal["exact", "lookalike"] = "exact"
 
 
 # ---------------------------------------------------------------------------
@@ -277,8 +281,13 @@ class ExternalThreat(BaseModel):
     separately via `own_brand`, never folded into the platform totals.
     """
     detected_platforms: list[str] = Field(default_factory=list)
+    # EXACT certstream matches — drive the headline.
     impersonations: list[PlatformImpersonation] = Field(default_factory=list)
     own_brand: BrandExposure = Field(default_factory=BrandExposure)
+    # FUZZY typosquat candidates (rollup *_typosquat kinds) — lower confidence,
+    # rendered as a separate "lookalike candidates" section, never in the headline.
+    lookalike_candidates: list[PlatformImpersonation] = Field(default_factory=list)
+    own_brand_lookalikes: BrandExposure = Field(default_factory=BrandExposure)
 
     @property
     def total_7d(self) -> int:
@@ -287,6 +296,14 @@ class ExternalThreat(BaseModel):
     @property
     def total_30d(self) -> int:
         return sum(i.count_30d for i in self.impersonations)
+
+    @property
+    def lookalike_total_30d(self) -> int:
+        return sum(i.count_30d for i in self.lookalike_candidates)
+
+    @property
+    def has_lookalikes(self) -> bool:
+        return bool(self.lookalike_total_30d or self.own_brand_lookalikes.count_30d)
 
 
 class ReportViewModel(BaseModel):
@@ -387,11 +404,10 @@ def redact_for_teaser(vm: ReportViewModel) -> ReportViewModel:
     """
     t = vm.model_copy(deep=True)
 
-    for imp in t.external_threat.impersonations:
+    for imp in t.external_threat.impersonations + t.external_threat.lookalike_candidates:
         imp.sample_domains = [_mask_domain(d) for d in imp.sample_domains]
-    t.external_threat.own_brand.sample_domains = [
-        _mask_domain(d) for d in t.external_threat.own_brand.sample_domains
-    ]
+    for be in (t.external_threat.own_brand, t.external_threat.own_brand_lookalikes):
+        be.sample_domains = [_mask_domain(d) for d in be.sample_domains]
 
     for pf in t.threat.pivot_findings:
         pf.examples = []
@@ -416,11 +432,23 @@ def build_view_models(
     impersonations: Optional[list[PlatformImpersonation]] = None,
     own_brand: Optional[BrandExposure] = None,
     findings: Optional[list[dict]] = None,
+    lookalike_candidates: Optional[list[PlatformImpersonation]] = None,
+    own_brand_lookalikes: Optional[BrandExposure] = None,
 ) -> ReportViewModel:
     """Compose the renderer view-model from the medallion payload + impersonation data."""
     detected_platforms = detected_platforms or []
     impersonations = impersonations or []
     own_brand = own_brand or BrandExposure()
+    lookalike_candidates = lookalike_candidates or []
+    own_brand_lookalikes = own_brand_lookalikes or BrandExposure(confidence="lookalike")
+
+    external = ExternalThreat(
+        detected_platforms=detected_platforms,
+        impersonations=impersonations,
+        own_brand=own_brand,
+        lookalike_candidates=lookalike_candidates,
+        own_brand_lookalikes=own_brand_lookalikes,
+    )
 
     if not di.has_intelligence:
         # NXDOMAIN / error → "not yet assessed" state, no false all-clear.
@@ -434,11 +462,7 @@ def build_view_models(
             grade=unknown,
             trust=TrustSurface(score=0, grade=unknown),
             threat=ThreatSurface(score=0, grade=unknown),
-            external_threat=ExternalThreat(
-                detected_platforms=detected_platforms,
-                impersonations=impersonations,
-                own_brand=own_brand,
-            ),
+            external_threat=external,
             findings=findings or [],
         )
 
@@ -478,11 +502,6 @@ def build_view_models(
         pivot_findings=di.concentration.pivot_findings,
         historical_velocity=di.historical_velocity,
         reason_codes=di.risk_assessment.reason_codes,
-    )
-    external = ExternalThreat(
-        detected_platforms=detected_platforms,
-        impersonations=impersonations,
-        own_brand=own_brand,
     )
     return ReportViewModel(
         domain=di.domain,

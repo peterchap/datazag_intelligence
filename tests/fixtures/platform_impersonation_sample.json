@@ -27,5 +27,18 @@
     "count_7d": 1,
     "count_30d": 3,
     "sample_domains": ["riskyexample-support.com"]
+  },
+  "platform_lookalikes": [
+    {
+      "platform": "microsoft365",
+      "count_7d": 3,
+      "count_30d": 11,
+      "sample_domains": ["rnicrosoft365.com", "micr0s0ft-365.net"]
+    }
+  ],
+  "own_brand_lookalikes": {
+    "count_7d": 2,
+    "count_30d": 6,
+    "sample_domains": ["risky-examp1e.com", "rsikyexample.net"]
   }
 }

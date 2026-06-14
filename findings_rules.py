@@ -344,30 +344,65 @@ def _impersonation_findings(impersonations: list[PlatformImpersonation]) -> list
 # ---------------------------------------------------------------------------
 
 # Known corpus reason codes → presentable copy. Unknown codes fall back to a
-# generic template so they still surface.
+# generic template so they still surface. Codes mirror gold_risk_asn /
+# gold_risk_prefix reason_codes (riskscore orchestrator + riskscore_schemas.sql).
+_INFRA = "infrastructure_intelligence"
+_ROUTE = "routing_security"
 REASON_CODE_COPY: dict[str, dict] = {
-    "SPAMHAUS_ASN_DROP": {"severity": "critical",
+    "SPAMHAUS_ASN_DROP": {"severity": "critical", "category": _INFRA,
                           "title": "Hosting ASN on Spamhaus DROP",
                           "detail": "The hosting AS is on the Spamhaus DROP list (do not "
                                     "route or peer)."},
-    "FEODO_INFRA_OVERLAP": {"severity": "high",
+    "SPAMHAUS_PREFIX_OVERLAP": {"severity": "critical", "category": _INFRA,
+                                "title": "Announcing prefix overlaps Spamhaus DROP",
+                                "detail": "The announcing prefix overlaps a Spamhaus DROP "
+                                          "range — known hostile address space."},
+    "FEODO_INFRA_OVERLAP": {"severity": "high", "category": _INFRA,
                             "title": "Infrastructure overlaps Feodo C2",
                             "detail": "Hosting overlaps Feodo command-and-control ranges."},
-    "HIGH_BGP_CHURN": {"severity": "medium",
+    "CERTSTREAM_ANOMALY": {"severity": "high", "category": _INFRA,
+                           "title": "CertStream issuance anomaly on network",
+                           "detail": "Anomalous malicious-certificate issuance was observed "
+                                     "on the hosting network."},
+    "HIGH_BGP_CHURN": {"severity": "medium", "category": _ROUTE,
                        "title": "High BGP prefix churn",
-                       "detail": "The prefix shows high hour-over-hour churn."},
-    "MALICIOUS_IP_DENSITY": {"severity": "high",
+                       "detail": "The prefix shows high hour-over-hour churn — unstable "
+                                 "routing consistent with hijack or misconfiguration."},
+    "MALICIOUS_IP_DENSITY": {"severity": "high", "category": _INFRA,
                              "title": "High malicious-IP density on network",
                              "detail": "The network hosts a high density of malicious IPs."},
-    "THREAT_DENSITY_SURGE": {"severity": "high",
+    "THREAT_DENSITY_SURGE": {"severity": "high", "category": _INFRA,
                              "title": "Recent threat-density surge on network",
                              "detail": "A recent surge in malicious activity was observed on "
                                        "the hosting network."},
-    "HIGH_RISK_NETWORK_TYPE": {"severity": "medium",
+    "HIGH_RISK_NETWORK_TYPE": {"severity": "high", "category": _INFRA,
                                "title": "High-risk network type",
                                "detail": "The network type (e.g. bulletproof/abuse-tolerant) "
                                          "is high risk."},
+    "ELEVATED_NETWORK_TYPE": {"severity": "medium", "category": _INFRA,
+                              "title": "Elevated-risk network type",
+                              "detail": "The network type carries an elevated abuse profile."},
+    "MANRS_LAGGING": {"severity": "medium", "category": _ROUTE,
+                      "title": "Hosting AS lagging on MANRS norms",
+                      "detail": "The hosting AS participates in MANRS but lags on the "
+                                "routing-security actions."},
+    "MANRS_CULPRIT": {"severity": "high", "category": _ROUTE,
+                      "title": "Hosting AS flagged as a MANRS routing culprit",
+                      "detail": "The hosting AS has been associated with routing incidents "
+                                "(hijacks / leaks) in MANRS data."},
+    "BGP_HIJACK_MOAS_DETECTED": {"severity": "high", "category": _ROUTE,
+                                 "title": "MOAS / BGP-hijack signal on prefix",
+                                 "detail": "The prefix is announced from multiple origin "
+                                           "ASNs — a classic route-hijack signal."},
+    "RPKI_HYGIENE_WARNING": {"severity": "medium", "category": _ROUTE,
+                             "title": "RPKI hygiene warning on prefix",
+                             "detail": "The announcing prefix has an RPKI hygiene problem "
+                                       "(missing or mismatched ROA)."},
 }
+
+# Positive / neutral reason codes — these are NOT defects, so they must not be
+# emitted as negative findings (the trust rules already credit MANRS membership).
+REASON_CODE_SKIP: set[str] = {"MANRS_MEMBER"}
 
 
 def _humanise(code: str) -> str:
@@ -377,6 +412,8 @@ def _humanise(code: str) -> str:
 def _reason_code_findings(di: DomainIntelligence, already: set[str]) -> list[dict]:
     out: list[dict] = []
     for code in di.risk_assessment.reason_codes:
+        if code in REASON_CODE_SKIP:
+            continue
         key = f"reason_{code.lower()}"
         if key in already:
             continue
@@ -390,7 +427,7 @@ def _reason_code_findings(di: DomainIntelligence, already: set[str]) -> list[dic
                       f"The Datazag corpus flagged this domain's infrastructure with reason "
                       f"code '{code}'.",
             "remediation": "Review the flagged infrastructure signal.",
-            "category": "infrastructure_intelligence",
+            "category": copy["category"] if copy else _INFRA,
         })
     return out
 

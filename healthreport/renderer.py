@@ -864,6 +864,12 @@ HEALTH_REPORT_TEMPLATE = r"""
   .trend-pill.down { background: rgba(74,222,128,0.10); color: #15803D; border: 1px solid rgba(74,222,128,0.35); }
   .trend-pill.flat { background: rgba(100,116,139,0.08); color: var(--ink-3); border: 1px solid var(--rule-light); }
   .lure-chip { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; background: rgba(15,23,42,0.05); color: var(--ink-2); padding: 2px 7px; border-radius: 4px; margin: 1px 3px 1px 0; border: 1px solid var(--rule-light); }
+  .lure-chip.muted { background: transparent; color: var(--ink-3); border-style: dashed; }
+  /* Lookalike-candidates section (lower confidence) */
+  .lookalike-section { margin: 14px 56px 0; padding: 14px 18px; background: rgba(100,116,139,0.04); border: 1px dashed var(--rule-light); border-radius: 12px; }
+  .lookalike-header { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; display: flex; align-items: center; gap: 9px; }
+  .lookalike-badge { font-size: 8.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); background: rgba(100,116,139,0.12); border: 1px solid var(--rule-light); border-radius: 100px; padding: 2px 8px; }
+  .lookalike-intro { font-size: 11px; color: var(--ink-3); line-height: 1.55; margin: 0 0 10px; }
   .platform-preview-state.active { color: #C2410C; font-weight: 700; }
   .platform-preview-state.active .dot { background: #C2410C; }
   /* Brand watchlist (page 7, populated state) */
@@ -1365,9 +1371,32 @@ HEALTH_REPORT_TEMPLATE = r"""
     {% endfor %}
   </div>
 
+  {% if platform_lookalikes %}
+  <div class="lookalike-section">
+    <div class="lookalike-header">
+      <span class="lookalike-badge">Lower confidence</span>
+      Lookalike candidates &mdash; fuzzy matches awaiting corroboration
+    </div>
+    <p class="lookalike-intro">These are <strong>fuzzy typosquat candidates</strong> against your platforms — not exact certificate matches. They are shown separately because dictionary-word and short brand names produce false positives; treat them as a watchlist, not confirmed activity.</p>
+    <table class="vendor-table">
+      <thead><tr><th>Platform</th><th>7 days</th><th>30 days</th><th>Candidate domains</th></tr></thead>
+      <tbody>
+        {% for imp in platform_lookalikes %}
+        <tr>
+          <td class="name-cell">{{ imp.platform }}</td>
+          <td class="rank-cell">{{ imp.count_7d }}</td>
+          <td class="rank-cell">{{ imp.count_30d }}</td>
+          <td class="evi-cell">{% for d in imp.sample_domains[:3] %}<span class="lure-chip muted">{{ d }}</span>{% endfor %}{% if not imp.sample_domains %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
   <div class="methodology-card">
-    <h5>How this data is gathered</h5>
-    <p>Datazag&rsquo;s certificate-issuance pipeline observes new SSL certificates as they&rsquo;re issued, cross-references against a corpus of known trusted-platform brand signatures, and counts the distinct attacker domains imitating each platform over rolling 7- and 30-day windows. Counts above reflect impersonation of the platforms <em>you use</em> — each one is a lure your staff could plausibly receive. Continuous-monitoring customers receive immediate alerts when new campaigns appear, rather than waiting for the next snapshot.</p>
+    <h5>How this data is gathered &amp; how to read the counts</h5>
+    <p>Datazag&rsquo;s certificate-issuance pipeline observes new SSL certificates as they&rsquo;re issued, cross-references against a corpus of known trusted-platform brand signatures, and counts the distinct attacker domains imitating each platform over rolling 7- and 30-day windows. The headline counts are <strong>exact matches</strong>; lookalike candidates above are lower-confidence fuzzy matches. <strong>Confidence note:</strong> common dictionary-word or very short brand names (e.g. generic single words) can still produce false positives — treat low single-digit counts on generic names with caution. Continuous-monitoring customers receive immediate alerts when new campaigns appear.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -1422,9 +1451,24 @@ HEALTH_REPORT_TEMPLATE = r"""
     {% endif %}
   </div>
 
+  {% if own_brand_lookalikes.count_30d > 0 %}
+  <div class="lookalike-section">
+    <div class="lookalike-header">
+      <span class="lookalike-badge">Lower confidence</span>
+      Typosquat candidates for {{ domain_root }} &mdash; {{ own_brand_lookalikes.count_30d }} in 30 days
+    </div>
+    <p class="lookalike-intro">Fuzzy lookalikes of your own brand string — homoglyph and typo variants that are <strong>not exact certificate matches</strong>. A watchlist for monitoring, not confirmed impersonation.</p>
+    {% if own_brand_lookalikes.sample_domains %}
+    <div class="brand-watchlist-items">
+      {% for d in own_brand_lookalikes.sample_domains %}<span class="lure-chip muted">{{ d }}</span>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="methodology-card">
     <h5>What this section watches</h5>
-    <p>Three signal sources: <strong>(1)</strong> certificate-issuance logs for new SSL certs containing your brand string, <strong>(2)</strong> DNS registration data for typosquats and homoglyph variants of your domain, <strong>(3)</strong> our active-infrastructure corpus where any of the above start sending mail or hosting pages. Detection is continuous; this section reflects the state at the snapshot timestamp.</p>
+    <p>Three signal sources: <strong>(1)</strong> certificate-issuance logs for new SSL certs containing your brand string (the exact-match headline above), <strong>(2)</strong> DNS registration data for typosquats and homoglyph variants of your domain (the lower-confidence candidates), <strong>(3)</strong> our active-infrastructure corpus where any of the above start sending mail or hosting pages. Detection is continuous; this section reflects the state at the snapshot timestamp.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -1834,10 +1878,12 @@ class HealthReportRenderer:
             },
             "platform_footprint": self._build_vendor_list(),
             "external_threat": {
-                "detected_platforms": ext.detected_platforms,
-                "impersonations_7d":  ext.total_7d,
-                "impersonations_30d": ext.total_30d,
-                "own_brand_30d":      ext.own_brand.count_30d,
+                "detected_platforms":      ext.detected_platforms,
+                "impersonations_7d":       ext.total_7d,
+                "impersonations_30d":      ext.total_30d,
+                "own_brand_30d":           ext.own_brand.count_30d,
+                "lookalike_candidates_30d": ext.lookalike_total_30d,
+                "own_brand_lookalikes_30d": ext.own_brand_lookalikes.count_30d,
             },
             "surface_counts": {
                 "platforms_at_risk": self._pill_platforms_at_risk(),
@@ -2154,6 +2200,10 @@ class HealthReportRenderer:
             "impersonation_total_7d":  ext.total_7d,
             "impersonation_total_30d": ext.total_30d,
             "own_brand":               own,
+            # Lower-confidence typosquat candidates (separate section)
+            "platform_lookalikes":     [c for c in ext.lookalike_candidates if c.count_30d > 0],
+            "own_brand_lookalikes":    ext.own_brand_lookalikes,
+            "has_lookalikes":          ext.has_lookalikes,
             "platform_scorecard_state": "Elevated" if actives else "Monitoring",
             "brand_scorecard_state":    ("Elevated" if own.count_30d >= 10
                                          else "Moderate" if own.count_30d > 0

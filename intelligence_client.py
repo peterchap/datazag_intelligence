@@ -21,6 +21,7 @@ import aiohttp
 from intelligence_contract import (
     BrandExposure,
     DomainIntelligence,
+    ExternalThreat,
     PlatformImpersonation,
 )
 
@@ -107,12 +108,15 @@ class IntelligenceClient:
         platforms: list[str],
         windows: tuple[int, int] = (7, 30),
         brand: Optional[str] = None,
-    ) -> tuple[list[PlatformImpersonation], BrandExposure]:
-        """Fetch per-platform impersonation counts for the detected platform stack,
-        plus own-brand lookalikes when `brand` is given. Returns ([], empty) if the
-        rollup is unavailable — impersonation data is supplementary, never fatal."""
+    ) -> ExternalThreat:
+        """Fetch impersonation data for the detected platform stack: EXACT matches
+        (`platforms` / `own_brand`) that drive the headline, plus lower-confidence
+        typosquat candidates (`platform_lookalikes` / `own_brand_lookalikes`).
+        Returns an empty ExternalThreat if the rollup is unavailable — impersonation
+        data is supplementary, never fatal."""
+        empty = ExternalThreat(detected_platforms=platforms)
         if not platforms and not brand:
-            return [], BrandExposure()
+            return empty
 
         url = f"{self.base_url}/platform-impersonations"
         params = {
@@ -126,12 +130,22 @@ class IntelligenceClient:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(url, params=params, headers=self._headers) as resp:
                     if resp.status != 200:
-                        return [], BrandExposure()
+                        return empty
                     data = await resp.json()
         except aiohttp.ClientError:
-            return [], BrandExposure()
+            return empty
 
-        imps = [PlatformImpersonation.model_validate(x)
-                for x in data.get("platforms", [])]
-        own = BrandExposure.model_validate(data.get("own_brand", {}))
-        return imps, own
+        def _imps(key: str, confidence: str) -> list[PlatformImpersonation]:
+            return [PlatformImpersonation.model_validate({**x, "confidence": confidence})
+                    for x in data.get(key, [])]
+
+        def _brand(key: str, confidence: str) -> BrandExposure:
+            return BrandExposure.model_validate({**data.get(key, {}), "confidence": confidence})
+
+        return ExternalThreat(
+            detected_platforms=platforms,
+            impersonations=_imps("platforms", "exact"),
+            own_brand=_brand("own_brand", "exact"),
+            lookalike_candidates=_imps("platform_lookalikes", "lookalike"),
+            own_brand_lookalikes=_brand("own_brand_lookalikes", "lookalike"),
+        )

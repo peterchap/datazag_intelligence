@@ -47,6 +47,10 @@ def _sample_vm():
     data = _load("platform_impersonation_sample.json")
     imps = [PlatformImpersonation.model_validate(p) for p in data["platforms"]]
     own = BrandExposure.model_validate(data["own_brand"])
+    looks = [PlatformImpersonation.model_validate({**p, "confidence": "lookalike"})
+             for p in data.get("platform_lookalikes", [])]
+    own_looks = BrandExposure.model_validate({**data.get("own_brand_lookalikes", {}),
+                                              "confidence": "lookalike"})
     findings = derive_findings(di, imps)
     return build_view_models(
         di,
@@ -54,6 +58,8 @@ def _sample_vm():
         impersonations=imps,
         own_brand=own,
         findings=findings,
+        lookalike_candidates=looks,
+        own_brand_lookalikes=own_looks,
     )
 
 
@@ -89,6 +95,33 @@ def test_full_shows_per_platform_counts():
     assert [i.platform for i in ctx_rows] == ["microsoft365", "okta", "mailchimp"]
     assert r._pill_platforms_at_risk() == 3
     assert r._pill_brand_exposures() == 3
+
+
+def test_lookalike_candidates_separate_from_headline():
+    vm = _sample_vm()
+    # headline (exact) excludes the fuzzy candidates
+    assert vm.external_threat.total_30d == 41 + 25 + 4
+    assert vm.external_threat.lookalike_total_30d == 11
+    assert vm.external_threat.own_brand_lookalikes.count_30d == 6
+    html = HealthReportRenderer(vm).to_html()
+    # candidates section present, clearly lower-confidence
+    assert "Lookalike candidates" in html
+    assert "Lower confidence" in html
+    assert "rnicrosoft365.com" in html          # platform typosquat sample
+    assert "risky-examp1e.com" in html          # own-brand typosquat sample
+    # the confidence caveat is present
+    assert "false positives" in html.lower()
+    # to_dict surfaces the candidate totals separately
+    d = HealthReportRenderer(vm).to_dict()
+    assert d["external_threat"]["lookalike_candidates_30d"] == 11
+    assert d["external_threat"]["own_brand_lookalikes_30d"] == 6
+
+
+def test_teaser_masks_lookalike_domains():
+    html = HealthReportRenderer(_sample_vm(), tier="teaser").to_html()
+    assert "rnicrosoft365.com" not in html
+    assert "risky-examp1e.com" not in html
+    assert _mask_domain("rnicrosoft365.com") in html
 
 
 # ---------------------------------------------------------------------------
