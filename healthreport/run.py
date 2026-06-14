@@ -47,30 +47,9 @@ from playwright.async_api import async_playwright  # noqa: E402
 
 from branding import BrandConfig                   # noqa: E402
 from healthreport.renderer import HealthReportRenderer  # noqa: E402
-from intelligence_contract import DomainIntelligence, build_view_models  # noqa: E402
-from findings_rules import derive_findings         # noqa: E402
+from report_pipeline import view_model_from_legacy_output as _view_model_from_legacy  # noqa: E402,F401
 
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
-
-
-def _view_model_from_legacy(output: dict):
-    """Build a ReportViewModel from the legacy compiled output dict.
-
-    The legacy dict carries the medallion payload under
-    `infrastructure_intelligence` (compile_intelligence passes it through).
-    When that is medallion-shaped, parse it and derive medallion findings;
-    otherwise return a no-intelligence view-model — the renderer then leans
-    on the legacy dict alone (scores, findings, sections all still work).
-    """
-    infra_intel = output.get("infrastructure_intelligence") or {}
-    if isinstance(infra_intel, dict) and "risk_assessment" in infra_intel:
-        payload = {**infra_intel, "domain": infra_intel.get("domain") or output.get("domain", "")}
-        di = DomainIntelligence.model_validate(payload)
-        findings = derive_findings(di)
-    else:
-        di = DomainIntelligence(domain=output.get("domain", ""), error="no_medallion", code=404)
-        findings = []
-    return build_view_models(di, findings=findings)
 
 
 # ---------------------------------------------------------------------------
