@@ -905,6 +905,19 @@ HEALTH_REPORT_TEMPLATE = r"""
   .brand-watchlist-items { margin-bottom: 10px; }
   .brand-watchlist-items .lure-chip { font-size: 11px; padding: 4px 10px; margin: 2px 6px 2px 0; }
   .brand-watchlist-note { font-size: 11px; color: var(--ink-3); line-height: 1.55; margin: 0; }
+  /* Full DNS records */
+  .dns-group { margin: 0 56px 12px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
+  .dns-group-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: rgba(15,23,42,0.02); border-bottom: 1px solid var(--rule-light); }
+  .dns-type { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ink); letter-spacing: 0.05em; }
+  .dns-weak-count { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #B91C1C; background: rgba(255,107,107,0.10); border-radius: 100px; padding: 2px 9px; }
+  .dns-table { width: 100%; border-collapse: collapse; }
+  .dns-table td { font-size: 11px; padding: 6px 16px; border-bottom: 1px solid var(--rule-lighter); vertical-align: top; }
+  .dns-table tr:last-child td { border-bottom: none; }
+  .dns-table tr.weak td { background: rgba(255,107,107,0.04); }
+  .dns-val { font-family: 'JetBrains Mono', monospace; color: var(--ink-2); word-break: break-all; width: 52%; }
+  .dns-note { color: var(--ink-3); font-size: 10.5px; }
+  .dns-table tr.weak .dns-note { color: #B45309; font-weight: 600; }
+  .dns-flag { color: #B91C1C; font-weight: 800; }
   /* Infrastructure & routing intelligence */
   .infra-overview { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr; gap: 0; margin: 0 56px 16px; padding: 14px 0; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
   .infra-cell { padding: 0 20px; border-right: 1px solid var(--rule-lighter); }
@@ -1600,6 +1613,44 @@ HEALTH_REPORT_TEMPLATE = r"""
 </div>
 {% endif %}
 
+{# ============ SECTION / FULL DNS RECORDS ============ #}
+{% if "dns_records" in sections %}
+{% set ns.page = ns.page + 1 %}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Full DNS records<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Every record an attacker can read.</h1>
+    <p class="section-headline">This is the complete DNS footprint we captured for <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain }}</code> &mdash; the same records any attacker enumerates first. {{ dns_records_view.total }} records captured; <strong>{{ dns_records_view.weak }}</strong> flagged as defensive weaknesses.</p>
+  </div>
+
+  {% for g in dns_records_view.groups %}
+  <div class="dns-group">
+    <div class="dns-group-head"><span class="dns-type">{{ g.type }}</span>{% if g.weak %}<span class="dns-weak-count">{{ g.weak }} weakness{{ 'es' if g.weak != 1 else '' }}</span>{% endif %}</div>
+    <table class="dns-table">
+      {% for r in g.rows %}
+      <tr class="{{ 'weak' if r.weak else '' }}">
+        <td class="dns-val">{{ r.value }}</td>
+        <td class="dns-note">{% if r.note %}{% if r.weak %}<span class="dns-flag">⚠</span> {% endif %}{{ r.note }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endfor %}
+
+  <div class="methodology-card">
+    <h5>Why the full record set matters</h5>
+    <p>Public DNS is the first thing an attacker reads during reconnaissance: A/AAAA reveal where you host, MX and SPF/DKIM/DMARC TXT reveal how you send mail (and whether you can be spoofed), NS reveals your DNS provider and redundancy, verification TXT tokens reveal which SaaS platforms you use, and the absence of CAA/DNSSEC reveals soft spots. Every record above is externally visible — the weaknesses flagged are the ones worth closing.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
+</div>
+{% endif %}
+
 {# ============ SECTION / INFRASTRUCTURE & ROUTING INTELLIGENCE ============ #}
 {% if "infra_routing" in sections %}
 {% set ns.page = ns.page + 1 %}
@@ -2126,6 +2177,19 @@ class HealthReportRenderer:
                             A(f"    - Fix: {c['action']}")
                     A("")
 
+        # ── Full DNS records ─────────────────────────────────────────────
+        if "dns_records" in secs:
+            dv = self._build_dns_records()
+            A(f"## Full DNS records ({dv['total']} records · {dv['weak']} weaknesses flagged)")
+            A("")
+            for g in dv["groups"]:
+                A(f"**{g['type']}**")
+                for r in g["rows"]:
+                    flag = " ⚠" if r["weak"] else ""
+                    note = f" — {r['note']}" if r["note"] else ""
+                    A(f"- `{r['value']}`{flag}{note}")
+                A("")
+
         # ── Infrastructure & routing intelligence ────────────────────────
         if "infra_routing" in secs:
             ir = self._build_infra_routing()
@@ -2512,6 +2576,8 @@ class HealthReportRenderer:
             "dmarc_mandate_callout": (self.ea.get("dmarc_policy") or "") != "reject",
             # Infrastructure & routing intelligence (IP / prefix / ASN quality)
             "infra_routing":     self._build_infra_routing(),
+            # Full DNS records + weakness commentary
+            "dns_records_view":  self._build_dns_records(),
             # Section 07 — Hidden infrastructure
             "registration":           self._build_registration(),
             "estate_high":            self._estate_count("high"),
@@ -2695,6 +2761,92 @@ class HealthReportRenderer:
                 bits.append("DNSSEC not enabled")
 
         return bits[:3]
+
+    # ----- Section: Full DNS records (completeness + weakness commentary) --
+
+    @staticmethod
+    def _annotate_txt(t: str) -> tuple[str, bool]:
+        """Return (note, is_weakness) for a TXT record."""
+        low = (t or "").lower()
+        if low.startswith("v=spf1"):
+            if "-all" in low:
+                return ("SPF — strict (-all): unauthorised senders are hard-failed", False)
+            if "~all" in low:
+                return ("SPF — soft-fail (~all): spoofers are marked, not blocked", True)
+            if "?all" in low or "+all" in low:
+                return ("SPF — no enforcement: effectively allows anyone to send as you", True)
+            return ("SPF record with no explicit -all/~all mechanism", True)
+        if low.startswith("v=dmarc1"):
+            if "p=reject" in low:
+                return ("DMARC — p=reject (full enforcement)", False)
+            if "p=quarantine" in low:
+                return ("DMARC — p=quarantine (partial enforcement)", False)
+            if "p=none" in low:
+                return ("DMARC — p=none: monitoring only, does not block spoofing", True)
+            return ("DMARC record", False)
+        if low.startswith("v=dkim1") or "._domainkey" in low:
+            return ("DKIM public key", False)
+        if low.startswith(("google-site-verification", "ms=", "apple-domain-verification",
+                           "facebook-domain-verification", "atlassian-domain-verification",
+                           "stripe-verification", "docusign=")) or "verification" in low:
+            return ("Domain-verification token — reveals a SaaS platform in use", False)
+        if low.startswith("v=mta-sts"):
+            return ("MTA-STS policy marker", False)
+        return ("", False)
+
+    def _build_dns_records(self) -> dict[str, Any]:
+        """Every captured DNS record, grouped by type, with inline weakness
+        commentary on the records that are defensive gaps. Demonstrates a full
+        DNS-level grasp of the attack surface."""
+        dns = self.dns or {}
+        ea = self.ea or {}
+        groups: list[dict[str, Any]] = []
+
+        def grp(rtype: str, rows: list[dict]) -> None:
+            if rows:
+                groups.append({"type": rtype, "rows": rows,
+                               "weak": sum(1 for r in rows if r["weak"])})
+
+        def plain(vals) -> list[dict]:
+            return [{"value": str(v), "note": "", "weak": False} for v in (vals or [])]
+
+        grp("A", plain(dns.get("a")))
+        grp("AAAA", plain(dns.get("aaaa")))
+
+        mx = dns.get("mx") or []
+        mx_rows = [{"value": (f"{m.get('priority')} {m.get('host')}" if isinstance(m, dict) else str(m)),
+                    "note": "", "weak": False} for m in mx]
+        if not mx_rows:
+            mx_rows = [{"value": "(none)", "weak": True,
+                        "note": "No MX records — the domain is not configured to receive mail"}]
+        grp("MX", mx_rows)
+
+        ns = dns.get("ns") or []
+        ns_rows = plain(ns)
+        if len(ns_rows) == 1:
+            ns_rows[0].update(note="Single nameserver — no DNS redundancy", weak=True)
+        grp("NS", ns_rows)
+
+        caa = dns.get("caa") or []
+        grp("CAA", plain(caa) if caa else
+            [{"value": "(none)", "weak": True,
+              "note": "No CAA record — any certificate authority can issue certificates for this domain"}])
+
+        txt_rows = []
+        for t in dns.get("txt") or []:
+            note, weak = self._annotate_txt(t)
+            txt_rows.append({"value": str(t), "note": note, "weak": weak})
+        grp("TXT", txt_rows)
+
+        dnssec_on = bool(ea.get("dnssec")) or bool((self.rdap or {}).get("dnssec_enabled"))
+        grp("DNSSEC", [{"value": "enabled" if dnssec_on else "not enabled",
+                        "weak": not dnssec_on,
+                        "note": "" if dnssec_on else
+                                "DNS responses are not cryptographically signed — exposure to DNS spoofing/cache poisoning"}])
+
+        total = sum(len(g["rows"]) for g in groups)
+        weak = sum(g["weak"] for g in groups)
+        return {"groups": groups, "total": total, "weak": weak}
 
     # ----- Section: Infrastructure & routing intelligence ------------------
 
@@ -4029,6 +4181,8 @@ class HealthReportRenderer:
              "desc": "Lookalike domains, suspicious certificates, and typosquats targeting your own brand &mdash; the campaigns aimed at your customers, not your staff."},
             {"title": "Outbound posture", "kind": "findings", "section": "controls",
              "desc": "Your domain authentication: DMARC, SPF, BIMI, CAA, MTA-STS. The technical defences that constrain how far a brand-impersonation campaign can travel."},
+            {"title": "Full DNS records", "kind": "findings", "section": "dns_records",
+             "desc": "Every DNS record we captured for your domain &mdash; A, MX, NS, TXT, CAA, DNSSEC &mdash; with the specific records that are defensive weaknesses called out inline."},
             {"title": "Infrastructure &amp; routing intelligence", "kind": "findings", "section": "infra_routing",
              "desc": "The quality of the IP, prefix and ASN your domain is hosted on &mdash; RPKI/MOAS routing integrity, ASN/IP reputation, threat-feed listings, and malicious co-tenancy in the Datazag corpus."},
             {"title": "Hidden infrastructure", "kind": "findings", "section": "hidden_infra",

@@ -31,8 +31,8 @@ from dataclasses import dataclass
 
 SECTION_ORDER: tuple[str, ...] = (
     "cover", "toc", "glance", "why", "vendor_footprint", "platform_exposure",
-    "brand_exposure", "controls", "infra_routing", "hidden_infra", "timeline",
-    "roadmap", "glossary",
+    "brand_exposure", "controls", "dns_records", "infra_routing", "hidden_infra",
+    "timeline", "roadmap", "glossary",
 )
 
 TIERS: tuple[str, ...] = ("teaser", "full")
@@ -65,7 +65,7 @@ AUDIENCES: dict[str, AudienceConfig] = {
                     "due-diligence providers.",
         sections=("cover", "toc", "glance", "why", "vendor_footprint",
                   "platform_exposure", "brand_exposure", "controls",
-                  "infra_routing", "timeline", "glossary"),
+                  "dns_records", "infra_routing", "timeline", "glossary"),
         narrative_keys=("key_finding", "executive_summary", "insurer_signals",
                         "threat_narrative"),
     ),
@@ -77,7 +77,7 @@ AUDIENCES: dict[str, AudienceConfig] = {
                     "commercial talking points for prospect conversations.",
         sections=("cover", "toc", "glance", "why", "vendor_footprint",
                   "platform_exposure", "brand_exposure", "controls",
-                  "infra_routing", "hidden_infra", "roadmap", "glossary"),
+                  "dns_records", "infra_routing", "hidden_infra", "roadmap", "glossary"),
         narrative_keys=("key_finding", "executive_summary", "threat_narrative",
                         "saas_stack_analysis", "positive_signals"),
     ),
@@ -87,8 +87,8 @@ AUDIENCES: dict[str, AudienceConfig] = {
         title="Remediation Plan",
         description="IT remediation queue plus an economic-buyer section in "
                     "cost / business-impact language.",
-        sections=("cover", "glance", "controls", "infra_routing", "hidden_infra",
-                  "timeline", "roadmap", "glossary"),
+        sections=("cover", "glance", "controls", "dns_records", "infra_routing",
+                  "hidden_infra", "timeline", "roadmap", "glossary"),
         narrative_keys=("key_finding", "remediation_priority",
                         "executive_summary"),
     ),

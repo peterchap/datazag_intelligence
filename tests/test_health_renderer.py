@@ -74,9 +74,9 @@ def test_flagship_full_renders():
     assert SENSITIVE_OWN_BRAND in html
     assert "41" in html                       # microsoft365 count_30d
     assert "Platforms targeted" in html
-    # all 13 pages (incl. infra & routing intelligence), dynamic numbering intact
-    assert "Page 1 of 13" in html
-    assert "Page 13 of 13" in html
+    # all 14 pages (incl. full DNS records + infra & routing), numbering intact
+    assert "Page 1 of 14" in html
+    assert "Page 14 of 14" in html
     # medallion findings drive the priorities/infra side
     assert "Trust Grade" in html or "trust grade" in html.lower()
 
@@ -164,6 +164,37 @@ def test_teaser_masks_lookalike_domains():
 # ---------------------------------------------------------------------------
 # Teaser tier — redaction must hold in the rendered source
 # ---------------------------------------------------------------------------
+
+def test_dns_records_section():
+    """Full DNS records with weakness commentary — the completeness centerpiece."""
+    legacy = {
+        "domain": "riskyexample.com",
+        "dns_records": {
+            "a": ["203.0.113.10"],
+            "mx": [{"priority": 10, "host": "mx.example.com"}],
+            "ns": ["ns1.example.com"],                              # single → weakness
+            "txt": ["v=spf1 include:_spf.google.com ~all",          # ~all → weakness
+                    "google-site-verification=abc123"],             # reveals SaaS
+            "caa": [],                                              # missing → weakness
+        },
+        "email_auth": {"dnssec": False},                           # → weakness
+    }
+    r = HealthReportRenderer(_sample_vm(), legacy=legacy)
+    dv = r._build_dns_records()
+    types = {g["type"] for g in dv["groups"]}
+    assert {"A", "MX", "NS", "TXT", "CAA", "DNSSEC"} <= types
+    assert dv["weak"] >= 4         # NS single, CAA missing, SPF ~all, DNSSEC off
+    html = r.to_html()
+    assert "Full DNS records" in html
+    assert "203.0.113.10" in html
+    assert "any certificate authority can issue" in html      # CAA missing note
+    assert "Single nameserver" in html                        # NS weakness
+    assert "soft-fail" in html                                # SPF ~all
+    assert "not cryptographically signed" in html             # DNSSEC
+    assert "reveals a SaaS platform" in html                  # verification token
+    md = r.to_markdown()
+    assert "## Full DNS records" in md
+
 
 def test_infra_routing_section():
     """IP / prefix / ASN quality section — the piece flagged as missing vs the
