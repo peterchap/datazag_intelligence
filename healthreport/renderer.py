@@ -343,7 +343,10 @@ HEALTH_REPORT_TEMPLATE = r"""
   @page { size: A4; margin: 0; }
   html, body { background: #FFFFFF; font-family: 'Inter', sans-serif; color: var(--white); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   /* Page shell */
-  .page { width: 794px; height: 1123px; margin: 0 auto; background: var(--navy); position: relative; overflow: hidden; display: flex; flex-direction: column; page-break-after: always; }
+  /* min-height (not fixed height) + no clip: short pages still fill an A4 sheet,
+     but long sections grow and flow onto additional sheets instead of being
+     clipped (which dropped content) or spilling over the next page. */
+  .page { width: 794px; min-height: 1123px; margin: 0 auto; background: var(--navy); position: relative; display: flex; flex-direction: column; page-break-after: always; }
   .page:last-child { page-break-after: auto; }
   .page::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 88% 8%, rgba(0,194,255,0.10) 0%, transparent 38%), radial-gradient(circle at 8% 82%, rgba(0,194,255,0.06) 0%, transparent 42%), radial-gradient(circle at 60% 50%, rgba(255,255,255,0.02) 0%, transparent 50%); pointer-events: none; z-index: 0; }
   .page::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px); background-size: 32px 32px; pointer-events: none; z-index: 0; }
@@ -902,6 +905,34 @@ HEALTH_REPORT_TEMPLATE = r"""
   .brand-watchlist-items { margin-bottom: 10px; }
   .brand-watchlist-items .lure-chip { font-size: 11px; padding: 4px 10px; margin: 2px 6px 2px 0; }
   .brand-watchlist-note { font-size: 11px; color: var(--ink-3); line-height: 1.55; margin: 0; }
+  /* Infrastructure & routing intelligence */
+  .infra-overview { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr; gap: 0; margin: 0 56px 16px; padding: 14px 0; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .infra-cell { padding: 0 20px; border-right: 1px solid var(--rule-lighter); }
+  .infra-cell:last-child { border-right: none; }
+  .infra-cell-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px; }
+  .infra-cell-value { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; }
+  .infra-cell-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .infra-cell-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+  .infra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 56px 16px; }
+  .infra-panel { background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; padding: 14px 18px; }
+  .infra-panel-title { font-size: 11px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .infra-scale { font-size: 8.5px; font-weight: 600; color: var(--ink-4); letter-spacing: 0; text-transform: none; }
+  .infra-table { width: 100%; border-collapse: collapse; }
+  .infra-table td { font-size: 11.5px; color: var(--ink-2); padding: 5px 0; border-bottom: 1px solid var(--rule-lighter); }
+  .infra-table tr:last-child td { border-bottom: none; }
+  .infra-table td.r { text-align: right; font-weight: 600; color: var(--ink); }
+  .infra-pill { display: inline-block; padding: 2px 9px; border-radius: 100px; font-size: 10px; font-weight: 800; letter-spacing: 0.03em; }
+  .infra-pill.good { background: rgba(74,222,128,0.12); color: #15803D; }
+  .infra-pill.warn { background: rgba(244,184,96,0.15); color: #B45309; }
+  .infra-pill.bad  { background: rgba(255,107,107,0.12); color: #B91C1C; }
+  .infra-score { font-variant-numeric: tabular-nums; font-weight: 800; padding: 1px 7px; border-radius: 5px; }
+  .infra-score.good { color: #15803D; } .infra-score.warn { color: #B45309; } .infra-score.bad { background: rgba(255,107,107,0.10); color: #B91C1C; }
+  .infra-feeds, .infra-reasons { margin: 0 56px 14px; font-size: 11px; color: var(--ink-2); }
+  .infra-feeds-label { font-weight: 700; color: var(--ink); margin-right: 6px; }
+  .infra-feeds .infra-pill { margin: 0 4px 4px 0; }
+  .infra-cotenancy { margin: 0 56px 14px; background: rgba(255,107,107,0.04); border: 1px solid rgba(255,107,107,0.20); border-radius: 10px; padding: 12px 16px; }
+  .infra-cotenant { font-size: 11.5px; color: var(--ink-2); line-height: 1.6; }
+  .infra-cotenant code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: rgba(15,23,42,0.05); padding: 1px 5px; border-radius: 4px; }
   /* Teaser CTA */
   .teaser-cta { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: center; background: rgba(0,150,204,0.05); border: 1px solid rgba(0,150,204,0.25); border-radius: 12px; padding: 16px 20px; margin-top: 18px; }
   .teaser-cta-icon { font-size: 22px; text-align: center; }
@@ -1569,6 +1600,79 @@ HEALTH_REPORT_TEMPLATE = r"""
 </div>
 {% endif %}
 
+{# ============ SECTION / INFRASTRUCTURE & ROUTING INTELLIGENCE ============ #}
+{% if "infra_routing" in sections %}
+{% set ns.page = ns.page + 1 %}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">Infrastructure &amp; routing intelligence<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">The quality of the ground you're built on.</h1>
+    <p class="section-headline">Your domain inherits the reputation of the IP, prefix and ASN that host it. Below is what the Datazag corpus knows about that infrastructure &mdash; routing integrity, reputation scoring, active threat-feed listings, and whether you share space with known-malicious domains.</p>
+  </div>
+
+  <div class="infra-overview">
+    <div class="infra-cell"><div class="infra-cell-label">ASN</div><div class="infra-cell-value">{{ infra_routing.asn }}</div><div class="infra-cell-sub">{{ infra_routing.isp }}</div></div>
+    <div class="infra-cell"><div class="infra-cell-label">Announced prefix</div><div class="infra-cell-value mono">{{ infra_routing.prefix }}</div></div>
+    <div class="infra-cell"><div class="infra-cell-label">RPKI</div><div class="infra-cell-value"><span class="infra-pill {{ infra_routing.rpki_class }}">{{ infra_routing.rpki_state }}</span></div></div>
+  </div>
+
+  <div class="infra-grid">
+    <div class="infra-panel">
+      <div class="infra-panel-title">BGP routing posture</div>
+      <table class="infra-table">
+        <tr><td>MOAS detection</td><td class="r">{% if infra_routing.moas %}<span class="infra-pill bad">DETECTED</span>{% else %}<span class="infra-pill good">None</span>{% endif %}</td></tr>
+        <tr><td>Prefix churn</td><td class="r">{{ infra_routing.churn }}</td></tr>
+        <tr><td>MANRS member</td><td class="r">{{ 'Yes' if infra_routing.manrs_member else 'No' }}{% if infra_routing.manrs_status and infra_routing.manrs_status != 'Unknown' %} · {{ infra_routing.manrs_status }}{% endif %}</td></tr>
+        <tr><td>MANRS culprit</td><td class="r">{% if infra_routing.manrs_culprit %}<span class="infra-pill bad">Yes</span>{% else %}No{% endif %}</td></tr>
+      </table>
+    </div>
+    <div class="infra-panel">
+      <div class="infra-panel-title">IP &amp; ASN reputation <span class="infra-scale">0.00 low → 1.00 high</span></div>
+      <table class="infra-table">
+        {% for r in infra_routing.reputation %}
+        <tr><td>{{ r.label }}</td><td class="r"><span class="infra-score {{ r.cls }}">{{ r.val }}</span></td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  {% if infra_routing.listed_feeds %}
+  <div class="infra-feeds">
+    <span class="infra-feeds-label">Active threat-feed listings on this infrastructure:</span>
+    {% for f in infra_routing.listed_feeds %}<span class="infra-pill bad">{{ f }}</span>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if infra_routing.cotenancy %}
+  <div class="infra-cotenancy">
+    <div class="infra-panel-title">Malicious co-tenancy</div>
+    {% for c in infra_routing.cotenancy %}
+    <div class="infra-cotenant"><strong>{{ c.count }}</strong> malicious domains share this {{ c.dimension }} (<code>{{ c.value }}</code>){% if c.examples %} — e.g. {{ c.examples }}{% endif %}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if infra_routing.reason_codes %}
+  <div class="infra-reasons">
+    <span class="infra-feeds-label">Datazag corpus reason codes:</span>
+    {% for rc in infra_routing.reason_codes %}<span class="lure-chip">{{ rc }}</span>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="methodology-card">
+    <h5>How this is assessed</h5>
+    <p>Datazag continuously scores every ASN and BGP prefix in the global routing table against threat feeds (Feodo, URLhaus, ThreatFox, SSLBL, Spamhaus), RPKI validity, MANRS participation, routing anomalies (MOAS / hijack signals), and the density of malicious domains sharing the same infrastructure. Your domain inherits that reputation — clean hosting limits an attacker's options; risky neighbourhoods expand them.</p>
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
+</div>
+{% endif %}
+
 {# ============ PAGE 9 — SECTION 07 / HIDDEN INFRASTRUCTURE ============ #}
 {% if "hidden_infra" in sections %}
 {% set ns.page = ns.page + 1 %}
@@ -2022,6 +2126,26 @@ class HealthReportRenderer:
                             A(f"    - Fix: {c['action']}")
                     A("")
 
+        # ── Infrastructure & routing intelligence ────────────────────────
+        if "infra_routing" in secs:
+            ir = self._build_infra_routing()
+            A("## Infrastructure & routing intelligence")
+            A("")
+            A(f"- ASN **{ir['asn']}** ({ir['isp']}) · prefix `{ir['prefix']}` · RPKI **{ir['rpki_state']}**")
+            A(f"- MOAS: {'**DETECTED**' if ir['moas'] else 'none'} · prefix churn {ir['churn']} · "
+              f"MANRS member {'yes' if ir['manrs_member'] else 'no'}"
+              + ("· **MANRS culprit**" if ir['manrs_culprit'] else ""))
+            for r in ir["reputation"]:
+                A(f"- {r['label']}: {r['val']}")
+            if ir["listed_feeds"]:
+                A(f"- **Active threat-feed listings:** {', '.join(ir['listed_feeds'])}")
+            for c in ir["cotenancy"]:
+                A(f"- **{c['count']}** malicious domains share this {c['dimension']} ({c['value']})"
+                  + (f" — e.g. {c['examples']}" if c['examples'] else ""))
+            if ir["reason_codes"]:
+                A(f"- Corpus reason codes: {', '.join(ir['reason_codes'])}")
+            A("")
+
         # ── Hidden infrastructure ────────────────────────────────────────
         if "hidden_infra" in secs:
             A("## Hidden infrastructure")
@@ -2386,6 +2510,8 @@ class HealthReportRenderer:
             "controls_audit":    self._controls_categories(),
             "controls_summary":  self._controls_summary(),
             "dmarc_mandate_callout": (self.ea.get("dmarc_policy") or "") != "reject",
+            # Infrastructure & routing intelligence (IP / prefix / ASN quality)
+            "infra_routing":     self._build_infra_routing(),
             # Section 07 — Hidden infrastructure
             "registration":           self._build_registration(),
             "estate_high":            self._estate_count("high"),
@@ -2569,6 +2695,57 @@ class HealthReportRenderer:
                 bits.append("DNSSEC not enabled")
 
         return bits[:3]
+
+    # ----- Section: Infrastructure & routing intelligence ------------------
+
+    @staticmethod
+    def _risk_class01(v: float) -> str:
+        """Severity class for a 0–1 risk score."""
+        return "bad" if v > 0.5 else "warn" if v > 0.25 else "good"
+
+    def _build_infra_routing(self) -> dict[str, Any]:
+        """IP / prefix / ASN quality from the medallion view-model (routing
+        integrity + reputation + threat-feed listings + malicious co-tenancy).
+        ASN org name comes from the live-scan technographics when present."""
+        t, th = self.vm.trust, self.vm.threat
+        isp = (self.tech or {}).get("isp_name") or (self.tech or {}).get("mx_provider_name") or "—"
+
+        cotenancy = []
+        for pf in th.pivot_findings:
+            if pf.malicious_count > 0:
+                cotenancy.append({
+                    "dimension": pf.dimension or "asn",
+                    "value": pf.value or "—",
+                    "count": pf.malicious_count,
+                    "examples": ", ".join(pf.examples[:3]) if pf.examples else "",
+                })
+
+        def f2(x: float) -> str:
+            return f"{x:.2f}"
+
+        return {
+            "asn":            f"AS{t.asn}" if t.asn else "—",
+            "prefix":         t.prefix or "—",
+            "isp":            isp,
+            "rpki_state":     t.rpki_state.upper(),
+            "rpki_class":     "good" if t.rpki_state == "valid" else "bad" if t.rpki_state == "invalid" else "warn",
+            "moas":           t.moas_detected,
+            "churn":          t.prefixes_churn_total,
+            "manrs_member":   t.is_manrs_member,
+            "manrs_status":   t.manrs_status,
+            "manrs_culprit":  t.is_manrs_culprit,
+            "reputation": [
+                {"label": "ASN infrastructure risk", "val": f2(th.infra_score),            "cls": self._risk_class01(th.infra_score)},
+                {"label": "IP direct threat score",  "val": f2(th.ip_direct_threat_score),  "cls": self._risk_class01(th.ip_direct_threat_score)},
+                {"label": "Fast-flux risk",          "val": f2(th.fast_flux_risk),          "cls": self._risk_class01(th.fast_flux_risk)},
+                {"label": "DGA risk",                "val": f2(th.dga_risk),                "cls": self._risk_class01(th.dga_risk)},
+                {"label": "Concentration risk",      "val": f2(th.concentration_risk),      "cls": self._risk_class01(th.concentration_risk)},
+                {"label": "CertStream hits",         "val": str(th.certstream_hits),        "cls": "bad" if th.certstream_hits > 0 else "good"},
+            ],
+            "listed_feeds":   th.listed_feeds,
+            "reason_codes":   th.reason_codes,
+            "cotenancy":      cotenancy,
+        }
 
     # ----- Priorities ------------------------------------------------------
 
@@ -3852,6 +4029,8 @@ class HealthReportRenderer:
              "desc": "Lookalike domains, suspicious certificates, and typosquats targeting your own brand &mdash; the campaigns aimed at your customers, not your staff."},
             {"title": "Outbound posture", "kind": "findings", "section": "controls",
              "desc": "Your domain authentication: DMARC, SPF, BIMI, CAA, MTA-STS. The technical defences that constrain how far a brand-impersonation campaign can travel."},
+            {"title": "Infrastructure &amp; routing intelligence", "kind": "findings", "section": "infra_routing",
+             "desc": "The quality of the IP, prefix and ASN your domain is hosted on &mdash; RPKI/MOAS routing integrity, ASN/IP reputation, threat-feed listings, and malicious co-tenancy in the Datazag corpus."},
             {"title": "Hidden infrastructure", "kind": "findings", "section": "hidden_infra",
              "desc": "Forgotten subdomains, dormant services, certificate hygiene across your wider estate &mdash; the assets attackers find that you may not know exist."},
             {"title": "Twelve-month timeline", "kind": "findings", "section": "timeline",

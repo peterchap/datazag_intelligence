@@ -241,6 +241,8 @@ class TrustSurface(BaseModel):
     mx_type: str = "unknown"
     mx_risk_score: float = 0.0
     # routing integrity
+    asn: int = 0
+    prefix: Optional[str] = None
     rpki_state: str = "unknown"
     is_manrs_member: bool = False
     manrs_status: str = "Unknown"
@@ -478,6 +480,8 @@ def build_view_models(
         modern_security_present=di.email_security.modern_security_present,
         mx_type=di.email_security.mx_type,
         mx_risk_score=di.email_security.mx_risk_score,
+        asn=di.facts.asn,
+        prefix=di.facts.prefix,
         rpki_state=di.routing.rpki_state,
         is_manrs_member=di.facts.is_manrs_member,
         manrs_status=di.facts.manrs_status,

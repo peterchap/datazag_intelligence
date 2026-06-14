@@ -74,9 +74,9 @@ def test_flagship_full_renders():
     assert SENSITIVE_OWN_BRAND in html
     assert "41" in html                       # microsoft365 count_30d
     assert "Platforms targeted" in html
-    # all 12 pages, dynamic numbering intact
-    assert "Page 1 of 12" in html
-    assert "Page 12 of 12" in html
+    # all 13 pages (incl. infra & routing intelligence), dynamic numbering intact
+    assert "Page 1 of 13" in html
+    assert "Page 13 of 13" in html
     # medallion findings drive the priorities/infra side
     assert "Trust Grade" in html or "trust grade" in html.lower()
 
@@ -164,6 +164,34 @@ def test_teaser_masks_lookalike_domains():
 # ---------------------------------------------------------------------------
 # Teaser tier — redaction must hold in the rendered source
 # ---------------------------------------------------------------------------
+
+def test_infra_routing_section():
+    """IP / prefix / ASN quality section — the piece flagged as missing vs the
+    old reports. Every datapoint comes from the medallion view-model."""
+    vm = _sample_vm()
+    r = HealthReportRenderer(vm, audience="flagship")
+    ir = r._build_infra_routing()
+    assert ir["asn"] == "AS64500"
+    assert ir["rpki_class"] == "bad"          # rpki_state invalid
+    assert ir["moas"] is True
+    assert any(x["label"].startswith("ASN infrastructure") for x in ir["reputation"])
+    html = r.to_html()
+    assert "routing intelligence" in html.lower()
+    assert "AS64500" in html
+    assert "INVALID" in html                  # RPKI pill
+    assert "malicious domains share this asn" in html   # concentration co-tenancy
+    assert "64500" in html
+    # markdown carries it too
+    md = r.to_markdown()
+    assert "## Infrastructure & routing intelligence" in md
+    assert "AS64500" in md
+
+
+def test_infra_routing_in_remediation_not_external_threat():
+    vm = _sample_vm()
+    assert "infra_routing" in [s for s in __import__("healthreport.audiences", fromlist=["get_audience"]).get_audience("remediation").sections]
+    assert "infra_routing" not in __import__("healthreport.audiences", fromlist=["get_audience"]).get_audience("external_threat").sections
+
 
 def test_teaser_redacts_specifics():
     html = HealthReportRenderer(_sample_vm(), tier="teaser").to_html()
