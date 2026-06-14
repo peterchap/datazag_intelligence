@@ -2962,7 +2962,9 @@ class HealthReportRenderer:
         asn_risk = t.asn_risk_level if t.asn_risk_level and t.asn_risk_level != "unknown" \
             else (tech.get("asn_risk_level") or "unknown")
         asn_num = t.asn or tech.get("asn") or 0
-        mx_provider = tech.get("mx_provider_name") or "—"
+        # mailbox provider: live-scan annotation first, else the medallion mx_type
+        mx_type = t.mx_type if t.mx_type and t.mx_type != "unknown" else None
+        mx_provider = tech.get("mx_provider_name") or (mx_type.title() if mx_type else None) or "—"
         mx_category = tech.get("mx_mbp_category") or ""
         ns_provider = tech.get("ns_provider_name") or "—"
 
