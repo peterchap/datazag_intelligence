@@ -5,6 +5,9 @@
   "facts": {
     "asn": 64500,
     "prefix": "203.0.113.0/24",
+    "isp": "Evil Hosting Ltd",
+    "isp_country": "RU",
+    "asn_risk_level": "high",
     "is_manrs_member": false,
     "manrs_status": "Unknown",
     "is_manrs_culprit": false

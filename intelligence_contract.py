@@ -50,6 +50,9 @@ class _Base(BaseModel):
 class Facts(_Base):
     asn: int = 0
     prefix: Optional[str] = None
+    isp: Optional[str] = None              # network/org name (from asn_ip4)
+    isp_country: Optional[str] = None
+    asn_risk_level: str = "unknown"
     is_manrs_member: bool = False
     manrs_status: str = "Unknown"
     is_manrs_culprit: bool = False
@@ -243,6 +246,9 @@ class TrustSurface(BaseModel):
     # routing integrity
     asn: int = 0
     prefix: Optional[str] = None
+    isp: Optional[str] = None
+    isp_country: Optional[str] = None
+    asn_risk_level: str = "unknown"
     rpki_state: str = "unknown"
     is_manrs_member: bool = False
     manrs_status: str = "Unknown"
@@ -482,6 +488,9 @@ def build_view_models(
         mx_risk_score=di.email_security.mx_risk_score,
         asn=di.facts.asn,
         prefix=di.facts.prefix,
+        isp=di.facts.isp,
+        isp_country=di.facts.isp_country,
+        asn_risk_level=di.facts.asn_risk_level,
         rpki_state=di.routing.rpki_state,
         is_manrs_member=di.facts.is_manrs_member,
         manrs_status=di.facts.manrs_status,

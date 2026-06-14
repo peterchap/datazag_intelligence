@@ -943,6 +943,12 @@ HEALTH_REPORT_TEMPLATE = r"""
   .infra-cell-value { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; }
   .infra-cell-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
   .infra-cell-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+  .infra-providers { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 56px 16px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; }
+  .infra-prov { padding: 11px 18px; display: flex; flex-direction: column; gap: 2px; }
+  .infra-prov + .infra-prov { border-left: 1px solid var(--rule-lighter); }
+  .infra-prov-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+  .infra-prov-val { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .infra-prov-cat { font-size: 10.5px; font-weight: 500; color: var(--ink-3); }
   .infra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 56px 16px; }
   .infra-panel { background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; padding: 14px 18px; }
   .infra-panel-title { font-size: 11px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
@@ -1683,9 +1689,14 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="infra-overview">
-    <div class="infra-cell"><div class="infra-cell-label">ASN</div><div class="infra-cell-value">{{ infra_routing.asn }}</div><div class="infra-cell-sub">{{ infra_routing.isp }}</div></div>
-    <div class="infra-cell"><div class="infra-cell-label">Announced prefix</div><div class="infra-cell-value mono">{{ infra_routing.prefix }}</div></div>
-    <div class="infra-cell"><div class="infra-cell-label">RPKI</div><div class="infra-cell-value"><span class="infra-pill {{ infra_routing.rpki_class }}">{{ infra_routing.rpki_state }}</span></div></div>
+    <div class="infra-cell"><div class="infra-cell-label">Hosting network (ASN)</div><div class="infra-cell-value">{{ infra_routing.asn }}</div><div class="infra-cell-sub">{{ infra_routing.isp }}</div></div>
+    <div class="infra-cell"><div class="infra-cell-label">Country</div><div class="infra-cell-value">{{ infra_routing.country }}</div><div class="infra-cell-sub">ASN risk: <span class="infra-pill {{ infra_routing.asn_risk_class }}">{{ infra_routing.asn_risk }}</span></div></div>
+    <div class="infra-cell"><div class="infra-cell-label">Announced prefix</div><div class="infra-cell-value mono">{{ infra_routing.prefix }}</div><div class="infra-cell-sub">RPKI <span class="infra-pill {{ infra_routing.rpki_class }}">{{ infra_routing.rpki_state }}</span></div></div>
+  </div>
+
+  <div class="infra-providers">
+    <div class="infra-prov"><span class="infra-prov-label">Mailbox provider</span><span class="infra-prov-val">{{ infra_routing.mx_provider }}{% if infra_routing.mx_category %} <span class="infra-prov-cat">({{ infra_routing.mx_category }})</span>{% endif %}</span></div>
+    <div class="infra-prov"><span class="infra-prov-label">Nameserver provider</span><span class="infra-prov-val">{{ infra_routing.ns_provider }}</span></div>
   </div>
 
   <div class="infra-grid">
@@ -2256,7 +2267,11 @@ class HealthReportRenderer:
             ir = self._build_infra_routing()
             A("## Infrastructure & routing intelligence")
             A("")
-            A(f"- ASN **{ir['asn']}** ({ir['isp']}) · prefix `{ir['prefix']}` · RPKI **{ir['rpki_state']}**")
+            A(f"- Hosting network **{ir['asn']}** ({ir['isp']}) · {ir['country']} · "
+              f"ASN risk **{ir['asn_risk']}** · prefix `{ir['prefix']}` · RPKI **{ir['rpki_state']}**")
+            A(f"- Mailbox provider: {ir['mx_provider']}"
+              + (f" ({ir['mx_category']})" if ir['mx_category'] else "")
+              + f" · Nameserver provider: {ir['ns_provider']}")
             A(f"- MOAS: {'**DETECTED**' if ir['moas'] else 'none'} · prefix churn {ir['churn']} · "
               f"MANRS member {'yes' if ir['manrs_member'] else 'no'}"
               + ("· **MANRS culprit**" if ir['manrs_culprit'] else ""))
@@ -2939,7 +2954,17 @@ class HealthReportRenderer:
         integrity + reputation + threat-feed listings + malicious co-tenancy).
         ASN org name comes from the live-scan technographics when present."""
         t, th = self.vm.trust, self.vm.threat
-        isp = (self.tech or {}).get("isp_name") or (self.tech or {}).get("mx_provider_name") or "—"
+        tech = self.tech or {}
+        # Prefer the medallion (riskscore single source of truth); fall back to the
+        # live-scan annotation only when the medallion didn't carry it.
+        isp = t.isp or tech.get("isp_name") or "—"
+        country = t.isp_country or tech.get("isp_country") or "—"
+        asn_risk = t.asn_risk_level if t.asn_risk_level and t.asn_risk_level != "unknown" \
+            else (tech.get("asn_risk_level") or "unknown")
+        asn_num = t.asn or tech.get("asn") or 0
+        mx_provider = tech.get("mx_provider_name") or "—"
+        mx_category = tech.get("mx_mbp_category") or ""
+        ns_provider = tech.get("ns_provider_name") or "—"
 
         cotenancy = []
         for pf in th.pivot_findings:
@@ -2955,9 +2980,15 @@ class HealthReportRenderer:
             return f"{x:.2f}"
 
         return {
-            "asn":            f"AS{t.asn}" if t.asn else "—",
+            "asn":            f"AS{asn_num}" if asn_num else "—",
             "prefix":         t.prefix or "—",
             "isp":            isp,
+            "country":        country,
+            "asn_risk":       asn_risk,
+            "asn_risk_class": "bad" if asn_risk in ("high", "critical") else "warn" if asn_risk in ("medium", "elevated") else "good",
+            "mx_provider":    mx_provider,
+            "mx_category":    mx_category,
+            "ns_provider":    ns_provider,
             "rpki_state":     t.rpki_state.upper(),
             "rpki_class":     "good" if t.rpki_state == "valid" else "bad" if t.rpki_state == "invalid" else "warn",
             "moas":           t.moas_detected,

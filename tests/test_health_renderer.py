@@ -233,11 +233,24 @@ def test_infra_routing_section():
     """IP / prefix / ASN quality section — the piece flagged as missing vs the
     old reports. Every datapoint comes from the medallion view-model."""
     vm = _sample_vm()
-    r = HealthReportRenderer(vm, audience="flagship")
+    # medallion ISP/country/risk + a live-scan MX/NS provider annotation
+    legacy = {"domain": "riskyexample.com",
+              "technographics": {"mx_provider_name": "Microsoft", "mx_mbp_category": "Email Service Provider",
+                                 "ns_provider_name": "Cloudflare"}}
+    r = HealthReportRenderer(vm, audience="flagship", legacy=legacy)
     ir = r._build_infra_routing()
     assert ir["asn"] == "AS64500"
     assert ir["rpki_class"] == "bad"          # rpki_state invalid
     assert ir["moas"] is True
+    # ISP/country/risk (from the medallion facts) + providers (from live scan)
+    assert ir["isp"] == "Evil Hosting Ltd"
+    assert ir["country"] == "RU"
+    assert ir["asn_risk"] == "high" and ir["asn_risk_class"] == "bad"
+    assert ir["mx_provider"] == "Microsoft"
+    assert ir["ns_provider"] == "Cloudflare"
+    html2 = r.to_html()
+    assert "Evil Hosting Ltd" in html2 and "Mailbox provider" in html2 and "Microsoft" in html2
+    assert "Nameserver provider" in html2
     assert any(x["label"].startswith("ASN infrastructure") for x in ir["reputation"])
     html = r.to_html()
     assert "routing intelligence" in html.lower()
