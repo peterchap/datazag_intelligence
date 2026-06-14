@@ -102,6 +102,14 @@ def test_detect_platforms_dedups():
     assert plats == ["Microsoft 365", "Okta", "Mailchimp", "Cloudflare"]
 
 
+def test_detect_platforms_filters_non_platforms():
+    out = {**SAMPLE_OUTPUT,
+           "txt_intelligence": {"all_identified": ["Microsoft 365", "SPF Policy", "Okta"]}}
+    plats = rp.detect_platforms(out)
+    assert "Microsoft 365" in plats and "Okta" in plats
+    assert not any("spf" in p.lower() for p in plats)
+
+
 def test_fallback_asn_ip():
     assert rp.fallback_asn_ip(SAMPLE_OUTPUT) == (64500, "203.0.113.10")
     assert rp.fallback_asn_ip({}) == (None, None)

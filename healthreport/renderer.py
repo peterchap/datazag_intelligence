@@ -218,6 +218,30 @@ DEFAULT_PLATFORM_ENTRY = {
     "why": "Identity platform — credentials may unlock account access.",
 }
 
+# Email-auth / DNS concepts that leak out of txt_intelligence or SPF parsing but
+# are NOT trusted platforms — they must never be rendered as part of the stack
+# ("SPF Policy" showing as a SaaS platform the customer 'uses' kills credibility).
+_NON_PLATFORM_NAMES = {
+    "spf", "spf policy", "spf record", "dmarc", "dmarc policy", "dmarc record",
+    "dkim", "dkim policy", "dnssec", "caa", "bimi", "mta sts", "tls rpt",
+    "email authentication", "verification", "security txt", "txt", "dns",
+    "ns", "mx", "a record", "aaaa", "cname",
+}
+
+
+def _norm_platform_display(s: str) -> str:
+    """Normalise a platform name for stop-list comparison: lowercase, and
+    collapse separators/punctuation to single spaces."""
+    out = []
+    for ch in (s or "").lower():
+        out.append(ch if ch.isalnum() else " ")
+    return " ".join("".join(out).split())
+
+
+def is_platform_name(s: str) -> bool:
+    """False for email-auth/DNS tokens that must not appear as platforms."""
+    return bool((s or "").strip()) and _norm_platform_display(s) not in _NON_PLATFORM_NAMES
+
 
 # Patterns to match TXT records back to their owning vendor.
 # Each pattern is a lowercase substring that, when found in a TXT record,
@@ -2467,21 +2491,26 @@ class HealthReportRenderer:
                 "when": "Fortnight",
             })
         elif vendors:
+            # No impersonation observed in the window — do NOT claim an active
+            # campaign (that contradicts the "Monitoring / no matches" state shown
+            # elsewhere). Frame it as preventative readiness on the top target.
             top = vendors[0]
             priorities.append({
-                "severity": "crit",
-                "severity_label": "Critical",
+                "severity": "medium",
+                "severity_label": "Preventative",
                 "surface": "vendor",
                 "surface_label": "Platform",
                 "surface_glyph": "▲",
-                "title": f"Active impersonation campaign against {top['name']} likely",
-                "action": (f"Brief staff who use the {top['name']} tenant on the active phishing wave; "
-                           "verify MFA enforcement on the tenant and review session timeouts."),
-                "why": (f"{top['name']} is the most-impersonated trusted platform in our certificate-issuance "
-                        "data. Tenants matching your profile are routinely targeted."),
-                "owner": "Marketing/IT ops",
+                "title": f"Stay ready for {top['name']} impersonation — no active campaign right now",
+                "action": (f"No live impersonation of {top['name']} in the last 30 days. As your "
+                           "highest-value platform target, keep staff briefed on its phishing "
+                           "patterns and ensure phishing-resistant MFA is enforced."),
+                "why": (f"{top['name']} is among the most-impersonated platforms in our "
+                        "certificate-issuance data; campaigns are intermittent, so quiet today "
+                        "doesn't mean quiet next month — readiness is the control."),
+                "owner": "IT ops / security",
                 "effort": "< 1 day",
-                "when": "Fortnight",
+                "when": "Quarter",
             })
 
         # 2. Brand priority — own-brand lookalikes first, then DMARC
@@ -2593,6 +2622,8 @@ class HealthReportRenderer:
         for category in ("saas_platforms", "identity_providers", "payment_processors",
                          "ai_infrastructure", "security_tooling", "email_marketing"):
             for svc in ti.get(category, []):
+                if not is_platform_name(svc):
+                    continue   # drop email-auth/DNS tokens (e.g. "SPF Policy")
                 key = self._normalise_vendor_name(svc)
                 txt_matches = _match_txt_for_vendor(key)
                 if txt_matches:
@@ -2647,6 +2678,8 @@ class HealthReportRenderer:
         # above; in snapshot/fixture mode they are the only source.
         existing_norms = {self._norm_platform_key(k) for k in evidence_map}
         for platform in self.vm.external_threat.detected_platforms:
+            if not is_platform_name(platform):
+                continue
             key = self._normalise_vendor_name(platform)
             if self._norm_platform_key(key) not in existing_norms:
                 existing_norms.add(self._norm_platform_key(key))

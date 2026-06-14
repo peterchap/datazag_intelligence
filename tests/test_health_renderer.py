@@ -117,6 +117,43 @@ def test_lookalike_candidates_separate_from_headline():
     assert d["external_threat"]["own_brand_lookalikes_30d"] == 6
 
 
+def test_is_platform_name_stoplist():
+    from healthreport.renderer import is_platform_name
+    assert is_platform_name("Google Workspace")
+    assert is_platform_name("Microsoft 365")
+    assert not is_platform_name("SPF Policy")
+    assert not is_platform_name("spf_policy")
+    assert not is_platform_name("DMARC")
+    assert not is_platform_name("")
+
+
+def test_spf_policy_not_rendered_as_platform():
+    """Regression: 'SPF Policy' leaked from txt_intelligence into the stack on
+    the first live report. It must never appear as a detected platform."""
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    vm = build_view_models(di, detected_platforms=["Google Workspace", "SPF Policy"],
+                           impersonations=[], findings=derive_findings(di, []))
+    r = HealthReportRenderer(vm)
+    names = [v["name"] for v in r._build_vendor_list()]
+    assert "Google Workspace" in names
+    assert not any("spf" in n.lower() for n in names)
+
+
+def test_platform_priority_preventative_when_no_impersonation():
+    """Regression: with zero observed impersonations the platform priority must
+    NOT claim a 'Critical active campaign likely' — that contradicted the
+    'Monitoring / no matches' state shown elsewhere."""
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    vm = build_view_models(di, detected_platforms=["Google Workspace"],
+                           impersonations=[], findings=derive_findings(di, []))
+    r = HealthReportRenderer(vm)
+    plat = next(p for p in r._build_priorities() if p["surface"] == "vendor")
+    assert plat["severity"] == "medium"
+    assert "likely" not in plat["title"].lower()
+    html = r.to_html()
+    assert "Active impersonation campaign against" not in html
+
+
 def test_teaser_masks_lookalike_domains():
     html = HealthReportRenderer(_sample_vm(), tier="teaser").to_html()
     assert "rnicrosoft365.com" not in html

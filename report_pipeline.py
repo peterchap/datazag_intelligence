@@ -40,7 +40,7 @@ from findings_rules import derive_findings
 
 # Audiences/tiers live with the engine so there is one source of truth.
 from healthreport.audiences import AUDIENCES, TIERS
-from healthreport.renderer import HealthReportRenderer
+from healthreport.renderer import HealthReportRenderer, is_platform_name
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +103,8 @@ def detect_platforms(output: dict) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for n in names:
+        if not is_platform_name(n):   # drop email-auth/DNS tokens (e.g. "SPF Policy")
+            continue
         k = (n or "").strip().lower()
         if k and k not in seen:
             seen.add(k)
