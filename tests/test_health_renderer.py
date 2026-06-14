@@ -261,15 +261,64 @@ def test_legacy_dict_enriches_render():
 # Other formats
 # ---------------------------------------------------------------------------
 
-def test_markdown_and_dict():
-    r = HealthReportRenderer(_sample_vm(), tier="full")
-    md = r.to_markdown()
-    assert "External threat — platform impersonation" in md
+def test_markdown_is_full_report():
+    """Markdown must be the full report (all sections), not a short summary."""
+    legacy = {
+        "domain": "riskyexample.com",
+        "email_auth": {"dmarc_policy": "none"},
+        "rdap": {"domain_age_days": 4200, "registrar_name": "Example Registrar"},
+        "subdomains": [
+            {"dns_name": "vpn.riskyexample.com", "risk_level": "high", "days_remaining": 12,
+             "is_takeover_vulnerable": True},
+            {"dns_name": "www.riskyexample.com", "risk_level": "info", "days_remaining": 200},
+        ],
+    }
+    md = HealthReportRenderer(_sample_vm(), tier="full", legacy=legacy).to_markdown()
+    # the three-act arc + the rich sections all present
+    for heading in ("# Datazag", "## The attacker problem", "## Your defence weaknesses",
+                    "## Platform footprint", "## Defensive controls", "## Hidden infrastructure",
+                    "## Three things to address first", "## Implementation-changes roadmap",
+                    "## All findings"):
+        assert heading in md, f"missing section: {heading}"
+    # impersonation detail + subdomains rendered
     assert "microsoft365" in md
-    d = r.to_dict()
+    assert "micros0ft-365-login.com" in md
+    assert "vpn.riskyexample.com" in md           # subdomain table populated
+    assert "threat_feed_feodo" not in md          # findings shown by title, not key
+    assert "Listed on Feodo C2 tracker" in md
+
+
+def test_dict_external_threat_totals():
+    d = HealthReportRenderer(_sample_vm(), tier="full").to_dict()
     assert d["external_threat"]["impersonations_30d"] == 70   # 41+25+4
+    assert d["external_threat"]["lookalike_candidates_30d"] == 11
     assert d["pillars"]["trust"]["score"] > 0
     assert d["tier"] == "full"
+
+
+def test_subdomains_rendered_from_dns_name():
+    """Regression: section 07 read s['host'] but dnsproject uses 'dns_name',
+    so the count showed 10 while the table was blank."""
+    legacy = {
+        "domain": "riskyexample.com",
+        "subdomains": [
+            {"dns_name": "vpn.riskyexample.com", "risk_level": "high", "days_remaining": 9,
+             "is_takeover_vulnerable": True},
+            {"dns_name": "www.riskyexample.com", "risk_level": "info", "days_remaining": 250},
+            {"dns_name": "support.riskyexample.com", "risk_level": "low",
+             "cname_records": ["desk.zoho.com"]},
+        ],
+    }
+    r = HealthReportRenderer(_sample_vm(), legacy=legacy)
+    sample = r._build_subdomain_sample()
+    hosts = [s["host"] for s in sample]
+    assert "vpn.riskyexample.com" in hosts
+    assert "—" not in hosts                       # names resolve, no blank rows
+    html = r.to_html()
+    assert "vpn.riskyexample.com" in html
+    assert 'class="subdomain-sample-table-wrap"' in html
+    # CNAME-based vendor detection now fires (host came from dns_name)
+    assert ("support.riskyexample.com", "desk.zoho.com") in r._subdomain_cname_targets()
 
 
 def _main():

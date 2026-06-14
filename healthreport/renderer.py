@@ -1646,7 +1646,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <span class="meta">{{ subdomain_sample | length }} of {{ subdomain_count }} shown · ordered by risk</span>
     </div>
     <table class="sample-table">
-      <thead><tr><th>Subdomain</th><th>Age</th><th>Notes</th><th class="risk-cell">Risk</th></tr></thead>
+      <thead><tr><th>Subdomain</th><th>Cert</th><th>Notes</th><th class="risk-cell">Risk</th></tr></thead>
       <tbody>
         {% for s in subdomain_sample %}
         <tr>
@@ -1926,42 +1926,160 @@ class HealthReportRenderer:
         return template.render(**ctx)
 
     def to_markdown(self, brand: BrandConfig | None = None) -> str:
-        """Markdown variant for grep/diff workflows. Minimal — the HTML is the
-        canonical output. Markdown carries the structured findings only."""
-        g = self._grade
-        ext = self.vm.external_threat
-        lines = [
-            f"# Datazag {self.audience.title} — {self.domain}",
-            f"",
-            f"**Trust Grade:** {g.letter} — {g.headline}",
-            f"**Score:** {self.display_score}/100  "
-            f"(trust {self.vm.trust.score}/100 · threat {self.vm.threat.score}/100)",
-            f"**Snapshot:** {(self.generated_at or '')[:10]}",
-            f"**Tier:** {self.tier}",
-            "",
-            "## Platform footprint (ordered by attacker desirability)",
-            "",
-        ]
-        for i, v in enumerate(self._build_vendor_list(), 1):
-            lines.append(f"{i}. **{v['name']}** — {v['role']} ({v['tier_label']} desirability)")
-        lines.append("")
-        if ext.impersonations or ext.own_brand.count_30d:
-            lines.append("## External threat — platform impersonation")
-            lines.append("")
-            for imp in ext.impersonations:
-                lines.append(f"- **{imp.platform}**: {imp.count_7d} in 7d / "
-                             f"{imp.count_30d} in 30d ({imp.trend})")
-            if ext.own_brand.count_30d:
-                lines.append(f"- **Own brand**: {ext.own_brand.count_7d} in 7d / "
-                             f"{ext.own_brand.count_30d} in 30d")
-            lines.append("")
-        lines.append("## Three things to address first")
-        lines.append("")
-        for i, p in enumerate(self._build_priorities(), 1):
-            lines.append(f"{i}. **{p['title']}** ({p['severity_label']} · {p['surface_label']})")
-            lines.append(f"   {p['action']}")
-            lines.append("")
-        return "\n".join(lines)
+        """Full markdown rendition of the report — section-for-section parity
+        with the HTML/PDF (for text workflows, diffing, and email). Respects
+        the audience section set and the tier (the view-model is already
+        teaser-redacted before it reaches here)."""
+        vm = self.vm
+        ext = vm.external_threat
+        t, th = vm.trust, vm.threat
+        secs = self.audience.sections
+        L: list[str] = []
+        A = L.append
+
+        A(f"# Datazag {self.audience.title} — {self.domain}")
+        A("")
+        A(f"*{self.tier.title()} edition · snapshot {(self.generated_at or '')[:10]}*")
+        A("")
+        A(f"**Overall Trust Grade: {self._grade.letter} — {self._grade.headline}** "
+          f"({self.display_score}/100)")
+        if not vm.has_intelligence:
+            A("")
+            A("> Not yet assessed — no Datazag corpus intelligence for this domain yet.")
+        A("")
+
+        # ── Act 1: the attacker problem ──────────────────────────────────
+        A("## The attacker problem — platform impersonation")
+        A("")
+        A(f"Grade {self._platform_grade.letter} ({self._platform_score}/100). "
+          "Platform impersonation is the on-ramp to brand impersonation.")
+        A("")
+        actives = self._active_impersonations()
+        if actives:
+            A(f"**{ext.total_30d} lookalike domains across {len(actives)} of your "
+              "platforms (last 30 days):**")
+            for imp in actives:
+                ex = ", ".join(imp.sample_domains[:3]) if imp.sample_domains else "—"
+                A(f"- **{imp.platform}** — {imp.count_7d} in 7d / {imp.count_30d} in 30d "
+                  f"({imp.trend}) · {ex}")
+        else:
+            A("- No active impersonation of your platforms in the last 30 days "
+              "(continuous watch in place).")
+        if ext.own_brand.count_30d:
+            ob = ext.own_brand
+            ex = f" · {', '.join(ob.sample_domains[:3])}" if ob.sample_domains else ""
+            A(f"- Own-brand lookalikes — {ob.count_7d} in 7d / {ob.count_30d} in 30d{ex}")
+        if ext.lookalike_candidates or ext.own_brand_lookalikes.count_30d:
+            A("")
+            A("_Lookalike candidates (lower confidence — fuzzy typosquats, treat as a watchlist):_")
+            for imp in ext.lookalike_candidates:
+                ex = ", ".join(imp.sample_domains[:3]) if imp.sample_domains else "—"
+                A(f"- {imp.platform}: {imp.count_30d} in 30d · {ex}")
+            if ext.own_brand_lookalikes.count_30d:
+                A(f"- Own brand: {ext.own_brand_lookalikes.count_30d} in 30d")
+        A("")
+
+        # ── Act 2: defence weaknesses ────────────────────────────────────
+        A("## Your defence weaknesses — trust & infrastructure")
+        A("")
+        A(f"Trust posture {t.score}/100 · infrastructure/threat {th.score}/100.")
+        A("")
+        A(f"- DMARC: {'**at risk** — not enforced' if t.dmarc_risk else 'enforced'}")
+        A(f"- SPF: {'**not strict**' if t.spf_risk else 'strict'}; "
+          f"modern email controls {'incomplete' if not t.modern_security_present else 'present'}")
+        A(f"- Routing: RPKI {t.rpki_state}; MOAS {'**detected**' if t.moas_detected else 'none'}; "
+          f"MANRS member {'yes' if t.is_manrs_member else 'no'}")
+        if th.listed_feeds:
+            A(f"- **Active threat-feed listings:** {', '.join(th.listed_feeds)}")
+        if th.is_dangling_cname:
+            A(f"- **Dangling CNAME** → {th.cname_target or 'unknown'} (subdomain-takeover exposure)")
+        A("")
+
+        # ── Vendor footprint ─────────────────────────────────────────────
+        if "vendor_footprint" in secs:
+            vendors = self._build_vendor_list()
+            if vendors:
+                A("## Platform footprint (by attacker desirability)")
+                A("")
+                for i, v in enumerate(vendors, 1):
+                    A(f"{i}. **{v['name']}** — {v['role']} ({v['tier_label']} desirability)")
+                A("")
+
+        # ── Defensive controls ───────────────────────────────────────────
+        if "controls" in secs:
+            cats = self._controls_categories()
+            if cats:
+                A("## Defensive controls")
+                A("")
+                for cat in cats:
+                    A(f"### {cat['name']} — {cat['deployed']}/{cat['total']} deployed")
+                    for c in cat["controls"]:
+                        line = f"- **{c.get('name','')}** — {str(c.get('state','')).upper()}"
+                        if c.get("evidence"):
+                            line += f" · {c['evidence']}"
+                        A(line)
+                        if c.get("action"):
+                            A(f"    - Fix: {c['action']}")
+                    A("")
+
+        # ── Hidden infrastructure ────────────────────────────────────────
+        if "hidden_infra" in secs:
+            A("## Hidden infrastructure")
+            A("")
+            rdap = self.rdap or {}
+            if rdap.get("domain_age_days") not in (None, -1):
+                A(f"- Domain age: {rdap.get('domain_age_days')} days · registrar: "
+                  f"{rdap.get('registrar_name') or '—'}")
+            A(f"- {len(self.subdomains)} subdomains observed"
+              + (f" · {self._estate_count('high')} high-risk" if self.subdomains else ""))
+            subs = self._build_subdomain_sample(limit=25)
+            if subs:
+                A("")
+                A("| Subdomain | Cert | Notes | Risk |")
+                A("|---|---|---|---|")
+                for s in subs:
+                    A(f"| `{s['host']}` | {s['age']} | {s['notes']} | {s['risk_label']} |")
+            A("")
+
+        # ── Priorities ───────────────────────────────────────────────────
+        pris = self._build_priorities()
+        if pris:
+            A("## Three things to address first")
+            A("")
+            for i, p in enumerate(pris, 1):
+                A(f"{i}. **{p['title']}** ({p['severity_label']} · {p['surface_label']})")
+                A(f"   {p['action']}")
+                A("")
+
+        # ── Roadmap ──────────────────────────────────────────────────────
+        if "roadmap" in secs:
+            A("## Implementation-changes roadmap")
+            A("")
+            for bucket, label in (("fortnight", "This fortnight"),
+                                  ("quarter", "This quarter"), ("year", "This year")):
+                A(f"**{label}**")
+                items = self._build_roadmap_bucket(bucket)
+                if items:
+                    for it in items:
+                        A(f"- {it['title']} ({it['surface']} · {it['effort']})")
+                else:
+                    A("- —")
+                A("")
+
+        # ── Full findings ────────────────────────────────────────────────
+        if vm.findings:
+            A("## All findings")
+            A("")
+            _order = {"critical": 0, "high": 1, "elevated": 2, "medium": 3, "low": 4, "info": 5}
+            for f in sorted(vm.findings, key=lambda x: _order.get(x.get("severity", "info"), 5)):
+                A(f"- **[{str(f.get('severity', 'info')).upper()}] {f.get('title', '')}**")
+                if f.get("detail"):
+                    A(f"    - {f['detail']}")
+                if f.get("remediation"):
+                    A(f"    - Fix: {f['remediation']}")
+            A("")
+
+        return "\n".join(L)
 
     # ----- Impersonation lookups -------------------------------------------
 
@@ -2742,9 +2860,11 @@ class HealthReportRenderer:
         """
         out: list[tuple[str, str]] = []
         for s in self.subdomains:
-            host = s.get("host") or ""
+            host = s.get("dns_name") or s.get("host") or ""
+            cname_records = s.get("cname_records")
             target = (
-                s.get("cname")
+                (cname_records[0] if isinstance(cname_records, list) and cname_records else "")
+                or s.get("cname")
                 or s.get("cname_target")
                 or s.get("target")
                 or s.get("canonical")
@@ -3091,7 +3211,7 @@ class HealthReportRenderer:
         has_mta_sts = self._capture_field("has_mta_sts", ea, flags)
         mta_sts_mode = (self._capture_field("mta_sts_mode", ea, flags) or "").lower()
         # Fall back to subdomain detection if the upstream hasn't populated the columns
-        mtasts_subs = [s for s in self.subdomains if "mta-sts" in s.get("host", "").lower()]
+        mtasts_subs = [s for s in self.subdomains if "mta-sts" in (s.get("dns_name") or s.get("host") or "").lower()]
         mta_sts_deployed = bool(has_mta_sts) or bool(mtasts_subs)
 
         if mta_sts_deployed and mta_sts_mode == "enforce":
@@ -3390,7 +3510,7 @@ class HealthReportRenderer:
             caa_detail = "Any CA can issue certificates for this domain — rogue cert risk."
 
         # MTA-STS (best-effort: not always present in output dict)
-        mtasts_subs = [s for s in self.subdomains if "mta-sts" in s.get("host", "").lower()]
+        mtasts_subs = [s for s in self.subdomains if "mta-sts" in (s.get("dns_name") or s.get("host") or "").lower()]
         if mtasts_subs:
             mtasts_state, mtasts_class, mtasts_mini = "Configured", "good", "Live"
             mtasts_detail = "MTA-STS policy published; receivers can verify TLS before delivery."
@@ -3580,8 +3700,14 @@ class HealthReportRenderer:
             risk = s.get("risk_level", "info")
             risk_class = "high" if risk in ("critical", "high") else "med" if risk == "medium" else "low"
             risk_label = risk.upper() if risk in ("critical", "high") else risk.title()
-            age = s.get("cert_age_days") or s.get("age_days")
-            age_str = f"{age}d" if age else "—"
+            # cert expiry from the canonical subdomain shape (days_remaining/is_expired)
+            days = s.get("days_remaining")
+            if s.get("is_expired"):
+                cert_str = "cert expired"
+            elif isinstance(days, int):
+                cert_str = f"{days}d cert"
+            else:
+                cert_str = "—"
             notes = []
             if s.get("is_dangling_cname"):           notes.append("dangling CNAME")
             if s.get("is_takeover_vulnerable"):      notes.append("takeover-vulnerable")
@@ -3589,8 +3715,8 @@ class HealthReportRenderer:
             if s.get("is_delegated"):                notes.append("delegated")
             if not notes:                            notes.append("active")
             out.append({
-                "host":       s.get("host", "—"),
-                "age":        age_str,
+                "host":       s.get("dns_name") or s.get("host") or "—",
+                "age":        cert_str,
                 "notes":      ", ".join(notes),
                 "risk_class": risk_class,
                 "risk_label": risk_label,
