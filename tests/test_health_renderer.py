@@ -74,9 +74,9 @@ def test_flagship_full_renders():
     assert SENSITIVE_OWN_BRAND in html
     assert "41" in html                       # microsoft365 count_30d
     assert "Platforms targeted" in html
-    # all 14 pages (incl. full DNS records + infra & routing), numbering intact
-    assert "Page 1 of 14" in html
-    assert "Page 14 of 14" in html
+    # all 15 pages (incl. DNS records, infra/routing, IT remediation), numbering intact
+    assert "Page 1 of 15" in html
+    assert "Page 15 of 15" in html
     # medallion findings drive the priorities/infra side
     assert "Trust Grade" in html or "trust grade" in html.lower()
 
@@ -164,6 +164,39 @@ def test_teaser_masks_lookalike_domains():
 # ---------------------------------------------------------------------------
 # Teaser tier — redaction must hold in the rendered source
 # ---------------------------------------------------------------------------
+
+def test_it_remediation_tearoff():
+    """The back-of-report IT remediation plan: consolidated, severity-sorted,
+    concrete fixes from control gaps + findings — and it lives at the back
+    (after roadmap, before glossary), in flagship/advisory/remediation only."""
+    legacy = {
+        "domain": "riskyexample.com",
+        "email_auth": {"dmarc_policy": "none"},   # → a control-gap action
+        "threat_flags": {"has_caa": False},
+    }
+    r = HealthReportRenderer(_sample_vm(), audience="flagship", legacy=legacy)
+    acts = r._build_remediation_actions()
+    assert acts, "expected remediation actions from control gaps + findings"
+    sevs = [a["severity"] for a in acts]
+    assert sevs == sorted(sevs, key=lambda s: {"critical": 0, "high": 1, "medium": 2}.get(s, 3))
+    assert all(a["step"] for a in acts)          # every row has a concrete fix
+    html = r.to_html()
+    assert "Remediation plan — hand this to your team." in html
+    # rendered as the penultimate section (the section body sits after the roadmap
+    # body and immediately before the glossary section)
+    rem = html.index("Remediation plan — hand this to your team.")
+    roadmap = html.index("The implementation changes that close the gaps.")
+    glossary = html.index("Glossary &amp; methodology") if "Glossary &amp; methodology" in html else html.rindex("Glossary")
+    assert roadmap < rem < glossary
+    assert "## IT remediation plan" in r.to_markdown()
+
+    # audience scoping: in flagship/advisory/remediation, not insurer/external_threat
+    from healthreport.audiences import get_audience
+    for aud in ("flagship", "advisory", "remediation"):
+        assert "remediation_plan" in get_audience(aud).sections
+    for aud in ("insurer", "external_threat"):
+        assert "remediation_plan" not in get_audience(aud).sections
+
 
 def test_dns_records_section():
     """Full DNS records with weakness commentary — the completeness centerpiece."""

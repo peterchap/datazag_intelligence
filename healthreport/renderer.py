@@ -905,6 +905,23 @@ HEALTH_REPORT_TEMPLATE = r"""
   .brand-watchlist-items { margin-bottom: 10px; }
   .brand-watchlist-items .lure-chip { font-size: 11px; padding: 4px 10px; margin: 2px 6px 2px 0; }
   .brand-watchlist-note { font-size: 11px; color: var(--ink-3); line-height: 1.55; margin: 0; }
+  /* IT remediation tear-off */
+  .remediation-list { margin: 0 56px; }
+  .remediation-item { display: grid; grid-template-columns: 34px 1fr 22px; gap: 12px; align-items: start; background: var(--white); border: 1px solid var(--rule-light); border-left: 3px solid var(--ink-4); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; break-inside: avoid; }
+  .remediation-item.critical { border-left-color: #B91C1C; }
+  .remediation-item.high { border-left-color: #EF4444; }
+  .remediation-item.medium { border-left-color: var(--warn); }
+  .rem-rank { font-size: 14px; font-weight: 900; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+  .rem-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .rem-sev { font-size: 8.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 7px; border-radius: 100px; }
+  .rem-sev.critical { background: rgba(185,28,28,0.12); color: #B91C1C; }
+  .rem-sev.high { background: rgba(239,68,68,0.12); color: #DC2626; }
+  .rem-sev.medium { background: rgba(244,184,96,0.16); color: #B45309; }
+  .rem-area { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-4); }
+  .rem-title { font-size: 12.5px; font-weight: 700; color: var(--ink); margin-bottom: 5px; }
+  .rem-current, .rem-step { font-size: 11px; line-height: 1.5; color: var(--ink-2); margin-top: 2px; }
+  .rem-label { font-weight: 700; color: var(--ink-3); }
+  .rem-check { width: 18px; height: 18px; border: 1.5px solid var(--rule-light); border-radius: 4px; margin-top: 2px; }
   /* Full DNS records */
   .dns-group { margin: 0 56px 12px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
   .dns-group-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: rgba(15,23,42,0.02); border-bottom: 1px solid var(--rule-light); }
@@ -1910,6 +1927,50 @@ HEALTH_REPORT_TEMPLATE = r"""
 </div>
 {% endif %}
 
+{# ============ SECTION / IT REMEDIATION TEAR-OFF ============ #}
+{% if "remediation_plan" in sections %}
+{% set ns.page = ns.page + 1 %}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">IT remediation plan<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-rule"></span><span class="section-tag pill-action" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
+    <h1 class="section-title-h1">Remediation plan — hand this to your team.</h1>
+    <p class="section-headline">Every actionable fix from this report, consolidated and prioritised by severity. Each row is a self-contained instruction: what's wrong now, and the exact change to make. This page is designed to be detached and given to whoever owns DNS, email, and infrastructure.</p>
+  </div>
+
+  {% if remediation_actions %}
+  <div class="remediation-list">
+    {% for a in remediation_actions %}
+    <div class="remediation-item {{ a.severity }}">
+      <div class="rem-rank">{{ "%02d"|format(loop.index) }}</div>
+      <div class="rem-body">
+        <div class="rem-head"><span class="rem-sev {{ a.severity }}">{{ a.severity|upper }}</span><span class="rem-area">{{ a.area }}</span></div>
+        <div class="rem-title">{{ a.title }}</div>
+        {% if a.current %}<div class="rem-current"><span class="rem-label">Now:</span> {{ a.current }}</div>{% endif %}
+        <div class="rem-step"><span class="rem-label">Fix:</span> {{ a.step }}</div>
+      </div>
+      <div class="rem-check"></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="monitoring-state-panel">
+    <div class="monitoring-state-icon">✓</div>
+    <div class="monitoring-state-body">
+      <h3>No outstanding remediation items.</h3>
+      <p>No partial or missing controls and no actionable high/medium findings were detected in this assessment. Maintain current posture and re-assess on the next snapshot.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
+</div>
+{% endif %}
+
 {# ============ PAGE 12 — SECTION 10 / GLOSSARY ============ #}
 {% if "glossary" in sections %}
 {% set ns.page = ns.page + 1 %}
@@ -2254,6 +2315,22 @@ class HealthReportRenderer:
                     A("- —")
                 A("")
 
+        # ── IT remediation tear-off ──────────────────────────────────────
+        if "remediation_plan" in secs:
+            acts = self._build_remediation_actions()
+            A("## IT remediation plan")
+            A("")
+            if acts:
+                for i, a in enumerate(acts, 1):
+                    A(f"{i}. **[{a['severity'].upper()}] {a['title']}** ({a['area']})")
+                    if a["current"]:
+                        A(f"   - Now: {a['current']}")
+                    A(f"   - Fix: {a['step']}")
+                    A("")
+            else:
+                A("- No outstanding remediation items.")
+                A("")
+
         # ── Full findings ────────────────────────────────────────────────
         if vm.findings:
             A("## All findings")
@@ -2578,6 +2655,8 @@ class HealthReportRenderer:
             "infra_routing":     self._build_infra_routing(),
             # Full DNS records + weakness commentary
             "dns_records_view":  self._build_dns_records(),
+            # IT remediation tear-off (back of report)
+            "remediation_actions": self._build_remediation_actions(),
             # Section 07 — Hidden infrastructure
             "registration":           self._build_registration(),
             "estate_high":            self._estate_count("high"),
@@ -2898,6 +2977,57 @@ class HealthReportRenderer:
             "reason_codes":   th.reason_codes,
             "cotenancy":      cotenancy,
         }
+
+    # ----- Section: IT remediation tear-off (back of report) ---------------
+
+    def _build_remediation_actions(self) -> list[dict[str, Any]]:
+        """Consolidated, de-duplicated, severity-sorted list of concrete fixes
+        for the IT/infrastructure team — drawn from the defensive-controls audit
+        (partial/missing controls and their exact action) and the findings
+        (their remediation). This is the tear-off appendix at the back."""
+        actions: list[dict[str, Any]] = []
+        seen: set[str] = set()
+
+        # 1) Control gaps with a concrete action.
+        for cat in self._controls_categories():
+            for c in cat["controls"]:
+                if c.get("state") in ("partial", "missing") and c.get("action"):
+                    key = c["name"].lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    actions.append({
+                        "title": c["name"],
+                        "severity": "high" if c["state"] == "missing" else "medium",
+                        "area": cat["name"],
+                        "current": c.get("evidence", ""),
+                        "step": c["action"],
+                    })
+
+        # 2) Findings with a remediation (critical/high/medium), not already covered.
+        for f in self.findings:
+            sev = f.get("severity")
+            if sev not in ("critical", "high", "medium"):
+                continue
+            step = f.get("remediation")
+            if not step or step == "Included in the full report.":   # teaser-redacted
+                continue
+            title = f.get("title") or f.get("finding") or "Finding"
+            key = title.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            actions.append({
+                "title": title,
+                "severity": sev,
+                "area": (f.get("category", "") or "finding").replace("_", " ").title(),
+                "current": (f.get("evidence") or "")[:180],
+                "step": step,
+            })
+
+        rank = {"critical": 0, "high": 1, "medium": 2}
+        actions.sort(key=lambda a: rank.get(a["severity"], 3))
+        return actions
 
     # ----- Priorities ------------------------------------------------------
 
@@ -4191,6 +4321,8 @@ class HealthReportRenderer:
              "desc": "Every infrastructure change observed in the past year &mdash; including any that look unusual against your baseline."},
             {"title": "Your minimisation roadmap", "kind": "action", "section": "roadmap",
              "desc": "How to minimise your attack surface, sequenced by impact &mdash; this fortnight, this quarter, this year &mdash; with effort estimates and ownership recommendations."},
+            {"title": "IT remediation plan", "kind": "action", "section": "remediation_plan",
+             "desc": "A detailed, hand-to-the-team work list &mdash; every fix with its current state and the exact step, prioritised by severity. Designed to be detached and given to whoever owns the changes."},
             {"title": "Glossary &amp; methodology", "kind": "context", "section": "glossary",
              "desc": "Plain-English definitions of every technical term used, plus how the evidence behind each finding was gathered."},
         ]
