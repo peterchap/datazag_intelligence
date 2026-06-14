@@ -103,8 +103,10 @@ async def run(
         try:
             vm = await build_view_model(domain, client, live_output=legacy)
         except IntelligenceUnavailable as e:
-            raise SystemExit(f"  Intelligence service unavailable: {e}\n"
-                             "  (check INTELLIGENCE_BASE_URL and that the service is up)")
+            raise SystemExit(
+                f"  Intelligence service unavailable: {e}\n"
+                "  (check INTELLIGENCE_BASE_URL / that the service is up; for slow "
+                "lookups raise INTELLIGENCE_TIMEOUT in .env)")
     else:
         raise ValueError("Must provide either --input_json or --domain")
 

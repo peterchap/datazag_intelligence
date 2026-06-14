@@ -115,6 +115,16 @@ def test_fallback_asn_ip():
     assert rp.fallback_asn_ip({}) == (None, None)
 
 
+def test_client_timeout_default_and_override():
+    from intelligence_client import IntelligenceClient
+    os.environ["INTELLIGENCE_BASE_URL"] = "http://riskscore:8817"
+    os.environ.pop("INTELLIGENCE_TIMEOUT", None)
+    assert IntelligenceClient().timeout.total == 60        # raised from the old 15s
+    os.environ["INTELLIGENCE_TIMEOUT"] = "180"
+    assert IntelligenceClient().timeout.total == 180
+    os.environ.pop("INTELLIGENCE_TIMEOUT", None)
+
+
 def test_is_medallion_payload():
     assert rp.is_medallion_payload(_load("medallion_sample.json")) is True
     assert rp.is_medallion_payload(SAMPLE_OUTPUT) is False

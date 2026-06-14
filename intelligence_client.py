@@ -13,6 +13,7 @@ Config (env):
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Optional
 
@@ -43,8 +44,11 @@ class IntelligenceClient:
     ):
         self.base_url = (base_url or os.environ.get("INTELLIGENCE_BASE_URL", "")).rstrip("/")
         self.api_key = api_key or os.environ.get("INTELLIGENCE_API_KEY", "")
+        # The medallion lookup runs a per-domain query against the snapshot /
+        # gold parquet on the riskscore host, so a cold lookup can take tens of
+        # seconds — 15s was too tight. Default 60s; override via INTELLIGENCE_TIMEOUT.
         self.timeout = aiohttp.ClientTimeout(
-            total=float(timeout or os.environ.get("INTELLIGENCE_TIMEOUT", 15))
+            total=float(timeout or os.environ.get("INTELLIGENCE_TIMEOUT", 60))
         )
         if not self.base_url:
             raise ValueError("INTELLIGENCE_BASE_URL is not set")
@@ -91,6 +95,10 @@ class IntelligenceClient:
                         raise IntelligenceUnavailable(
                             f"service returned {resp.status} for {domain}")
                     data = await resp.json()
+        except asyncio.TimeoutError as e:
+            raise IntelligenceUnavailable(
+                f"intelligence lookup for {domain} exceeded {self.timeout.total:.0f}s "
+                "— raise INTELLIGENCE_TIMEOUT or speed up the server-side query") from e
         except aiohttp.ClientError as e:
             raise IntelligenceUnavailable(str(e)) from e
 
@@ -132,8 +140,8 @@ class IntelligenceClient:
                     if resp.status != 200:
                         return empty
                     data = await resp.json()
-        except aiohttp.ClientError:
-            return empty
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            return empty   # impersonation data is supplementary — never fatal
 
         def _imps(key: str, confidence: str) -> list[PlatformImpersonation]:
             return [PlatformImpersonation.model_validate({**x, "confidence": confidence})
