@@ -919,26 +919,26 @@ HEALTH_REPORT_TEMPLATE = r"""
     </span>
 
     <h1 class="cover-title">
-      Trusted-platform and brand-impersonation attack surface for <span class="cover-domain">{{ domain }}</span>.
+      The attacker problem facing <span class="cover-domain">{{ domain }}</span> &mdash; and the defence gaps that let it through.
     </h1>
 
     <p class="cover-deck">
-      Every digital estate has an attack surface &mdash; the parts of it that an attacker can leverage. This report maps yours from <strong>public DNS, certificate, and registration data</strong> &mdash; no access to your systems required. <strong>The same data is available to bad actors performing reconnaissance.</strong> Two slices follow, and a roadmap to minimise both.
+      Attackers imitate the platforms your staff trust to steal credentials &mdash; then use that access to impersonate <strong>your brand</strong> to <strong>your customers</strong>. This report measures both: the <strong>platform-impersonation activity</strong> already targeting you, and the <strong>trust &amp; infrastructure gaps</strong> in your public DNS that decide how far a campaign can travel. All from public data &mdash; the same data an attacker reads first.
     </p>
 
     <div class="dual-score">
       <div class="dual-score-card platform">
         <div class="dsc-label">
           <span class="dsc-icon">▲</span>
-          Platform attack surface
+          The attacker problem &mdash; platform impersonation
           <span class="dsc-grade-ref">{{ platform_grade.letter }} &middot; {{ platform_score }}/100</span>
         </div>
-        <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms</div>
-        <p class="dsc-qualifier">{{ platform_state.qualifier }}</p>
-        {% if active_campaign_count > 0 %}
-        <p class="dsc-qualifier" style="color:var(--bad);font-weight:600;">
-          ⚠ {{ active_campaign_count }} of your platforms actively impersonated in the last 30 days &mdash; {{ impersonation_total_30d }} lookalike domains observed.
-        </p>
+        {% if impersonation_total_30d > 0 %}
+        <div class="dsc-state" style="color:var(--bad);">{{ impersonation_total_30d }} lookalike domains &mdash; {{ active_campaign_count }} of your platform{{ 's' if active_campaign_count != 1 else '' }} impersonated (30d)</div>
+        <p class="dsc-qualifier">Attackers are imitating the platforms your staff log into every day. <strong>Platform impersonation is the on-ramp to brand impersonation</strong> &mdash; the same playbook then targets your customers, in your name.</p>
+        {% else %}
+        <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms in your stack</div>
+        <p class="dsc-qualifier">No active impersonation of your platforms in the last 30 days &mdash; but every platform here is a lure an attacker can deploy. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
         {% endif %}
         {% if platform_list.platforms %}
         <div class="dsc-platform-list">
@@ -964,13 +964,13 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div class="dual-score-card infra">
         <div class="dsc-label">
           <span class="dsc-icon">◉</span>
-          Infrastructure attack surface
+          Your defence weaknesses &mdash; trust &amp; infrastructure
           <span class="dsc-grade-ref">{{ infra_grade.letter }} &middot; {{ infra_score }}/100</span>
         </div>
         <div class="dsc-state">{{ infra_grade.headline }}</div>
-        <p class="dsc-qualifier">What attackers can exploit if not configured &mdash; DMARC, SPF, BIMI, CAA, certificates, and the subdomains attached to your domain.</p>
+        <p class="dsc-qualifier">The trust and infrastructure gaps in your public DNS &mdash; DMARC, SPF, DNSSEC, CAA, certificates, routing &mdash; that decide <strong>how far a brand-impersonation campaign can travel</strong> once it starts.</p>
         <div class="dsc-actions">
-          <div class="dsc-actions-label">Current state</div>
+          <div class="dsc-actions-label">Open gaps</div>
           <ul class="dsc-actions-list compact">
             {% for bit in infra_summary_bits %}
             <li>{{ bit }}</li>
@@ -978,7 +978,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           </ul>
         </div>
         <p class="dsc-context">
-          Each item is fixable through DNS, certificate, or email-auth changes you control. Detailed minimisation steps in <strong>section 09</strong>.
+          Each gap is fixable through DNS, certificate, or email-auth changes you control. The implementation-changes roadmap is in <strong>section 09</strong>.
         </p>
       </div>
     </div>
@@ -986,15 +986,15 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="overall-grade-band">
       <div class="ogb-letter">{{ grade.letter }}</div>
       <div class="ogb-body">
-        <div class="ogb-label">Overall Trust Grade &middot; how exposed your attack surface is today</div>
+        <div class="ogb-label">Overall Trust Grade &middot; the attacker problem and your defences, combined</div>
         <div class="ogb-headline">{{ grade.headline }}.</div>
         <div class="ogb-detail">
           {% if driving_surface == 'platform' %}
-          Most surface-minimisation payoff is on the platform side &mdash; hardening the platforms attackers most often imitate. Specific actions are in the panel above; deeper detail in section 09.
+          The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. You can&rsquo;t stop the campaigns, but section 09 sequences the defence-side fixes that limit how far they reach your customers.
           {% elif driving_surface == 'infrastructure' %}
-          Most surface-minimisation payoff is on the infrastructure side &mdash; the open items are short-effort DNS, certificate, and email-auth changes. See section 09 for prioritised steps.
+          The bigger driver is your defence weaknesses &mdash; short-effort DNS, certificate, and email-auth gaps that let an impersonation campaign travel further than it should. Section 09 prioritises them.
           {% else %}
-          Both sides of your attack surface warrant attention. Section 09 sequences the minimisation work by impact.
+          Both the attacker problem and your defence weaknesses warrant attention. Section 09 sequences the implementation changes by impact.
           {% endif %}
         </div>
       </div>
@@ -1072,7 +1072,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 01</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">At a glance.</h1>
-    <p class="section-headline"><strong>{{ org_name }}&rsquo;s attack surface is at {{ grade.headline | lower }}.</strong> The platform side &mdash; the trusted technology platforms your staff log into &mdash; is largely a function of normal SaaS dependence; the infrastructure side has several short-effort improvements available. Most minimisation work is in the next 90 days.</p>
+    <p class="section-headline"><strong>{{ org_name }}&rsquo;s exposure is at {{ grade.headline | lower }}.</strong> First, the <strong>attacker problem</strong> &mdash; impersonation activity already aimed at your platforms and your brand. Then your <strong>defence weaknesses</strong> &mdash; the trust and infrastructure gaps that decide how far those campaigns travel. The implementation-changes roadmap in section 09 sequences the fixes.</p>
   </div>
   <div class="grade-band">
     <div class="grade-band-letter">{{ grade.letter }}</div>
@@ -1643,12 +1643,12 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 09 · Your minimisation roadmap<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section 09 · Implementation-changes roadmap<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 09</span><span class="section-rule"></span><span class="section-tag" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
-    <h1 class="section-title-h1">Minimising your attack surface.</h1>
-    <p class="section-headline">Everything from the previous sections, sequenced by impact. <strong>This fortnight</strong> is what you should not wait on; <strong>this quarter</strong> is the substantive minimisation work; <strong>this year</strong> is structural improvement.</p>
+    <h1 class="section-title-h1">The implementation changes that close the gaps.</h1>
+    <p class="section-headline">Your defence weaknesses, sequenced by impact &mdash; the concrete DNS, certificate, and email-auth changes that limit how far the attacker problem can travel. <strong>This fortnight</strong> is what you should not wait on; <strong>this quarter</strong> is the substantive work; <strong>this year</strong> is structural improvement.</p>
   </div>
 
   <div class="roadmap-grid">
