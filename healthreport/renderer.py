@@ -243,6 +243,31 @@ def is_platform_name(s: str) -> bool:
     return bool((s or "").strip()) and _norm_platform_display(s) not in _NON_PLATFORM_NAMES
 
 
+# MX hostnames → owning platform. MX is a STRONG signal: it's where the domain
+# actually receives mail right now, unlike a TXT verification token which only
+# proves someone verified the domain at some point (often stale).
+_VENDOR_MX_PATTERNS: dict[str, list[str]] = {
+    "microsoft 365":    ["protection.outlook.com", "mail.protection.outlook", "outlook.com"],
+    "google workspace": ["aspmx.l.google.com", "googlemail.com", "google.com", "l.google.com"],
+    "mimecast":         ["mimecast.com", "mimecast.co"],
+    "proofpoint":       ["pphosted.com", "ppe-hosted.com", "proofpoint"],
+    "mailchimp":        ["mcsv.net", "mandrillapp.com"],
+    "zoho mail":        ["zoho.com", "zoho.eu", "zohomail"],
+    "fastmail":         ["messagingengine.com", "fastmail"],
+    "barracuda":        ["barracudanetworks.com", "barracuda"],
+}
+
+# Evidence strength: live-routing/active-use signals beat verification tokens.
+# MX (receives mail) and CNAME (a subdomain actively points there) are strongest;
+# SPF includes are active sending config; a TXT verification token / corpus hint
+# is the weakest (may be years stale).
+_EVIDENCE_STRENGTH = {"MX": 4, "CNAME": 4, "SPF": 3, "CORPUS": 2, "STACK": 1, "TXT": 1}
+
+
+def _evidence_strength(evidence: list[dict]) -> int:
+    return max((_EVIDENCE_STRENGTH.get(e["key"], 1) for e in evidence), default=0)
+
+
 # Patterns to match TXT records back to their owning vendor.
 # Each pattern is a lowercase substring that, when found in a TXT record,
 # attributes that record to the named vendor.
@@ -922,6 +947,14 @@ HEALTH_REPORT_TEMPLATE = r"""
   .rem-current, .rem-step { font-size: 11px; line-height: 1.5; color: var(--ink-2); margin-top: 2px; }
   .rem-label { font-weight: 700; color: var(--ink-3); }
   .rem-check { width: 18px; height: 18px; border: 1.5px solid var(--rule-light); border-radius: 4px; margin-top: 2px; }
+  /* External-threat compact summary */
+  .es-block { margin: 0 56px 16px; }
+  .es-label { font-size: 11px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .es-note { font-weight: 600; color: var(--ink-4); text-transform: none; letter-spacing: 0; font-size: 9.5px; margin-left: 6px; }
+  .es-foot { font-size: 9.5px; color: var(--ink-3); line-height: 1.5; margin: 4px 0 0; }
+  .es-line { font-size: 12px; color: var(--ink-2); line-height: 1.7; margin: 0; }
+  .es-line.muted { color: var(--ink-3); font-size: 11px; }
+  .es-empty { font-size: 11.5px; color: var(--ink-3); font-style: italic; margin: 0; }
   /* Full DNS records */
   .dns-group { margin: 0 56px 12px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 10px; overflow: hidden; }
   .dns-group-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: rgba(15,23,42,0.02); border-bottom: 1px solid var(--rule-light); }
@@ -1115,6 +1148,85 @@ HEALTH_REPORT_TEMPLATE = r"""
     <span>Datazag Health Report · Confidential</span>
     <span class="right">Page {{ ns.page }} of {{ total_pages }}</span>
   </div>
+</div>
+{% endif %}
+
+{# ============ STANDALONE COMPACT — EXTERNAL THREAT SUMMARY ============ #}
+{% if "external_summary" in sections %}
+{% set ns.page = ns.page + 1 %}
+<div class="page light">
+  <div class="topbar">
+    {{ brand_block(light=True) }}
+    <div class="topbar-right"><div class="topbar-id">External threat<strong>{{ domain }}</strong></div></div>
+  </div>
+  <div class="section-id-bar">
+    <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <h1 class="section-title-h1">Who is impersonating {{ org_name }}.</h1>
+    <p class="section-headline">Lookalike domains observed in certificate-transparency logs over the last 7 and 30 days &mdash; impersonating the platforms <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain }}</code> uses (staff-phishing) and the <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code> brand itself (customer-phishing).</p>
+  </div>
+
+  <div class="footprint-summary">
+    <div class="footprint-stat"><div class="footprint-stat-num{% if impersonation_total_30d > 0 %} alert{% endif %}">{{ impersonation_total_30d }}</div><div class="footprint-stat-label">Platform lookalikes · 30d</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num">{{ impersonation_total_7d }}</div><div class="footprint-stat-label">· 7d</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num">{{ active_campaign_count }}</div><div class="footprint-stat-label">Platforms targeted</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num{% if own_brand.count_30d > 0 %} alert{% endif %}">{{ own_brand.count_30d }}</div><div class="footprint-stat-label">Own-brand · 30d</div></div>
+  </div>
+
+  <div class="es-block">
+    <div class="es-label">Detected platform stack <span class="es-note">strongest signal first</span></div>
+    <table class="vendor-table">
+      <thead><tr><th>Platform</th><th>Signal</th><th>Confidence</th></tr></thead>
+      <tbody>
+        {% for v in vendors %}
+        <tr>
+          <td class="name-cell">{{ v.name }}</td>
+          <td class="evi-cell">{{ v.evidence_short }}</td>
+          <td><span class="infra-pill {{ 'good' if v.confidence == 'confirmed' else 'warn' }}">{{ v.confidence }}</span></td>
+        </tr>
+        {% endfor %}
+        {% if not vendors %}<tr><td colspan="3" style="color:var(--ink-3)">No platforms detected from DNS.</td></tr>{% endif %}
+      </tbody>
+    </table>
+    <p class="es-foot">Confidence: <strong>confirmed</strong> = live mail-routing (MX), active subdomain (CNAME) or send config (SPF); <strong>indicative</strong> = a verification token only (may be stale).</p>
+  </div>
+
+  <div class="es-block">
+    <div class="es-label">Active platform impersonation <span class="es-note">last 7 / 30 days</span></div>
+    {% if active_campaigns %}
+    <table class="vendor-table">
+      <thead><tr><th>Platform</th><th>7d</th><th>30d</th><th>Trend</th><th>Sample lookalikes</th></tr></thead>
+      <tbody>
+        {% for imp in active_campaigns %}
+        <tr>
+          <td class="name-cell">{{ imp.platform }}</td>
+          <td class="rank-cell">{{ imp.count_7d }}</td>
+          <td class="rank-cell">{{ imp.count_30d }}</td>
+          <td><span class="trend-pill {{ imp.trend }}">{% if imp.trend == 'up' %}↑{% elif imp.trend == 'down' %}↓{% else %}→{% endif %}</span></td>
+          <td class="evi-cell">{% for d in imp.sample_domains[:3] %}<span class="lure-chip">{{ d }}</span>{% endfor %}{% if not imp.sample_domains %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="es-empty">No active impersonation of your platforms observed in the last 30 days. Continuous watch in place.</p>
+    {% endif %}
+  </div>
+
+  <div class="es-block">
+    <div class="es-label">Brand lookalikes <span class="es-note">typosquats of {{ domain_root }}</span></div>
+    {% if own_brand.count_30d > 0 or own_brand.sample_domains %}
+    <p class="es-line"><strong>{{ own_brand.count_30d }}</strong> in 30 days ({{ own_brand.count_7d }} this week):
+      {% for d in own_brand.sample_domains %}<span class="lure-chip">{{ d }}</span>{% endfor %}</p>
+    {% else %}
+    <p class="es-empty">No brand lookalikes observed in the current window.</p>
+    {% endif %}
+    {% if own_brand_lookalikes.count_30d > 0 %}
+    <p class="es-line muted">Plus {{ own_brand_lookalikes.count_30d }} lower-confidence typosquat candidate(s).</p>
+    {% endif %}
+  </div>
+
+  <div class="toc-spacer"></div>
+  <div class="cover-footer"><span>Datazag External Threat Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
 {% endif %}
 
@@ -3251,14 +3363,22 @@ class HealthReportRenderer:
                         "val": "technographic match",
                     })
 
-        # MX provider
+        # MX provider — classify the actual MX hostnames (strong, live signal),
+        # not the now-dead annotation's mx_provider field. The host that receives
+        # the domain's mail outranks any TXT verification token.
+        mx_records = self.dns.get("mx", []) or []
+        for m in mx_records:
+            mx_host = (m.get("host") if isinstance(m, dict) else str(m)) or ""
+            mxl = mx_host.lower()
+            for vendor_key, patterns in _VENDOR_MX_PATTERNS.items():
+                if any(p in mxl for p in patterns):
+                    evidence_map.setdefault(vendor_key, []).append({"key": "MX", "val": mx_host})
+                    break
+        # Annotation fallback (only if it ever repopulates)
         mx_provider = self.infra.get("mx_provider")
-        if mx_provider:
+        if mx_provider and not any(e["key"] == "MX" for evs in evidence_map.values() for e in evs):
             key = self._normalise_vendor_name(mx_provider)
-            mx_records = self.dns.get("mx", []) or []
-            mx_host = (mx_records[0]["host"] if mx_records and isinstance(mx_records[0], dict)
-                       else (mx_records[0] if mx_records else mx_provider))
-            evidence_map.setdefault(key, []).append({"key": "MX", "val": str(mx_host)})
+            evidence_map.setdefault(key, []).append({"key": "MX", "val": str(mx_provider)})
 
         # SPF includes — emit one evidence pill per detected include
         for txt in txt_records:
@@ -3318,6 +3438,7 @@ class HealthReportRenderer:
             tier_label = {"high": "High", "med-high": "Med-high", "med": "Med", "low": "Low"}[tier]
             tier_short = {"high": "med", "med-high": "med", "med": "med", "low": "low"}[tier]
             imp = self._impersonation_for(name_key)
+            strength = _evidence_strength(evidence)
             vendors.append({
                 "name":             self._display_name(name_key),
                 "name_key":         name_key,
@@ -3329,10 +3450,16 @@ class HealthReportRenderer:
                 "weight":           entry["weight"],
                 "evidence":         evidence,
                 "evidence_short":   ", ".join(f"{e['key']}: {e['val']}" for e in evidence[:2]),
+                "strength":         strength,
+                # confidence: "confirmed" when there's live-routing/active-use
+                # evidence (MX/CNAME/SPF); "indicative" for a verification token alone.
+                "confidence":       "confirmed" if strength >= 3 else "indicative",
                 "impersonation":    imp,
             })
 
-        vendors.sort(key=lambda v: -v["weight"])
+        # Rank: confirmed (live-use) evidence first, then by attacker desirability.
+        # So MX→Microsoft 365 outranks a Google Workspace TXT verification token.
+        vendors.sort(key=lambda v: (0 if v["strength"] >= 3 else 1, -v["weight"]))
         return vendors
 
     def _subdomain_cname_targets(self) -> list[tuple[str, str]]:

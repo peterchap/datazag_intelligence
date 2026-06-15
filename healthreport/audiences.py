@@ -36,6 +36,9 @@ SECTION_ORDER: tuple[str, ...] = (
     "timeline", "roadmap", "remediation_plan", "glossary",
 )
 
+# Standalone compact page used only by the External Threat variant.
+EXTRA_SECTIONS: tuple[str, ...] = ("external_summary",)
+
 TIERS: tuple[str, ...] = ("teaser", "full")
 
 
@@ -94,15 +97,15 @@ AUDIENCES: dict[str, AudienceConfig] = {
         narrative_keys=("key_finding", "remediation_priority",
                         "executive_summary"),
     ),
-    # Standalone External Threat / platform-impersonation deep-dive.
+    # Standalone External Threat / platform-impersonation deep-dive — kept
+    # short and factual (1–2 pages): one dense summary page, not the full deck.
     "external_threat": AudienceConfig(
         key="external_threat",
         title="External Threat Report",
-        description="Standalone platform-impersonation deep-dive: detected "
-                    "stack x 7/30-day impersonation activity + own-brand "
-                    "lookalikes.",
-        sections=("cover", "glance", "why", "vendor_footprint",
-                  "platform_exposure", "brand_exposure"),
+        description="Standalone platform-impersonation report: detected stack "
+                    "(strongest signal first) x 7/30-day impersonation activity "
+                    "+ own-brand lookalikes, on a single factual page.",
+        sections=("external_summary",),
         narrative_keys=("key_finding", "threat_narrative"),
     ),
 }

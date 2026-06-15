@@ -296,13 +296,41 @@ def test_teaser_redacts_finding_remediation():
 # Variants
 # ---------------------------------------------------------------------------
 
-def test_external_threat_variant_sections():
+def test_external_threat_variant_is_one_compact_page():
     html = HealthReportRenderer(_sample_vm(), audience="external_threat").to_html()
-    assert "of 6" in html                      # 6 enabled sections
-    assert SENSITIVE_LURE in html              # the deep-dive content
+    # a single dense page, not the 6-section deck
+    assert html.count('class="page') == 1
+    assert "Page 1 of 1" in html
     assert "External Threat Report" in html    # masthead label
-    # glossary (full-report-only section) absent
-    assert "Certificate Transparency" not in html
+    assert SENSITIVE_LURE in html              # impersonation facts still present
+    assert "Who is impersonating" in html
+    # none of the verbose shared sections leak in
+    assert "Why attackers prefer trusted platforms" not in html
+    assert "Certificate Transparency" not in html   # no glossary
+
+
+def test_mx_outranks_txt_verification():
+    """MX (live mail routing) → Microsoft 365 must outrank a Google Workspace
+    TXT verification token, which is a weak/possibly-stale signal."""
+    legacy = {
+        "domain": "x.com",
+        "dns_records": {
+            "mx": [{"priority": 0, "host": "x-com.mail.protection.outlook.com"}],
+            "txt": ["google-site-verification=abc123def"],
+        },
+        "txt_intelligence": {"identity_providers": ["Google Workspace"]},
+    }
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    vm = build_view_models(di, findings=derive_findings(di, []))
+    r = HealthReportRenderer(vm, legacy=legacy)
+    vendors = r._build_vendor_list()
+    names = [v["name"] for v in vendors]
+    assert names[0] == "Microsoft 365", names
+    ms = vendors[0]
+    assert ms["confidence"] == "confirmed" and any(e["key"] == "MX" for e in ms["evidence"])
+    gw = next(v for v in vendors if v["name"] == "Google Workspace")
+    assert gw["confidence"] == "indicative"     # TXT-only
+    assert names.index("Google Workspace") > 0   # ranked below the MX-confirmed M365
 
 
 def test_unknown_audience_rejected():
