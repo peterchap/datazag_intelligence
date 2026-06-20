@@ -1,0 +1,17 @@
+[Unit]
+Description=Datazag Health Report Worker (renders portal health-report orders)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/datazag_intelligence
+# Portal Neon DSN + pipeline API keys. Reuse the project .env; DATABASE_URL here
+# MUST point at the Customer Portal Neon database (not the lake catalog).
+EnvironmentFile=/root/datazag_intelligence/.env
+ExecStart=/root/datazag_intelligence/venv/bin/python health_report_worker.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

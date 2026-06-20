@@ -90,9 +90,11 @@ async def render_health(
     print(f"\n[healthreport] Pipeline run starting for {domain or dns_file}")
 
     # ── Step 1: run upstream pipeline (also writes legacy four-audience) ─
+    # Upstream run() takes input_json (a pre-collected payload) or domain (live
+    # compile). A --dns_file maps onto input_json; --domain compiles live.
     output = await upstream_run(
         domain=domain,
-        dns_file=dns_file,
+        input_json=dns_file,
         audience=audience,
         partner_context=partner,
         threat_context=threat,
