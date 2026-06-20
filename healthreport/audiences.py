@@ -36,8 +36,11 @@ SECTION_ORDER: tuple[str, ...] = (
     "timeline", "roadmap", "remediation_plan", "glossary",
 )
 
-# Standalone compact page used only by the External Threat variant.
-EXTRA_SECTIONS: tuple[str, ...] = ("external_summary",)
+# Sections outside the canonical flagship page order:
+#   external_summary  — standalone compact External Threat page
+#   brand_funnel      — the FREE health report's active-scan brand page
+#                       (brand_page_data_contract.md)
+EXTRA_SECTIONS: tuple[str, ...] = ("external_summary", "brand_funnel")
 
 TIERS: tuple[str, ...] = ("teaser", "full")
 
@@ -96,6 +99,18 @@ AUDIENCES: dict[str, AudienceConfig] = {
                   "hidden_infra", "timeline", "roadmap", "remediation_plan", "glossary"),
         narrative_keys=("key_finding", "remediation_priority",
                         "executive_summary"),
+    ),
+    # FREE Health Report — the lead-gen artefact (always rendered at --tier
+    # teaser). Slim: headline grade + trust posture + the active-scan BRAND
+    # funnel (generated + cheaply checked at report time) with the paid Brand
+    # Impersonation Watch as the upsell. See brand_page_data_contract.md.
+    "health": AudienceConfig(
+        key="health",
+        title="Health Report",
+        description="Free lead-gen health report: headline grade + trust posture "
+                    "+ the active-scan brand funnel and paid-Watch upsell.",
+        sections=("cover", "glance", "why", "brand_funnel", "controls", "glossary"),
+        narrative_keys=("key_finding", "executive_summary", "threat_narrative"),
     ),
     # Standalone External Threat / platform-impersonation deep-dive — kept
     # short and factual (1–2 pages): one dense summary page, not the full deck.

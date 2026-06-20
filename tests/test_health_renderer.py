@@ -19,7 +19,9 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from intelligence_contract import (  # noqa: E402
+    BrandCandidate,
     BrandExposure,
+    BrandFunnel,
     DomainIntelligence,
     PlatformImpersonation,
     build_view_models,
@@ -262,6 +264,201 @@ def test_infra_routing_section():
     md = r.to_markdown()
     assert "## Infrastructure & routing intelligence" in md
     assert "AS64500" in md
+
+
+def test_annotation_lake_overrides_providers():
+    """`output["annotation"]` (the DuckLake v_annotated row) is authoritative for
+    providers/labels — it outranks the live-scan technographics, and its
+    annotation-only labels (hosting / TLD risk / trust) surface in the report."""
+    vm = _sample_vm()
+    legacy = {
+        "domain": "riskyexample.com",
+        # technographics says one thing...
+        "technographics": {"mx_provider_name": "Old Guess", "ns_provider_name": "Old NS"},
+        # ...the annotation lake says another (and wins).
+        "annotation": {
+            "domain": "riskyexample.com",
+            "mailbox_provider": "Microsoft 365", "mailbox_category": "Enterprise mail",
+            "ns_provider": "Cloudflare", "hosting_provider": "Amazon AWS",
+            "asn_risk_level": "critical", "tld_risk_level": "high",
+            "trust_label": "Low trust", "is_parked": False,
+        },
+    }
+    r = HealthReportRenderer(vm, audience="flagship", legacy=legacy)
+    ir = r._build_infra_routing()
+    assert ir["mx_provider"] == "Microsoft 365"      # lake beats technographics
+    assert ir["mx_category"] == "Enterprise mail"
+    assert ir["ns_provider"] == "Cloudflare"
+    assert ir["hosting_provider"] == "Amazon AWS"
+    assert ir["asn_risk"] == "critical" and ir["asn_risk_class"] == "bad"
+    assert ir["tld_risk"] == "high" and ir["tld_risk_class"] == "bad"
+    assert ir["trust_label"] == "Low trust"
+    html = r.to_html()
+    assert "Microsoft 365" in html and "Amazon AWS" in html
+    assert "Hosting provider" in html and "TLD risk" in html and "Infrastructure trust" in html
+    assert "Old Guess" not in html and "Old NS" not in html
+    md = r.to_markdown()
+    assert "Hosting provider: Amazon AWS" in md and "TLD risk **high**" in md
+
+
+def test_annotation_lake_drives_platform_stack():
+    """When the lake supplies platform_signals it is authoritative for the vendor
+    footprint: an MX signal (active mail routing) reads as 'confirmed' and
+    outranks a TXT verification token, which reads as 'indicative'."""
+    vm = _sample_vm()
+    legacy = {
+        "domain": "riskyexample.com",
+        "annotation": {
+            "domain": "riskyexample.com",
+            "platform_signals": [
+                {"provider": "Google Workspace", "signal_type": "platform",
+                 "match_type": "txt", "confidence": 0.4,
+                 "evidence": "google-site-verification=abc123"},
+                {"provider": "Microsoft 365", "signal_type": "mailbox",
+                 "match_type": "mx", "confidence": 0.95,
+                 "evidence": "riskyexample-com.mail.protection.outlook.com"},
+                # a non-platform token must be dropped, not rendered as a vendor
+                {"provider": "SPF Policy", "signal_type": "platform",
+                 "match_type": "txt", "confidence": 0.3, "evidence": "v=spf1 -all"},
+            ],
+        },
+    }
+    r = HealthReportRenderer(vm, audience="flagship", legacy=legacy)
+    vendors = r._build_vendor_list()
+    names = [v["name"] for v in vendors]
+    assert "Microsoft 365" in names and "Google Workspace" in names
+    assert "SPF Policy" not in names          # stop-listed non-platform dropped
+    # MX → confirmed and ranked ahead of the TXT-only Google Workspace
+    ms = next(v for v in vendors if v["name"] == "Microsoft 365")
+    goog = next(v for v in vendors if v["name"] == "Google Workspace")
+    assert ms["confidence"] == "confirmed"
+    assert goog["confidence"] == "indicative"
+    assert names.index("Microsoft 365") < names.index("Google Workspace")
+    # evidence pill carries the lake's match type + evidence string
+    assert any(e["key"] == "MX" for e in ms["evidence"])
+
+
+def test_no_annotation_falls_back_to_fingerprinting():
+    """With no annotation block, the renderer uses the existing DNS/technographic
+    fingerprinting path unchanged (regression guard)."""
+    vm = _sample_vm()
+    legacy = {"domain": "riskyexample.com",
+              "dns_records": {"mx": [{"host": "riskyexample-com.mail.protection.outlook.com"}]}}
+    r = HealthReportRenderer(vm, audience="flagship", legacy=legacy)
+    assert not r.annotation.present
+    vendors = r._build_vendor_list()
+    assert any(v["name"] == "Microsoft 365" for v in vendors)
+
+
+def _vm_with_funnel(funnel=None, own_brand=None, impersonations=None):
+    """Build a view-model with a specific brand funnel / own-brand / platform set,
+    for the free-report brand-page tests."""
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    return build_view_models(
+        di,
+        detected_platforms=["microsoft365"],
+        impersonations=impersonations or [],
+        own_brand=own_brand or BrandExposure(),
+        brand_funnel=funnel or BrandFunnel(),
+        findings=derive_findings(di, impersonations or []),
+    )
+
+
+def test_health_variant_empty_state_no_platform_leak():
+    """The QBE case: no monitored history, a platform carries a large global count
+    (the '157'), but the free brand page must show the empty-state funnel and never
+    surface the platform-global figure as a brand claim."""
+    impersonations = [PlatformImpersonation(platform="Google Workspace", count_7d=20, count_30d=157)]
+    vm = _vm_with_funnel(own_brand=BrandExposure(count_30d=0), impersonations=impersonations)
+    r = HealthReportRenderer(vm, audience="health", tier="teaser")
+    bf = r._build_brand_funnel()
+    assert bf["monitored"] is False and bf["present"] is False
+    assert bf["own_brand_30d"] == 0
+    # The brand page's data carries NO platform-global figure (the "157"): every
+    # brand-scoped count is zero in the empty state.
+    numeric = [bf["generated"], bf["registered"], bf["resolving"], bf["dga_flagged"], bf["own_brand_30d"]]
+    assert 157 not in numeric and set(numeric) == {0}
+    html = r.to_html()
+    assert "not yet active" in html        # empty-state framing renders
+    # platform-global counts are suppressed on the free variant: the "157" must
+    # not appear anywhere in the rendered free report (cover/glance suppressed).
+    assert "157" not in html
+
+
+def test_health_variant_suppresses_platform_global_counts():
+    """Cover + glance on the free `health` variant frame the detected stack as lures
+    without citing the platform-global impersonation count; flagship still cites it."""
+    impersonations = [PlatformImpersonation(platform="Google Workspace", count_7d=20, count_30d=157)]
+    vm = _vm_with_funnel(own_brand=BrandExposure(count_30d=0), impersonations=impersonations)
+
+    free = HealthReportRenderer(vm, audience="health", tier="teaser").to_html()
+    assert "157" not in free
+    assert "detected in your stack" in free                 # suppressed framing
+    assert "Monitoring not yet active" in free              # honest brand scorecard
+
+    # Flagship is unchanged — it still surfaces the platform-global activity.
+    flagship = HealthReportRenderer(vm, audience="flagship", tier="full").to_html()
+    assert "157" in flagship
+
+
+def test_health_variant_renders_funnel_and_near_miss():
+    funnel = BrandFunnel(
+        candidates_generated=120, checked=50, registered=8, resolving=3, dga_flagged=1,
+        near_miss=BrandCandidate(domain="qbeurope.com", status="nxdomain", registered=False),
+        samples=[
+            BrandCandidate(domain="qbe-support.com", status="resolving", has_cert=True),
+            BrandCandidate(domain="qbeeurope-login.com", status="parked"),
+        ],
+    )
+    vm = _vm_with_funnel(funnel=funnel)
+    r = HealthReportRenderer(vm, audience="health", tier="teaser")
+    html = r.to_html()
+    assert "qbeurope.com" in html                 # near-miss shown
+    assert "120" in html and "Patterns generated" in html
+    assert "What Brand Impersonation Watch adds" in html   # §5 paid pitch
+    assert "registrable now" in html or "registrable right now" in html
+    md = r.to_markdown()
+    assert "## Brand impersonation — active scan" in md
+    assert "qbeurope.com" in md and "120" in md
+
+
+def test_brand_guard_raises_on_platform_leak():
+    """§7 guard: a brand count equal to a platform-global total with no brand-scoped
+    evidence is the conflation bug — the renderer must refuse to render it."""
+    impersonations = [PlatformImpersonation(platform="Google Workspace", count_30d=157)]
+    # own_brand count == platform total, no samples, no funnel → must raise
+    vm = _vm_with_funnel(own_brand=BrandExposure(count_30d=157), impersonations=impersonations)
+    r = HealthReportRenderer(vm, audience="health", tier="full")
+    import pytest
+    with pytest.raises(ValueError, match="platform-global"):
+        r._build_brand_funnel()
+
+
+def test_brand_guard_allows_legit_brand_count():
+    """A brand count backed by brand-scoped sample domains is legitimate even if it
+    numerically coincides with a platform total — must NOT raise."""
+    impersonations = [PlatformImpersonation(platform="Google Workspace", count_30d=3)]
+    own = BrandExposure(count_30d=3, sample_domains=["qbe-login.com", "qbe-secure.net", "qbe-pay.com"])
+    vm = _vm_with_funnel(own_brand=own, impersonations=impersonations)
+    r = HealthReportRenderer(vm, audience="health", tier="full")
+    bf = r._build_brand_funnel()          # does not raise
+    assert bf["own_brand_30d"] == 3
+
+
+def test_brand_funnel_teaser_masks_extra_candidates_keeps_near_miss():
+    funnel = BrandFunnel(
+        candidates_generated=10, near_miss=BrandCandidate(domain="qbeurope.com", status="nxdomain"),
+        samples=[
+            BrandCandidate(domain="qbeurope.com", status="nxdomain"),     # the near-miss — kept
+            BrandCandidate(domain="qbe-payroll-login.com", status="resolving"),  # masked
+        ],
+    )
+    vm = _vm_with_funnel(funnel=funnel)
+    red = redact_for_teaser(vm)
+    samples = {c.domain for c in red.external_threat.brand_funnel.samples}
+    assert "qbeurope.com" in samples                      # near-miss survives in full
+    assert "qbe-payroll-login.com" not in samples         # other candidate masked
+    assert _mask_domain("qbe-payroll-login.com") in samples
 
 
 def test_infra_routing_in_remediation_not_external_threat():

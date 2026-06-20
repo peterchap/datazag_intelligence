@@ -19,7 +19,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from intelligence_contract import (  # noqa: E402
-    BrandExposure, DomainIntelligence, ExternalThreat, PlatformImpersonation,
+    BrandExposure, BrandFunnel, DomainIntelligence, ExternalThreat, PlatformImpersonation,
 )
 import report_pipeline as rp  # noqa: E402
 
@@ -73,6 +73,10 @@ class MockClient:
     async def fetch_platform_impersonations(self, platforms, windows=(7, 30), brand=None):
         self.imp_args = dict(platforms=platforms, brand=brand)
         return self._ext
+
+    async def fetch_brand_funnel(self, domain):
+        self.funnel_args = dict(domain=domain)
+        return BrandFunnel()
 
 
 # ---------------------------------------------------------------------------

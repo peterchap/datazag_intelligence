@@ -160,6 +160,10 @@ async def build_view_model(
     if not ext.detected_platforms:
         ext.detected_platforms = platforms
 
+    # Active-scan brand funnel for the free health report (supplementary; an empty
+    # funnel → the empty-state framing, never fatal).
+    brand_funnel = await client.fetch_brand_funnel(domain)
+
     findings = derive_findings(di, ext.impersonations)
 
     return build_view_models(
@@ -170,6 +174,7 @@ async def build_view_model(
         findings=findings,
         lookalike_candidates=ext.lookalike_candidates,
         own_brand_lookalikes=ext.own_brand_lookalikes,
+        brand_funnel=brand_funnel,
     )
 
 

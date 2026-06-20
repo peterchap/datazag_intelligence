@@ -230,6 +230,128 @@ class BrandExposure(_Base):
 
 
 # ---------------------------------------------------------------------------
+# Free-report brand funnel (the riskscore brand-funnel endpoint)
+# ---------------------------------------------------------------------------
+#
+# The FREE Health Report's brand page renders an active-scan funnel computed at
+# report time from CHEAP corpus data only — pattern generation, `gold.dns_wide`
+# resolution state, a DGA cross-check, and passively-observed certs. See
+# healthreport/brand_page_data_contract.md. Two invariants are enforced by
+# CONSTRUCTION here (the producer endpoint must honour them):
+#   * brand-scoped — NEVER populated from `ref.platform_impersonation`
+#     (platform-global; that is the "157" conflation bug), and
+#   * cheap-only — NEVER carries capture-derived weaponization columns
+#     (those are paid-tier and cost a per-domain fetch).
+
+class BrandCandidate(_Base):
+    """One generated brand-lookalike candidate, checked against cheap corpus
+    data at report time. Carries no capture-derived weaponization fields."""
+    domain: str = ""
+    status: str = "generated"      # generated | nxdomain | parked | resolving
+    registered: bool = False
+    has_a: bool = False
+    has_mx: bool = False
+    domain_age_days: Optional[int] = None
+    dga_risk: float = 0.0          # 0..1 string-entropy signature
+    has_cert: bool = False         # a cert was already observed passively (no fetch)
+    priority: int = 0
+
+    @field_validator("dga_risk", mode="before")
+    @classmethod
+    def _clamp_dga(cls, v):
+        return _clamp01(v)
+
+
+class BrandFunnel(_Base):
+    """Active-scan brand funnel for the FREE health report
+    (brand_page_data_contract.md §3). Built producer-side from cheap corpus data
+    and served by the riskscore brand-funnel endpoint. Brand-scoped by
+    construction — it must never be filled from platform-global impersonation
+    counts or capture-dependent columns."""
+    monitored: bool = False                # a registered brand_id exists (paid Watch active)
+    candidates_generated: int = 0
+    checked: int = 0                       # candidates actually resolution-checked (capped)
+    registered: int = 0                    # resolving or parked
+    resolving: int = 0                     # resolving to live infrastructure
+    dga_flagged: int = 0                   # resolving + DGA/entropy attack signature
+    near_miss: Optional[BrandCandidate] = None
+    samples: list[BrandCandidate] = Field(default_factory=list)
+
+    @property
+    def present(self) -> bool:
+        return self.candidates_generated > 0 or self.near_miss is not None
+
+
+# ---------------------------------------------------------------------------
+# Annotation-lake labels (the DuckLake `v_annotated` row for the domain)
+# ---------------------------------------------------------------------------
+#
+# The dnsproject live scan attaches the DuckLake (Neon catalog + `datazag-lake`
+# R2 data), reads the per-domain `v_annotated` (or a report-tailored view) row,
+# and drops it into the live-scan output as `output["annotation"]`. This is the
+# AUTHORITATIVE source for mailbox / nameserver / hosting providers, infra-risk
+# labels, and the detected platform stack — it supersedes the renderer-side
+# regex fingerprinting (now a fallback) and resolves the MX-over-TXT priority at
+# source. Every field is optional: when the block is absent (snapshot-only runs,
+# older scans) the renderer falls back to the medallion + technographics.
+
+class PlatformSignal(_Base):
+    """One detected-platform signal from the annotation lake (a tech-fingerprint
+    row). `match_type` records HOW it was detected — mx / cname / spf / txt / ns /
+    regdom / host — which sets evidence strength; `confidence` is the lake's own
+    0.0–1.0 score (>= 0.7 ⇒ rendered as 'confirmed')."""
+    provider: str = ""
+    category: str = ""
+    signal_type: str = ""          # platform | mailbox | ns | hosting | cloud
+    match_type: str = ""           # mx | cname | spf | txt | ns | regdom | host
+    confidence: float = 0.0
+    evidence: str = ""
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _clamp_conf(cls, v):
+        return _clamp01(v)
+
+
+class Annotation(_Base):
+    """Flat per-domain labels from the annotation lake's `v_annotated` view,
+    delivered as `output["annotation"]`. Authoritative for providers/labels;
+    renderer fingerprinting is the fallback when this is absent."""
+    domain: str = ""
+    # mailbox / email
+    mailbox_provider: Optional[str] = None
+    mailbox_category: Optional[str] = None
+    mailbox_role: Optional[str] = None
+    # nameserver
+    ns_provider: Optional[str] = None
+    ns_category: Optional[str] = None
+    # hosting / cloud
+    cloud_provider: Optional[str] = None
+    cloud_class: Optional[str] = None
+    hosting_provider: Optional[str] = None
+    hosting_class: Optional[str] = None
+    is_fronted: bool = False
+    # risk labels
+    asn_risk_level: Optional[str] = None
+    tld_risk_level: Optional[str] = None
+    is_parked: bool = False
+    # trust labels
+    trust_label: Optional[str] = None
+    hosting_trust: Optional[str] = None
+    mailbox_trust: Optional[str] = None
+    # detected platform stack (tech-fingerprint signals)
+    platform_signals: list[PlatformSignal] = Field(default_factory=list)
+
+    @property
+    def present(self) -> bool:
+        """True when the lake returned usable labels for this domain."""
+        return bool(
+            self.mailbox_provider or self.ns_provider or self.cloud_provider
+            or self.hosting_provider or self.trust_label or self.platform_signals
+        )
+
+
+# ---------------------------------------------------------------------------
 # View-model (what the renderers consume)
 # ---------------------------------------------------------------------------
 
@@ -296,6 +418,9 @@ class ExternalThreat(BaseModel):
     # rendered as a separate "lookalike candidates" section, never in the headline.
     lookalike_candidates: list[PlatformImpersonation] = Field(default_factory=list)
     own_brand_lookalikes: BrandExposure = Field(default_factory=BrandExposure)
+    # Active-scan brand funnel (FREE health report). Brand-scoped by construction;
+    # never sourced from platform-global impersonation data.
+    brand_funnel: BrandFunnel = Field(default_factory=BrandFunnel)
 
     @property
     def total_7d(self) -> int:
@@ -417,6 +542,14 @@ def redact_for_teaser(vm: ReportViewModel) -> ReportViewModel:
     for be in (t.external_threat.own_brand, t.external_threat.own_brand_lookalikes):
         be.sample_domains = [_mask_domain(d) for d in be.sample_domains]
 
+    # Brand funnel: counts + the single highlighted near-miss survive (they ARE
+    # the free report's demonstration); other generated candidate domains are masked.
+    bf = t.external_threat.brand_funnel
+    near = bf.near_miss.domain if bf.near_miss else None
+    for c in bf.samples:
+        if c.domain != near:
+            c.domain = _mask_domain(c.domain)
+
     for pf in t.threat.pivot_findings:
         pf.examples = []
     if t.threat.cname_target:
@@ -442,6 +575,7 @@ def build_view_models(
     findings: Optional[list[dict]] = None,
     lookalike_candidates: Optional[list[PlatformImpersonation]] = None,
     own_brand_lookalikes: Optional[BrandExposure] = None,
+    brand_funnel: Optional[BrandFunnel] = None,
 ) -> ReportViewModel:
     """Compose the renderer view-model from the medallion payload + impersonation data."""
     detected_platforms = detected_platforms or []
@@ -449,6 +583,7 @@ def build_view_models(
     own_brand = own_brand or BrandExposure()
     lookalike_candidates = lookalike_candidates or []
     own_brand_lookalikes = own_brand_lookalikes or BrandExposure(confidence="lookalike")
+    brand_funnel = brand_funnel or BrandFunnel()
 
     external = ExternalThreat(
         detected_platforms=detected_platforms,
@@ -456,6 +591,7 @@ def build_view_models(
         own_brand=own_brand,
         lookalike_candidates=lookalike_candidates,
         own_brand_lookalikes=own_brand_lookalikes,
+        brand_funnel=brand_funnel,
     )
 
     if not di.has_intelligence:

@@ -19,7 +19,10 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from intelligence_contract import (  # noqa: E402
+    Annotation,
+    BrandCandidate,
     BrandExposure,
+    BrandFunnel,
     DomainIntelligence,
     PlatformImpersonation,
     build_view_models,
@@ -219,6 +222,61 @@ def test_impersonation_trend():
     assert PlatformImpersonation(platform="ms", count_7d=14, count_30d=41).trend == "up"
     # 2 in 7d vs (25-2)/3 = 7.67 -> down
     assert PlatformImpersonation(platform="okta", count_7d=2, count_30d=25).trend == "down"
+
+
+def test_annotation_parse_and_present():
+    # Empty / absent block → not present, no platform signals, safe defaults.
+    empty = Annotation.model_validate({})
+    assert empty.present is False
+    assert empty.platform_signals == []
+    assert empty.mailbox_provider is None and empty.is_parked is False
+    # Populated block → present; confidence clamped to 0..1; extras ignored.
+    ann = Annotation.model_validate({
+        "domain": "x.com",
+        "mailbox_provider": "Microsoft 365",
+        "trust_label": "Low trust",
+        "some_future_field": "ignored",
+        "platform_signals": [
+            {"provider": "Microsoft 365", "match_type": "mx", "confidence": 1.7},
+            {"provider": "Google Workspace", "match_type": "txt", "confidence": -0.2},
+        ],
+    })
+    assert ann.present is True
+    assert ann.platform_signals[0].confidence == 1.0   # clamped
+    assert ann.platform_signals[1].confidence == 0.0   # clamped
+    # present is also True when only platform_signals are supplied
+    assert Annotation.model_validate(
+        {"platform_signals": [{"provider": "Okta", "match_type": "cname"}]}
+    ).present is True
+
+
+def test_brand_funnel_parse_and_defaults():
+    empty = BrandFunnel.model_validate({})
+    assert empty.present is False and empty.monitored is False
+    assert empty.candidates_generated == 0 and empty.near_miss is None
+    bf = BrandFunnel.model_validate({
+        "monitored": False, "candidates_generated": 120, "checked": 50,
+        "registered": 8, "resolving": 3, "dga_flagged": 1,
+        "near_miss": {"domain": "qbeurope.com", "status": "nxdomain", "dga_risk": 1.4},
+        "samples": [{"domain": "qbe-login.com", "status": "resolving", "has_cert": True}],
+    })
+    assert bf.present is True
+    assert bf.near_miss.domain == "qbeurope.com"
+    assert bf.near_miss.dga_risk == 1.0          # clamped 0..1
+    assert bf.samples[0].has_cert is True
+    # present is also True with only a near-miss
+    assert BrandFunnel.model_validate({"near_miss": {"domain": "x.com"}}).present is True
+
+
+def test_brand_funnel_threads_through_view_model():
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    funnel = BrandFunnel(candidates_generated=5,
+                         near_miss=BrandCandidate(domain="qbeurope.com"))
+    vm = build_view_models(di, brand_funnel=funnel)
+    assert vm.external_threat.brand_funnel.present is True
+    assert vm.external_threat.brand_funnel.near_miss.domain == "qbeurope.com"
+    # default when not supplied
+    assert build_view_models(di).external_threat.brand_funnel.present is False
 
 
 def _main():
