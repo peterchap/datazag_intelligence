@@ -302,24 +302,24 @@ def test_annotation_lake_overrides_providers():
 
 
 def test_annotation_lake_drives_platform_stack():
-    """When the lake supplies platform_signals it is authoritative for the vendor
-    footprint: an MX signal (active mail routing) reads as 'confirmed' and
-    outranks a TXT verification token, which reads as 'indicative'."""
+    """The lake is authoritative for the vendor footprint. The MX-derived platform
+    lives in the flat `mailbox_provider` field (the lake's platform_signals are
+    SPF/TXT only) — folded in as a 'confirmed' MX signal that outranks a Google
+    Workspace TXT verification token, which reads as 'indicative'."""
     vm = _sample_vm()
     legacy = {
         "domain": "riskyexample.com",
         "annotation": {
             "domain": "riskyexample.com",
+            # MX-routed mailbox provider → the strong signal, via the flat field
+            "mailbox_provider": "Microsoft 365",
             "platform_signals": [
-                {"provider": "Google Workspace", "signal_type": "platform",
-                 "match_type": "txt", "confidence": 0.4,
+                {"provider": "Google Workspace", "signal_type": "TXT",
+                 "match_type": "regex", "confidence": 0.4,
                  "evidence": "google-site-verification=abc123"},
-                {"provider": "Microsoft 365", "signal_type": "mailbox",
-                 "match_type": "mx", "confidence": 0.95,
-                 "evidence": "riskyexample-com.mail.protection.outlook.com"},
                 # a non-platform token must be dropped, not rendered as a vendor
-                {"provider": "SPF Policy", "signal_type": "platform",
-                 "match_type": "txt", "confidence": 0.3, "evidence": "v=spf1 -all"},
+                {"provider": "SPF Policy", "signal_type": "TXT",
+                 "match_type": "regex", "confidence": 0.3, "evidence": "v=spf1 -all"},
             ],
         },
     }
@@ -334,8 +334,9 @@ def test_annotation_lake_drives_platform_stack():
     assert ms["confidence"] == "confirmed"
     assert goog["confidence"] == "indicative"
     assert names.index("Microsoft 365") < names.index("Google Workspace")
-    # evidence pill carries the lake's match type + evidence string
+    # evidence pill carries the synthesised MX signal
     assert any(e["key"] == "MX" for e in ms["evidence"])
+    assert any(e["key"] == "TXT" for e in goog["evidence"])
 
 
 def test_no_annotation_falls_back_to_fingerprinting():

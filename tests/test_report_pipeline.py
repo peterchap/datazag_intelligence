@@ -19,7 +19,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from intelligence_contract import (  # noqa: E402
-    BrandExposure, BrandFunnel, DomainIntelligence, ExternalThreat, PlatformImpersonation,
+    BrandExposure, DomainIntelligence, ExternalThreat, PlatformImpersonation,
 )
 import report_pipeline as rp  # noqa: E402
 
@@ -73,10 +73,6 @@ class MockClient:
     async def fetch_platform_impersonations(self, platforms, windows=(7, 30), brand=None):
         self.imp_args = dict(platforms=platforms, brand=brand)
         return self._ext
-
-    async def fetch_brand_funnel(self, domain):
-        self.funnel_args = dict(domain=domain)
-        return BrandFunnel()
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +155,21 @@ def test_build_view_model_live_post():
     assert vm.external_threat.lookalike_total_30d == 11
     assert vm.findings
     assert any(f["finding"] == "threat_feed_feodo" for f in vm.findings)
+
+
+def test_build_view_model_reads_brand_funnel_from_scan_output():
+    """The brand funnel is computed by the dnsproject scan and carried in the
+    live-scan output; the pipeline threads it onto the view-model."""
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    client = MockClient(di, _ext_from_fixture())
+    out = {**SAMPLE_OUTPUT, "brand_funnel": {
+        "candidates_generated": 80, "near_miss": {"domain": "qbeurope.com", "status": "nxdomain"}}}
+    vm = asyncio.run(rp.build_view_model("riskyexample.com", client, live_output=out))
+    assert vm.external_threat.brand_funnel.present is True
+    assert vm.external_threat.brand_funnel.near_miss.domain == "qbeurope.com"
+    # absent in the snapshot path → empty funnel, no error
+    vm2 = asyncio.run(rp.build_view_model("riskyexample.com", client))
+    assert vm2.external_threat.brand_funnel.present is False
 
 
 def test_build_view_model_snapshot_get():

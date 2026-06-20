@@ -21,7 +21,6 @@ import aiohttp
 
 from intelligence_contract import (
     BrandExposure,
-    BrandFunnel,
     DomainIntelligence,
     ExternalThreat,
     PlatformImpersonation,
@@ -158,23 +157,3 @@ class IntelligenceClient:
             lookalike_candidates=_imps("platform_lookalikes", "lookalike"),
             own_brand_lookalikes=_brand("own_brand_lookalikes", "lookalike"),
         )
-
-    async def fetch_brand_funnel(self, domain: str) -> BrandFunnel:
-        """Fetch the FREE-report active-scan brand funnel for `domain` from the
-        riskscore brand-funnel endpoint (pattern-gen + cheap corpus resolution +
-        DGA cross-check). Brand-scoped by construction — the endpoint must never
-        fill it from platform-global impersonation data. Returns an empty funnel
-        (→ empty-state framing) if the endpoint is unavailable; never fatal."""
-        empty = BrandFunnel()
-        if not domain:
-            return empty
-        url = f"{self.base_url}/brand-funnel"
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(url, params={"domain": domain}, headers=self._headers) as resp:
-                    if resp.status != 200:
-                        return empty
-                    data = await resp.json()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
-            return empty
-        return BrandFunnel.model_validate(data or {})

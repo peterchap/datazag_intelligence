@@ -31,6 +31,7 @@ from typing import Any, Optional
 
 from intelligence_client import IntelligenceClient, IntelligenceUnavailable
 from intelligence_contract import (
+    BrandFunnel,
     DomainIntelligence,
     ExternalThreat,
     ReportViewModel,
@@ -160,9 +161,10 @@ async def build_view_model(
     if not ext.detected_platforms:
         ext.detected_platforms = platforms
 
-    # Active-scan brand funnel for the free health report (supplementary; an empty
-    # funnel → the empty-state framing, never fatal).
-    brand_funnel = await client.fetch_brand_funnel(domain)
+    # Active-scan brand funnel for the free health report — computed by the
+    # dnsproject scan (pattern-gen + corpus resolution, where that data lives) and
+    # carried in the live-scan output. Absent → the empty-state framing.
+    brand_funnel = BrandFunnel.model_validate((live_output or {}).get("brand_funnel") or {})
 
     findings = derive_findings(di, ext.impersonations)
 

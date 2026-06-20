@@ -3558,12 +3558,13 @@ class HealthReportRenderer:
         emit a per-vendor record with structured evidence (rather than just a
         list of names). When that lands, this method becomes a pass-through.
 
-        When the annotation lake supplied a platform stack
-        (`output["annotation"].platform_signals`) it is authoritative — the
-        lake already classified the providers and resolved MX-over-TXT priority
-        at source, so we build straight from it and skip the regex fingerprinting.
+        When the annotation lake supplied a platform stack (`platform_signals`
+        and/or a platform `mailbox_provider`) it is authoritative — the lake
+        already classified the providers, so we build straight from it and skip
+        the regex fingerprinting.
         """
-        if self.annotation.platform_signals:
+        ann = self.annotation
+        if ann.platform_signals or (ann.mailbox_provider and is_platform_name(ann.mailbox_provider)):
             return self._vendor_list_from_annotation()
 
         ti = self.txt_intel or {}
@@ -3704,34 +3705,43 @@ class HealthReportRenderer:
         vendors.sort(key=lambda v: (0 if v["strength"] >= 3 else 1, -v["weight"]))
         return vendors
 
-    # Lake match-type → the report's evidence-pill vocabulary (+ strength via
-    # _EVIDENCE_STRENGTH). Active-use signals (mx/cname/spf) read as "confirmed";
-    # a verification token or registry hint is "indicative".
-    _ANNOTATION_MATCH_KIND = {
-        "mx": "MX", "cname": "CNAME", "spf": "SPF", "txt": "TXT",
-        "host": "CNAME", "a": "CNAME", "ns": "STACK", "regdom": "STACK",
+    # Lake signal_type → the report's evidence-pill vocabulary (+ strength via
+    # _EVIDENCE_STRENGTH). The lake's platform_signals are SPF/TXT only; MX is
+    # synthesised from the flat mailbox_provider field (see below).
+    _ANNOTATION_SIGNAL_KIND = {
+        "MX": "MX", "SPF_INCLUDE": "SPF", "SPF": "SPF", "TXT": "TXT", "CNAME": "CNAME",
     }
 
     def _vendor_list_from_annotation(self) -> list[dict[str, Any]]:
-        """Build the detected-platform list from the annotation lake's
-        `platform_signals`. The lake's own per-signal confidence (>= 0.7) or a
-        live-use match type (MX/CNAME/SPF) marks a vendor 'confirmed'."""
+        """Build the detected-platform list from the annotation lake. The lake's
+        `platform_signals` cover only the apex SPF/TXT axes — the MX-derived
+        platform lives in the flat `mailbox_provider` field, so we fold it in as a
+        high-confidence MX signal. That is what keeps MX-over-TXT resolved:
+        Microsoft 365 via MX outranks a Google Workspace TXT verification token.
+        A vendor is 'confirmed' when it has a live-use signal (MX/SPF strength) or
+        the lake's own confidence is >= 0.7."""
+        ann = self.annotation
+        # (provider, pill-kind, confidence, evidence)
+        raw: list[tuple[str, str, float, str]] = []
+        if ann.mailbox_provider and is_platform_name(ann.mailbox_provider):
+            raw.append((ann.mailbox_provider, "MX", 0.95, ann.mailbox_provider))
+        for s in ann.platform_signals:
+            kind = self._ANNOTATION_SIGNAL_KIND.get(
+                (s.signal_type or "").upper(), (s.signal_type or "STACK").upper())
+            raw.append((s.provider, kind, float(s.confidence or 0.0), s.evidence or s.provider or ""))
+
         agg: dict[str, dict] = {}
-        for s in self.annotation.platform_signals:
-            if not is_platform_name(s.provider):
+        for provider, kind, conf, evidence in raw:
+            if not is_platform_name(provider):
                 continue
-            key = self._normalise_vendor_name(s.provider)
-            kind = self._ANNOTATION_MATCH_KIND.get(
-                (s.match_type or "").lower(),
-                (s.match_type or s.signal_type or "STACK").upper(),
-            )
-            val = (s.evidence or s.provider or "").strip()
+            key = self._normalise_vendor_name(provider)
+            val = (evidence or "").strip()
             rec = agg.setdefault(key, {"evidence": [], "conf": 0.0})
             rec["evidence"].append({
                 "key": kind,
                 "val": val[:80] + ("…" if len(val) > 80 else ""),
             })
-            rec["conf"] = max(rec["conf"], float(s.confidence or 0.0))
+            rec["conf"] = max(rec["conf"], conf)
 
         vendors: list[dict[str, Any]] = []
         for name_key, rec in agg.items():
