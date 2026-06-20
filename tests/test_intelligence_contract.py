@@ -250,6 +250,24 @@ def test_annotation_parse_and_present():
     ).present is True
 
 
+def test_annotation_tolerates_lake_nulls():
+    # The lake emits NULL columns; bool/str fields must fall back to defaults,
+    # not raise (the scan passes the row through verbatim).
+    ann = Annotation.model_validate({
+        "domain": "x.com",
+        "mailbox_provider": None, "is_parked": None, "is_fronted": None,
+        "trust_label": None,
+        "platform_signals": [
+            {"provider": "Microsoft 365", "signal_type": None,
+             "match_type": None, "confidence": None, "evidence": None},
+        ],
+    })
+    assert ann.is_parked is False and ann.is_fronted is False
+    assert ann.mailbox_provider is None
+    assert ann.platform_signals[0].confidence == 0.0
+    assert ann.platform_signals[0].signal_type == ""
+
+
 def test_brand_funnel_parse_and_defaults():
     empty = BrandFunnel.model_validate({})
     assert empty.present is False and empty.monitored is False

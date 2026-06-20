@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from healthreport.grade import TrustGrade, score_to_grade
 
@@ -302,10 +302,16 @@ class PlatformSignal(_Base):
     0.0–1.0 score (>= 0.7 ⇒ rendered as 'confirmed')."""
     provider: str = ""
     category: str = ""
-    signal_type: str = ""          # platform | mailbox | ns | hosting | cloud
-    match_type: str = ""           # mx | cname | spf | txt | ns | regdom | host
+    signal_type: str = ""          # SPF_INCLUDE | TXT | MX | ...
+    match_type: str = ""           # the fingerprint match (exact | suffix | regex)
     confidence: float = 0.0
     evidence: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_nulls(cls, data):
+        # Lake columns can be NULL; drop them so field defaults apply.
+        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
 
     @field_validator("confidence", mode="before")
     @classmethod
@@ -341,6 +347,13 @@ class Annotation(_Base):
     mailbox_trust: Optional[str] = None
     # detected platform stack (tech-fingerprint signals)
     platform_signals: list[PlatformSignal] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_nulls(cls, data):
+        # The lake emits NULL for absent labels; drop them so bool/str defaults
+        # apply (e.g. is_parked NULL → False) instead of failing validation.
+        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
 
     @property
     def present(self) -> bool:
