@@ -201,7 +201,10 @@ def view_model_from_legacy_output(output: dict) -> ReportViewModel:
     else:
         di = DomainIntelligence(domain=output.get("domain", ""), error="no_medallion", code=404)
         findings = []
-    return build_view_models(di, findings=findings)
+    # Thread the active-scan brand funnel (the scan carries it in the output dict)
+    # so the offline --input_json render path shows the brand page too.
+    brand_funnel = BrandFunnel.model_validate(output.get("brand_funnel") or {})
+    return build_view_models(di, findings=findings, brand_funnel=brand_funnel)
 
 
 # ---------------------------------------------------------------------------
@@ -244,5 +247,5 @@ def is_medallion_payload(obj: dict) -> bool:
     return isinstance(obj, dict) and "risk_assessment" in obj and "schema_version" in obj
 
 
-DEFAULT_AUDIENCES = ["flagship", "insurer", "advisory", "remediation", "external_threat"]
+DEFAULT_AUDIENCES = ["flagship", "insurer", "advisory", "remediation", "external_threat", "health"]
 assert all(a in AUDIENCES for a in DEFAULT_AUDIENCES)

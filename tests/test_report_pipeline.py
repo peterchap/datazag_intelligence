@@ -224,6 +224,26 @@ def test_render_variants_rejects_pdf_format():
     raise AssertionError("expected ValueError for pdf format")
 
 
+def test_legacy_output_threads_brand_funnel_and_annotation():
+    """The offline --input_json path: a saved scan dict carries brand_funnel +
+    annotation; the funnel threads onto the view-model and the renderer reads the
+    annotation from the legacy dict."""
+    from healthreport.renderer import HealthReportRenderer
+    out = {
+        "domain": "riskyexample.com",
+        "brand_funnel": {"candidates_generated": 42,
+                         "near_miss": {"domain": "qbeurope.com", "status": "nxdomain"}},
+        "annotation": {"domain": "riskyexample.com", "mailbox_provider": "Microsoft 365"},
+    }
+    vm = rp.view_model_from_legacy_output(out)
+    assert vm.external_threat.brand_funnel.present is True
+    assert vm.external_threat.brand_funnel.near_miss.domain == "qbeurope.com"
+    # health variant renders the funnel page from the offline payload
+    r = HealthReportRenderer(vm, audience="health", tier="teaser", legacy=out)
+    assert r.annotation.mailbox_provider == "Microsoft 365"
+    assert "qbeurope.com" in r.to_html()
+
+
 def _main():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
