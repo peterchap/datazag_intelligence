@@ -7,11 +7,11 @@ from dnsproject and is POSTed for the server-side merge. Rendering is the
 healthreport flagship engine across audience variants and tiers.
 
 Usage:
-    # Live scan on the dnsproject host, then fetch medallion + impersonations:
-    python run.py --domain example.com --live --audience all --tier full
+    # Live scan (default) on the dnsproject host, then fetch medallion + impersonations:
+    python run.py --domain example.com --audience all --tier full
 
-    # Snapshot-only (no live scan), single variant:
-    python run.py --domain example.com --audience flagship
+    # Snapshot-only (skip the live scan), single variant:
+    python run.py --domain example.com --no-live --audience flagship
 
     # Render a medallion payload captured earlier (no network):
     python run.py --input_json payloads/example.com.json --audience flagship
@@ -67,7 +67,7 @@ async def run(
     domain: str = None,
     audiences: list[str] = None,
     tier: str = "full",
-    live: bool = False,
+    live: bool = True,
     partner_context: str = None,
     threat_context: str = None,
     output_dir: Path = None,
@@ -168,8 +168,9 @@ if __name__ == "__main__":
                         help="Report variant (default: all)")
     parser.add_argument("--tier", default="full", choices=["teaser", "full"],
                         help="teaser = lead-gen edition (redacted); full = paid edition")
-    parser.add_argument("--live", action="store_true",
-                        help="Run dnsproject's live DNS scan and POST it for the server-side merge")
+    parser.add_argument("--live", action=argparse.BooleanOptionalAction, default=True,
+                        help="Run dnsproject's live DNS scan and POST it for the server-side merge "
+                             "(default: on; use --no-live for a snapshot-only report)")
     parser.add_argument("--partner", default=None, help="Partner context for the live scan")
     parser.add_argument("--threat", default=None, help="Threat context for the live scan")
     parser.add_argument("--output-dir", default=None, help="Output directory (overrides OUTPUT_DIR)")
