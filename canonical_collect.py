@@ -27,8 +27,32 @@ import sys
 from typing import Any, Optional
 
 _CELERY_PATH = os.environ.get("CELERY_REALTIME_PATH", "/root/celery_app_realtime")
-if _CELERY_PATH not in sys.path:
-    sys.path.insert(0, _CELERY_PATH)
+
+
+def _celery_dns_fetcher():
+    """Import celery_app_realtime's DNSFetcher unambiguously.
+
+    Both celery_app_realtime AND riskscore ship a top-level `dns_module` package;
+    riskscore is on sys.path (via the medallion client) and its `dns_module` has a
+    different/older API, so a plain `import dns_module` resolves to the WRONG one
+    and crashes. Force celery's to win: require the path, put it first, and evict
+    any `dns_module` already cached from another repo before importing."""
+    if not os.path.isdir(_CELERY_PATH):
+        raise RuntimeError(
+            f"celery_app_realtime not found at {_CELERY_PATH!r}. Deploy it on this host "
+            f"or set CELERY_REALTIME_PATH. (canonical_collect needs ITS dns_module — "
+            f"riskscore ships a colliding, incompatible dns_module.)"
+        )
+    if _CELERY_PATH not in sys.path:
+        sys.path.insert(0, _CELERY_PATH)
+    else:
+        sys.path.remove(_CELERY_PATH); sys.path.insert(0, _CELERY_PATH)
+    for name in [k for k in list(sys.modules) if k == "dns_module" or k.startswith("dns_module.")]:
+        f = getattr(sys.modules[name], "__file__", "") or ""
+        if not os.path.abspath(f).startswith(os.path.abspath(_CELERY_PATH)):
+            del sys.modules[name]
+    from dns_module.dns_fetcher import DNSFetcher  # type: ignore  # noqa: E402
+    return DNSFetcher
 
 
 async def collect(domain: str, *, timeout: float = 10.0, enrich: bool = True) -> dict:
@@ -37,8 +61,7 @@ async def collect(domain: str, *, timeout: float = 10.0, enrich: bool = True) ->
     `enrich=True` adds celery's DuckDB label enrichment (mx/ns provider, ASN) when
     DNS_COLLECT_DUCKDB is configured. Risk scoring is intentionally NOT taken from
     celery here — the report's risk comes from riskscore (one source of truth)."""
-    # Lowest-level path: raw DNS only (no Celery queue, no broker).
-    from dns_module.dns_fetcher import DNSFetcher  # type: ignore
+    DNSFetcher = _celery_dns_fetcher()
 
     fetcher = DNSFetcher(domain=domain, domain_timeout_s=timeout,
                          run_blocking_probes=True, fetch_mta_sts_policy=True)
