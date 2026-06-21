@@ -112,8 +112,11 @@ async def render_health(
             resolved_domain = payload.get("domain", domain or "unknown")
             vm = view_model_from_legacy_output(payload)
     else:
-        client = IntelligenceClient()
-        legacy = await _live_scan(domain, partner, threat, output_dir)
+        # In-process: celery_app_realtime collection + riskscore (imported) + lake.
+        from local_intelligence import LocalIntelligenceClient
+        import canonical_collect
+        client = LocalIntelligenceClient()
+        legacy = await canonical_collect.collect(domain)
         vm = await build_view_model(domain, client, live_output=legacy)
         resolved_domain = domain
 
