@@ -96,17 +96,19 @@ async def run(
             domain = payload.get("domain", domain or "unknown")
             vm = view_model_from_legacy_output(payload)
     elif domain:
-        client = IntelligenceClient()   # reads INTELLIGENCE_BASE_URL / _API_KEY
+        # In-process riskscore (imports DomainIntelligenceAPI; no HTTP service needed).
+        from local_intelligence import LocalIntelligenceClient
+        client = LocalIntelligenceClient()
         if live:
             print(f"  Live DNS scan for {domain}...")
-            legacy = await _live_scan(domain, partner_context, threat_context, output_dir)
+            import canonical_collect
+            legacy = await canonical_collect.collect(domain)   # full DNS via celery_app_realtime
         try:
             vm = await build_view_model(domain, client, live_output=legacy)
         except IntelligenceUnavailable as e:
             raise SystemExit(
-                f"  Intelligence service unavailable: {e}\n"
-                "  (check INTELLIGENCE_BASE_URL / that the service is up; for slow "
-                "lookups raise INTELLIGENCE_TIMEOUT in .env)")
+                f"  Intelligence unavailable: {e}\n"
+                "  (check RISKSCORE_PATH / REPORTING_SNAPSHOT_DB)")
     else:
         raise ValueError("Must provide either --input_json or --domain")
 

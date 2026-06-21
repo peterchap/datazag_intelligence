@@ -146,8 +146,11 @@ async def build_view_model(
     (domain not in corpus) is NOT an error: it yields a 'not yet assessed'
     view-model.
     """
-    live_dns_report = synth_live_dns_report(live_output) if live_output else None
-    fb_asn, fb_ip = fallback_asn_ip(live_output) if live_output else (None, None)
+    # Live DNS now comes from celery_app_realtime (DNSRecords shape) — build the
+    # slim live_dns_report + fallback asn/ip from that.
+    import canonical_collect
+    live_dns_report = canonical_collect.build_live_dns_report(live_output) if live_output else None
+    fb_asn, fb_ip = canonical_collect.fallback_asn_ip(live_output) if live_output else (None, None)
 
     di = await client.fetch(
         domain, fallback_asn=fb_asn, fallback_ip=fb_ip,
@@ -168,6 +171,18 @@ async def build_view_model(
 
     findings = derive_findings(di, ext.impersonations)
 
+    # DuckLake enrichment — annotation labels (v_annotated), registration
+    # (intel.domain_rdap), live-DNS hygiene, abuse contacts, weaponization verdict.
+    # Same lake the alert engine reads, so report and alerts agree. Best-effort:
+    # the report still renders if the lake is briefly unavailable.
+    enr: dict = {}
+    try:
+        import lake_enrich
+        bundle = lake_enrich.enrich(domain, live_output or {}, ext.detected_platforms)
+        enr = lake_enrich.to_view_models(live_output or {}, bundle)
+    except Exception as e:
+        print(f"  lake enrichment unavailable: {e}")
+
     return build_view_models(
         di,
         detected_platforms=ext.detected_platforms,
@@ -177,6 +192,11 @@ async def build_view_model(
         lookalike_candidates=ext.lookalike_candidates,
         own_brand_lookalikes=ext.own_brand_lookalikes,
         brand_funnel=brand_funnel,
+        annotation=enr.get("annotation"),
+        registration=enr.get("registration"),
+        hygiene=enr.get("hygiene"),
+        abuse=enr.get("abuse"),
+        weaponization=enr.get("weaponization"),
     )
 
 
