@@ -900,6 +900,13 @@ HEALTH_REPORT_TEMPLATE = r"""
   .roadmap-narrative { margin: 0 56px 0; padding: 14px 18px; background: rgba(194,65,12,0.04); border: 1px solid rgba(194,65,12,0.18); border-radius: 8px; font-size: 11.5px; color: var(--ink-2); line-height: 1.6; }
   .roadmap-narrative strong { color: var(--ink); font-weight: 600; }
 
+  /* ============ LLM narrative prose ============ */
+  .narrative-callout { margin: 14px 56px 4px; padding: 13px 18px; background: rgba(0,150,204,0.05); border-left: 3px solid var(--cyan-deep); border-radius: 0 8px 8px 0; font-size: 12.5px; color: var(--ink); line-height: 1.55; }
+  .narrative-callout .narrative-eyebrow { display: block; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cyan-deep); margin-bottom: 4px; }
+  .narrative-prose { margin: 12px 56px; font-size: 11.5px; color: var(--ink-2); line-height: 1.65; }
+  .narrative-prose .narrative-h { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 5px; }
+  .narrative-prose p { margin: 0 0 7px; white-space: pre-line; }
+
   /* ============ Section 10 — Glossary ============ */
   .glossary-grid { margin: 0 56px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
   .glossary-item { padding: 10px 0; border-bottom: 1px solid var(--rule-lighter); }
@@ -1396,6 +1403,18 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div class="scorecard-text"><strong>{{ outbound_summary | safe }}</strong>. <em>The fixable item.</em></div>
     </div>
   </div>
+  {% if 'key_finding' in narrative_keys and narrative.key_finding %}
+  <div class="narrative-callout"><span class="narrative-eyebrow">Key finding</span>{{ narrative.key_finding }}</div>
+  {% endif %}
+  {% if 'executive_summary' in narrative_keys and narrative.executive_summary %}
+  <div class="narrative-prose"><div class="narrative-h">Executive summary</div><p>{{ narrative.executive_summary }}</p></div>
+  {% endif %}
+  {% if 'insurer_signals' in narrative_keys and narrative.insurer_signals %}
+  <div class="narrative-prose"><div class="narrative-h">Underwriting signals</div><p>{{ narrative.insurer_signals }}</p></div>
+  {% endif %}
+  {% if 'positive_signals' in narrative_keys and narrative.positive_signals %}
+  <div class="narrative-prose"><div class="narrative-h">What this domain does well</div><p>{{ narrative.positive_signals }}</p></div>
+  {% endif %}
   <div class="assessment-strip">
     <span class="assessment-strip-icon">i</span>
     <span><strong>First assessment.</strong> No quarter-on-quarter delta in this report. From the next snapshot onward, this strip will surface what changed since the last assessment &mdash; new platforms detected, posture changes, new lookalike registrations.</span>
@@ -1568,6 +1587,10 @@ HEALTH_REPORT_TEMPLATE = r"""
       </tbody>
     </table>
   </div>
+  {% endif %}
+
+  {% if 'saas_stack_analysis' in narrative_keys and narrative.saas_stack_analysis %}
+  <div class="narrative-prose"><div class="narrative-h">What your stack reveals</div><p>{{ narrative.saas_stack_analysis }}</p></div>
   {% endif %}
 
   <div class="next-section-cta">
@@ -1937,6 +1960,10 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
   {% endif %}
 
+  {% if 'threat_narrative' in narrative_keys and narrative.threat_narrative %}
+  <div class="narrative-prose"><div class="narrative-h">Threat analysis</div><p>{{ narrative.threat_narrative }}</p></div>
+  {% endif %}
+
   <div class="methodology-card">
     <h5>How this is assessed</h5>
     <p>Datazag continuously scores every ASN and BGP prefix in the global routing table against threat feeds (Feodo, URLhaus, ThreatFox, SSLBL, Spamhaus), RPKI validity, MANRS participation, routing anomalies (MOAS / hijack signals), and the density of malicious domains sharing the same infrastructure. Your domain inherits that reputation — clean hosting limits an attacker's options; risky neighbourhoods expand them.</p>
@@ -2128,6 +2155,10 @@ HEALTH_REPORT_TEMPLATE = r"""
     <strong>How this prioritises:</strong> items affecting trusted-platform exposure or sensitive subdomains land in <strong>this fortnight</strong>. Outbound-posture work and brand-protection wiring is <strong>this quarter</strong>. Estate-wide hygiene improvements — CAA across all subdomains, MTA-STS, full BIMI deployment with verified mark certificate — are <strong>this year</strong>. Reassessment at the next snapshot will reorder as appropriate.
   </div>
 
+  {% if 'remediation_priority' in narrative_keys and narrative.remediation_priority %}
+  <div class="narrative-prose"><div class="narrative-h">Remediation priorities</div><p>{{ narrative.remediation_priority }}</p></div>
+  {% endif %}
+
   <div class="toc-spacer"></div>
   <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
 </div>
@@ -2266,6 +2297,11 @@ class HealthReportRenderer:
         self.infra         = legacy.get("infrastructure") or {}
         self.certs         = legacy.get("certificates") or {}
         self.narrative     = legacy.get("narrative") or {}
+        # Teaser is the free lead-gen edition: keep the hooks (key finding +
+        # executive summary), withhold the deeper paid prose.
+        if tier == "teaser" and self.narrative:
+            self.narrative = {k: v for k, v in self.narrative.items()
+                              if k in ("key_finding", "executive_summary")}
         # Annotation lake (`output["annotation"]`, the DuckLake v_annotated row) —
         # authoritative for providers/labels/platform stack; renderer fingerprinting
         # is the fallback. Empty Annotation() when the scan didn't carry it.
@@ -2374,6 +2410,19 @@ class HealthReportRenderer:
             A("")
             A("> Not yet assessed — no Datazag corpus intelligence for this domain yet.")
         A("")
+
+        # ── LLM narrative (the keys this variant favours, in order) ───────
+        _NARR_LABELS = {
+            "key_finding": "Key finding", "executive_summary": "Executive summary",
+            "threat_narrative": "Threat analysis", "positive_signals": "What this domain does well",
+            "remediation_priority": "Remediation priorities", "insurer_signals": "Underwriting signals",
+            "saas_stack_analysis": "What your stack reveals",
+        }
+        for key in self.audience.narrative_keys:
+            val = (self.narrative.get(key) or "").strip()
+            if val:
+                A(f"**{_NARR_LABELS.get(key, key)}.** {val}")
+                A("")
 
         # ── Act 1: the attacker problem ──────────────────────────────────
         A("## The attacker problem — platform impersonation")
@@ -2928,6 +2977,9 @@ class HealthReportRenderer:
             "roadmap_year":      self._build_roadmap_bucket("year"),
             # FREE health report — active-scan brand funnel
             "brand_funnel":      self._build_brand_funnel(),
+            # LLM narrative prose + the keys this variant favours (gates rendering)
+            "narrative":         self.narrative,
+            "narrative_keys":    self.audience.narrative_keys,
             # Section 10 — Glossary
             "glossary":          self._glossary_items(),
         }

@@ -73,6 +73,7 @@ async def run(
     output_dir: Path = None,
     brand_profile: str = None,
     skip_pdf: bool = False,
+    narrate: bool = True,
 ) -> dict:
     brand = BrandConfig.load(brand_profile)
     print(f"  Brand: {brand.brand_name}")
@@ -112,6 +113,25 @@ async def run(
 
     print(f"  Domain: {domain} · grade {vm.grade.letter} ({vm.composite_score}/100)"
           + ("" if vm.has_intelligence else " · not yet assessed"))
+
+    # ── LLM narrative (one generation, all variants render the keys they favour) ─
+    # Best-effort: a missing API key or any error leaves the structured report
+    # intact (the narrative blocks just don't render). Generated against the
+    # medallion-backed view-model + the live-scan detail.
+    if narrate and vm.has_intelligence and os.environ.get("ANTHROPIC_API_KEY"):
+        try:
+            from narrative import enrich_with_narrative
+            print("  Generating narrative...")
+            narr = await enrich_with_narrative(
+                domain=domain, score=vm.composite_score, risk_band=vm.grade.letter,
+                findings=list(vm.findings), output=legacy or {},
+                partner_context=partner_context, threat_context=threat_context,
+                audience="flagship", vm=vm,
+            )
+            legacy = (legacy or {})
+            legacy["narrative"] = narr
+        except Exception as e:                       # narrative is supplementary
+            print(f"  Narrative generation skipped: {e}")
 
     # ── Render variants ──────────────────────────────────────────────────
     reports = render_variants(
@@ -175,6 +195,8 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", default=None, help="Output directory (overrides OUTPUT_DIR)")
     parser.add_argument("--brand", default=None, help="Brand profile name")
     parser.add_argument("--skip-pdf", action="store_true", help="Skip Playwright PDF generation")
+    parser.add_argument("--no-narrative", action="store_true",
+                        help="Skip LLM narrative generation (structured content only)")
     args = parser.parse_args()
 
     audiences = list(DEFAULT_AUDIENCES) if args.audience == "all" else [args.audience]
@@ -189,4 +211,5 @@ if __name__ == "__main__":
         output_dir=Path(args.output_dir) if args.output_dir else None,
         brand_profile=args.brand,
         skip_pdf=args.skip_pdf,
+        narrate=not args.no_narrative,
     ))

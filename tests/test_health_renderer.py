@@ -462,6 +462,53 @@ def test_brand_funnel_teaser_masks_extra_candidates_keeps_near_miss():
     assert _mask_domain("qbe-payroll-login.com") in samples
 
 
+_NARRATIVE = {
+    "key_finding":          "KF: dangling CNAME on vpn exposes takeover.",
+    "executive_summary":    "ES: composite driven by infrastructure risk.",
+    "threat_narrative":     "TN: deep interpretive threat analysis here.",
+    "positive_signals":     "PS: DMARC is enforced at reject.",
+    "remediation_priority": "RP: 1) fix the dangling CNAME.",
+    "insurer_signals":      "IS: direct premium-loading signal.",
+    "saas_stack_analysis":  "SAAS: broad identity-heavy stack.",
+}
+
+
+def test_narrative_renders_and_respects_variant_keys():
+    """The LLM narrative prose renders, gated by the variant's narrative_keys —
+    flagship shows its favoured keys and withholds the rest even when present."""
+    legacy = {"domain": "riskyexample.com", "narrative": _NARRATIVE}
+    r = HealthReportRenderer(_sample_vm(), audience="flagship", tier="full", legacy=legacy)
+    html = r.to_html()
+    # flagship favours: key_finding, executive_summary, threat_narrative, positive_signals, remediation_priority
+    for present in ("KF: dangling", "ES: composite", "TN: deep", "PS: DMARC", "RP: 1)"):
+        assert present in html, present
+    # flagship does NOT favour insurer_signals / saas_stack_analysis → must not render
+    assert "IS: direct" not in html
+    assert "SAAS: broad" not in html
+    # markdown carries the favoured keys too
+    md = r.to_markdown()
+    assert "**Key finding.** KF: dangling" in md
+    assert "**Threat analysis.** TN: deep" in md
+    assert "IS: direct" not in md
+
+
+def test_narrative_insurer_variant_shows_insurer_signals():
+    legacy = {"domain": "riskyexample.com", "narrative": _NARRATIVE}
+    html = HealthReportRenderer(_sample_vm(), audience="insurer", tier="full", legacy=legacy).to_html()
+    assert "IS: direct" in html          # insurer favours insurer_signals
+
+
+def test_narrative_teaser_keeps_hooks_only():
+    """Teaser keeps key_finding + executive_summary (the lead-gen hooks); the
+    deeper paid prose is withheld."""
+    legacy = {"domain": "riskyexample.com", "narrative": _NARRATIVE}
+    r = HealthReportRenderer(_sample_vm(), audience="flagship", tier="teaser", legacy=legacy)
+    assert set(r.narrative) <= {"key_finding", "executive_summary"}
+    html = r.to_html()
+    assert "KF: dangling" in html and "ES: composite" in html
+    assert "TN: deep" not in html and "RP: 1)" not in html
+
+
 def test_infra_routing_in_remediation_not_external_threat():
     vm = _sample_vm()
     assert "infra_routing" in [s for s in __import__("healthreport.audiences", fromlist=["get_audience"]).get_audience("remediation").sections]
