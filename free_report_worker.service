@@ -6,8 +6,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/root/datazag_intelligence
-# DATABASE_URL MUST point at the Customer Portal Neon DB. Also set PUBLIC_BASE_URL
-# (e.g. https://datazag.com), RESEND_API_KEY, EMAIL_FROM.
+# DATABASE_URL MUST point at the Customer Portal Neon DB. Also set:
+#   INTELLIGENCE_BASE_URL, INTELLIGENCE_API_KEY  (riskscore medallion endpoint)
+#   PUBLIC_BASE_URL (e.g. https://datazag.com), RESEND_API_KEY, EMAIL_FROM
+#   FREE_REPORT_AUDIENCE (default external_threat), FREE_REPORT_TIER (default teaser)
 EnvironmentFile=/root/datazag_intelligence/.env
 ExecStart=/root/datazag_intelligence/venv/bin/python free_report_worker.py
 Restart=always
