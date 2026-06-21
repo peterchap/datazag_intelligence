@@ -31,13 +31,50 @@ import os
 import sys
 from typing import Any, Optional
 
+import duckdb
 
-def _connect():
-    dns_path = os.environ.get("DNSPROJECT_PATH", "/root/dnsproject")
-    if dns_path not in sys.path:
-        sys.path.insert(0, dns_path)
-    from scripts.ducklake_conn import connect  # type: ignore
-    return connect()
+LAKE = "datazag_lake2"
+
+
+def lake_connect():
+    """Self-contained DuckLake connection: install/load the extensions, add the R2
+    secret, ATTACH the catalog, USE it. Mirrors the dnsproject ducklake_conn so the
+    report doesn't depend on dnsproject being importable.
+
+    Env:
+      DUCKLAKE_NEON_DSN   postgres conninfo (the string after 'ducklake:postgres:'),
+                          e.g. "dbname=neondb host=... user=... password=... sslmode=require"
+      DUCKLAKE_DATA_PATH  R2 data path (default r2://datazag-lake/data/)
+      R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ACCOUNT_ID   R2 credentials
+
+    Falls back to dnsproject's ducklake_conn.connect() if DUCKLAKE_NEON_DSN is unset.
+    """
+    dsn = os.environ.get("DUCKLAKE_NEON_DSN")
+    if not dsn:
+        dns_path = os.environ.get("DNSPROJECT_PATH", "/root/dnsproject")
+        if dns_path not in sys.path:
+            sys.path.insert(0, dns_path)
+        from scripts.ducklake_conn import connect  # type: ignore
+        return connect()
+
+    data_path = os.environ.get("DUCKLAKE_DATA_PATH", "r2://datazag-lake/data/")
+    con = duckdb.connect(":memory:")
+    for ext in ("ducklake", "postgres", "httpfs"):
+        con.execute(f"INSTALL {ext};")
+        con.execute(f"LOAD {ext};")
+
+    key_id = os.environ.get("R2_ACCESS_KEY_ID")
+    secret = os.environ.get("R2_SECRET_ACCESS_KEY")
+    account = os.environ.get("R2_ACCOUNT_ID")
+    if key_id and secret and account:
+        con.execute(
+            "CREATE OR REPLACE SECRET r2_lake (TYPE R2, KEY_ID ?, SECRET ?, ACCOUNT_ID ?);",
+            [key_id, secret, account],
+        )
+
+    con.execute(f"ATTACH 'ducklake:postgres:{dsn}' AS {LAKE} (DATA_PATH '{data_path}');")
+    con.execute(f"USE {LAKE};")
+    return con
 
 
 def _one(con, sql: str, params: list) -> Optional[dict]:
@@ -60,7 +97,7 @@ def _platform_terms(platforms: list[str]) -> list[str]:
 def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] = None) -> dict:
     rec = rec or {}
     d = domain.strip().lower()
-    con = _connect()
+    con = lake_connect()
     out: dict[str, Any] = {}
     try:
         # --- Labels / fronting (canonical view; fallback for non-corpus domains) ---

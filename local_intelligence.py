@@ -93,15 +93,11 @@ class LocalIntelligenceClient:
             return ExternalThreat(detected_platforms=detected)
 
     def _query_impersonations(self, platforms: list[str]) -> ExternalThreat:
-        # Lazy import so this module loads without dnsproject present.
-        dns_path = os.environ.get("DNSPROJECT_PATH", "/root/dnsproject")
-        if dns_path not in sys.path:
-            sys.path.insert(0, dns_path)
-        from scripts.ducklake_conn import connect  # type: ignore
+        from lake_enrich import lake_connect  # shared self-contained DuckLake connector
 
         table = os.environ.get("PLATFORM_IMPERSONATION_TABLE", "ref.platform_impersonation")
         terms = sorted({p.strip().lower() for p in platforms if p and p.strip()})
-        con = connect()
+        con = lake_connect()
         try:
             rows = con.execute(
                 f"SELECT platform, hits, impersonating_domains FROM {table} WHERE lower(platform) = ANY(?)",
