@@ -155,3 +155,105 @@ def _labels_fallback(con, domain: str, rec: dict) -> dict:
     if tr:
         out["tld_risk_level"] = tr["tld_risk_level"]
     return out
+
+
+# ---------------------------------------------------------------------------
+# Map the lake bundle (+ live celery DNS) into intelligence_contract models so
+# report_pipeline can pass them straight into build_view_models().
+# ---------------------------------------------------------------------------
+
+def to_view_models(rec: dict, bundle: dict) -> dict:
+    """Returns {annotation, registration, hygiene, abuse, impersonations, weaponization}
+    ready to splat into build_view_models()."""
+    from intelligence_contract import (  # local import: contract lives alongside
+        Annotation, Registration, DnsHygiene, AbuseContacts, PlatformImpersonation,
+    )
+
+    rec = rec or {}
+    labels = bundle.get("labels") or {}
+    rdap = bundle.get("rdap") or {}
+    abuse = bundle.get("abuse") or {}
+    scen = (bundle.get("scenario") or {})
+    weap = scen.get("weaponization") or {}
+
+    annotation = Annotation(domain=rec.get("domain", ""), **labels)
+
+    reg_in = dict(rdap)
+    reg_in["domain_age_days"] = _age_days(rdap.get("registered_date"))
+    # dates → iso strings for the model
+    for k in ("registered_date", "expires_date"):
+        if reg_in.get(k) is not None:
+            reg_in[k] = str(reg_in[k])
+    registration = Registration(**reg_in)
+
+    spf = (rec.get("spf") or "")
+    dmarc = (rec.get("dmarc") or "")
+    hygiene = DnsHygiene(
+        spf_record=rec.get("spf") or None,
+        spf_strict="-all" in spf.lower(),
+        dmarc_record=rec.get("dmarc") or None,
+        dmarc_policy=_dmarc_policy(dmarc),
+        dnssec=bool(rec.get("dnssec")),
+        mta_sts_mode=rec.get("mta_sts_mode") or None,
+        tlsrpt_present=bool(rec.get("tlsrpt_rua")),
+        bimi_present=bool(rec.get("bimi")),
+        caa_present=bool(rec.get("caa")),
+        tls_issuer=rec.get("https_cert_issuer"),
+        tls_days_left=rec.get("https_cert_days_left"),
+        has_security_txt=bool(rec.get("has_security_txt")),
+    )
+
+    tldr = abuse.get("tld_registrar") or {}
+    asnc = abuse.get("asn") or {}
+    abuse_model = AbuseContacts(
+        registrar_abuse_email=tldr.get("abuse_email"),
+        registrar_abuse_url=tldr.get("abuse_url"),
+        asn_abuse_email=asnc.get("abuse_email"),
+        asn_abuse_phone=asnc.get("abuse_phone"),
+    )
+
+    imps = [
+        PlatformImpersonation(
+            platform=r.get("platform", ""),
+            category=r.get("category") or "",
+            impersonating_domains=int(r.get("impersonating_domains") or 0),
+            hits=int(r.get("hits") or 0),
+            count_30d=int(r.get("impersonating_domains") or 0),  # current proxy until windowed
+        )
+        for r in (bundle.get("impersonation") or [])
+    ]
+
+    return {
+        "annotation": annotation,
+        "registration": registration,
+        "hygiene": hygiene,
+        "abuse": abuse_model,
+        "impersonations": imps,
+        "weaponization": weap,
+    }
+
+
+def _dmarc_policy(dmarc: str) -> Optional[str]:
+    for part in (dmarc or "").lower().split(";"):
+        part = part.strip()
+        if part.startswith("p="):
+            return part[2:].strip() or None
+    return None
+
+
+def _age_days(registered_date) -> Optional[int]:
+    if not registered_date:
+        return None
+    try:
+        from datetime import date, datetime
+        if isinstance(registered_date, str):
+            d = datetime.fromisoformat(registered_date[:10]).date()
+        elif isinstance(registered_date, datetime):
+            d = registered_date.date()
+        elif isinstance(registered_date, date):
+            d = registered_date
+        else:
+            return None
+        return (date.today() - d).days
+    except Exception:
+        return None

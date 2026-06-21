@@ -205,6 +205,9 @@ class PlatformImpersonation(_Base):
     category: str = ""
     count_7d: int = 0
     count_30d: int = 0
+    # Current rollup snapshot (ref.platform_impersonation) — no window split there.
+    impersonating_domains: int = 0       # distinct impersonating domains, current
+    hits: int = 0                        # total hits, current
     sample_domains: list[str] = Field(default_factory=list)
     # "exact"   = certstream exact brand/platform match (rollup kind platform|brand)
     # "lookalike" = fuzzy typosquat candidate (kind *_typosquat) — lower confidence
@@ -412,6 +415,12 @@ class ThreatSurface(BaseModel):
     pivot_findings: list[PivotFinding] = Field(default_factory=list)
     historical_velocity: HistoricalVelocity = Field(default_factory=HistoricalVelocity)
     reason_codes: list[str] = Field(default_factory=list)
+    # weaponization verdict (gold.scenario_weaponization) + tld reputation
+    is_live: bool = False
+    weaponization_score: int = 0
+    threat_intent: Optional[str] = None
+    evasion_tactic: Optional[str] = None
+    tld_risk_level: Optional[str] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -452,6 +461,60 @@ class ExternalThreat(BaseModel):
         return bool(self.lookalike_total_30d or self.own_brand_lookalikes.count_30d)
 
 
+# --- Report enrichment models (live DNS + DuckLake; surfaced into the view-model) ---
+
+class Registration(_Base):
+    """Registration facts — intel.domain_rdap (fallback gold.dns_wide)."""
+    registrar: Optional[str] = None
+    registered_date: Optional[str] = None
+    expires_date: Optional[str] = None
+    domain_age_days: Optional[int] = None
+    dnssec: bool = False
+    status: Optional[str] = None
+    rdap_risk_score: Optional[int] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_nulls(cls, data):
+        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
+
+
+class DnsHygiene(_Base):
+    """Rich DNS/email hygiene from the live scan (celery DNSRecords) — the detail
+    behind the medallion's boolean risk flags (the report's hygiene page)."""
+    spf_record: Optional[str] = None
+    spf_strict: bool = False
+    dmarc_record: Optional[str] = None
+    dmarc_policy: Optional[str] = None
+    dkim_present: bool = False
+    dnssec: bool = False
+    mta_sts_mode: Optional[str] = None
+    tlsrpt_present: bool = False
+    bimi_present: bool = False
+    caa_present: bool = False
+    tls_issuer: Optional[str] = None
+    tls_days_left: Optional[int] = None
+    has_security_txt: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_nulls(cls, data):
+        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
+
+
+class AbuseContacts(_Base):
+    """Remediation routing — intel.tld_registrar_abuse_contacts / asn_abuse_contacts."""
+    registrar_abuse_email: Optional[str] = None
+    registrar_abuse_url: Optional[str] = None
+    asn_abuse_email: Optional[str] = None
+    asn_abuse_phone: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_nulls(cls, data):
+        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
+
+
 class ReportViewModel(BaseModel):
     domain: str
     generated_at: Optional[str] = None
@@ -463,6 +526,11 @@ class ReportViewModel(BaseModel):
     threat: ThreatSurface
     external_threat: ExternalThreat = Field(default_factory=ExternalThreat)
     findings: list[dict] = Field(default_factory=list)
+    # DuckLake/live-DNS enrichment (authoritative; renderer reads these, not legacy)
+    annotation: Annotation = Field(default_factory=Annotation)
+    registration: Registration = Field(default_factory=Registration)
+    hygiene: DnsHygiene = Field(default_factory=DnsHygiene)
+    abuse: AbuseContacts = Field(default_factory=AbuseContacts)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -589,14 +657,25 @@ def build_view_models(
     lookalike_candidates: Optional[list[PlatformImpersonation]] = None,
     own_brand_lookalikes: Optional[BrandExposure] = None,
     brand_funnel: Optional[BrandFunnel] = None,
+    annotation: Optional[Annotation] = None,
+    registration: Optional[Registration] = None,
+    hygiene: Optional[DnsHygiene] = None,
+    abuse: Optional[AbuseContacts] = None,
+    weaponization: Optional[dict] = None,
 ) -> ReportViewModel:
-    """Compose the renderer view-model from the medallion payload + impersonation data."""
+    """Compose the renderer view-model from the medallion payload + impersonation data
+    + DuckLake/live-DNS enrichment (annotation/registration/hygiene/abuse/weaponization)."""
     detected_platforms = detected_platforms or []
     impersonations = impersonations or []
     own_brand = own_brand or BrandExposure()
     lookalike_candidates = lookalike_candidates or []
     own_brand_lookalikes = own_brand_lookalikes or BrandExposure(confidence="lookalike")
     brand_funnel = brand_funnel or BrandFunnel()
+    annotation = annotation or Annotation()
+    registration = registration or Registration()
+    hygiene = hygiene or DnsHygiene()
+    abuse = abuse or AbuseContacts()
+    weaponization = weaponization or {}
 
     external = ExternalThreat(
         detected_platforms=detected_platforms,
@@ -621,6 +700,10 @@ def build_view_models(
             threat=ThreatSurface(score=0, grade=unknown),
             external_threat=external,
             findings=findings or [],
+            annotation=annotation,
+            registration=registration,
+            hygiene=hygiene,
+            abuse=abuse,
         )
 
     trust01 = _trust_penalty(di)
@@ -664,6 +747,11 @@ def build_view_models(
         pivot_findings=di.concentration.pivot_findings,
         historical_velocity=di.historical_velocity,
         reason_codes=di.risk_assessment.reason_codes,
+        is_live=bool(weaponization.get("is_live", False)),
+        weaponization_score=int(weaponization.get("weaponization_score") or 0),
+        threat_intent=weaponization.get("threat_intent"),
+        evasion_tactic=weaponization.get("evasion_tactic"),
+        tld_risk_level=annotation.tld_risk_level,
     )
     return ReportViewModel(
         domain=di.domain,
@@ -676,4 +764,8 @@ def build_view_models(
         threat=threat,
         external_threat=external,
         findings=findings or [],
+        annotation=annotation,
+        registration=registration,
+        hygiene=hygiene,
+        abuse=abuse,
     )
