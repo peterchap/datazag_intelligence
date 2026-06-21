@@ -78,44 +78,39 @@ class LocalIntelligenceClient:
         return DomainIntelligence.model_validate(payload)
 
     async def fetch_platform_impersonations(self, platforms: list[str], brand: str | None = None) -> ExternalThreat:
-        """Platform-impersonation counts from the lake's daily rollup
-        (compute_platform_impersonation_rollup.py → platform_impersonation).
-
-        NOTE: wire to the actual rollup table once its schema is confirmed. Reads
-        DuckLake via dnsproject's ducklake_conn; returns an empty ExternalThreat
-        (with detected_platforms preserved) if unavailable, so the report still
-        renders rather than failing.
-        """
+        """Platform-impersonation activity from the lake's `ref.platform_impersonation`
+        rollup. That table is a CURRENT snapshot (platform, hits, impersonating_domains,
+        loaded_at) — no 7/30-day split — so impersonating_domains maps to count_30d and
+        count_7d stays 0 until a windowed source exists. Degrades to an empty
+        ExternalThreat (detected_platforms preserved) so the report still renders."""
         detected = list(platforms or [])
-        table = os.environ.get("PLATFORM_IMPERSONATION_TABLE", "")  # e.g. "gold.platform_impersonation"
-        if not table or not detected:
+        if not detected:
             return ExternalThreat(detected_platforms=detected)
         try:
-            return await asyncio.to_thread(self._query_impersonations, table, detected)
+            return await asyncio.to_thread(self._query_impersonations, detected)
         except Exception as e:  # impersonations are supplementary — never fatal
             print(f"[local_intelligence] impersonation lookup failed: {e}")
             return ExternalThreat(detected_platforms=detected)
 
-    def _query_impersonations(self, table: str, platforms: list[str]) -> ExternalThreat:
+    def _query_impersonations(self, platforms: list[str]) -> ExternalThreat:
         # Lazy import so this module loads without dnsproject present.
         dns_path = os.environ.get("DNSPROJECT_PATH", "/root/dnsproject")
         if dns_path not in sys.path:
             sys.path.insert(0, dns_path)
         from scripts.ducklake_conn import connect  # type: ignore
 
-        terms = [p.strip().lower() for p in platforms if p and p.strip()]
+        table = os.environ.get("PLATFORM_IMPERSONATION_TABLE", "ref.platform_impersonation")
+        terms = sorted({p.strip().lower() for p in platforms if p and p.strip()})
         con = connect()
         try:
-            # Column names are placeholders until the rollup schema is confirmed.
             rows = con.execute(
-                f"""
-                SELECT platform, count_7d, count_30d
-                FROM {table}
-                WHERE lower(platform) = ANY(?)
-                """,
+                f"SELECT platform, hits, impersonating_domains FROM {table} WHERE lower(platform) = ANY(?)",
                 [terms],
             ).fetchall()
         finally:
             con.close()
-        imps = [PlatformImpersonation(platform=r[0], count_7d=int(r[1] or 0), count_30d=int(r[2] or 0)) for r in rows]
+        imps = [
+            PlatformImpersonation(platform=r[0], count_7d=0, count_30d=int(r[2] or r[1] or 0))
+            for r in rows
+        ]
         return ExternalThreat(detected_platforms=platforms, impersonations=imps)
