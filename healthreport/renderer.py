@@ -2266,10 +2266,15 @@ class HealthReportRenderer:
         self.infra         = legacy.get("infrastructure") or {}
         self.certs         = legacy.get("certificates") or {}
         self.narrative     = legacy.get("narrative") or {}
-        # Annotation lake (`output["annotation"]`, the DuckLake v_annotated row) —
-        # authoritative for providers/labels/platform stack; renderer fingerprinting
-        # is the fallback. Empty Annotation() when the scan didn't carry it.
-        self.annotation    = Annotation.model_validate(legacy.get("annotation") or {})
+        # Annotation lake (DuckLake v_annotated row) — authoritative for
+        # providers/labels. Prefer the view-model's annotation (populated by
+        # lake_enrich in the in-process pipeline); fall back to a legacy
+        # `output["annotation"]` block, then empty.
+        vm_ann = getattr(vm, "annotation", None)
+        if vm_ann is not None and vm_ann.present:
+            self.annotation = vm_ann
+        else:
+            self.annotation = Annotation.model_validate(legacy.get("annotation") or {})
 
         # Merge findings: medallion-derived (already on the vm) first, then any
         # legacy live-scan findings, de-duplicated by finding key.
