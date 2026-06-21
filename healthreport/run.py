@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 from pathlib import Path
@@ -41,13 +42,19 @@ load_dotenv()
 # guarantee Peter wanted (old keeps producing; new produces alongside under
 # different filenames).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from run import run as upstream_run  # type: ignore  # noqa: E402
+from run import _live_scan                          # type: ignore  # noqa: E402
 
 from playwright.async_api import async_playwright  # noqa: E402
 
 from branding import BrandConfig                   # noqa: E402
 from healthreport.renderer import HealthReportRenderer  # noqa: E402
-from report_pipeline import view_model_from_legacy_output as _view_model_from_legacy  # noqa: E402,F401
+from intelligence_client import IntelligenceClient  # noqa: E402
+from report_pipeline import (                       # noqa: E402
+    build_view_model,
+    is_medallion_payload,
+    view_model_from_legacy_output,
+    view_model_from_medallion,
+)
 
 DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "./output"))
 
@@ -70,14 +77,12 @@ async def render_health(
     tier: str = "full",
 ) -> Path:
     """
-    Run the upstream pipeline against the given domain or dns_file, then
-    render the v8 Health Report (HTML + PDF + JSON + MD).
+    Build the medallion-backed view-model for the given domain or dns_file, then
+    render the Health Report (HTML + PDF + JSON + MD) to health.* files.
 
-    By default the upstream pipeline ALSO writes the existing four-audience
-    output (insurer/consultant/it/sales) to the same directory. Pass
-    skip_legacy=True if you only want the v8 health files. (Currently a no-op
-    placeholder until upstream run.py is refactored to split data-build from
-    rendering.)
+    `variant`/`tier` select the report edition (default flagship/full — the paid
+    report the portal worker orders). `audience` is retained for CLI
+    back-compat but no longer drives content (narrative is medallion-derived).
 
     The `prepared_for` parameter sets the "Prepared for" line on the report
     cover. When unset, the cover shows the domain itself. Set this when the
@@ -92,29 +97,36 @@ async def render_health(
 
     print(f"\n[healthreport] Pipeline run starting for {domain or dns_file}")
 
-    # ── Step 1: run upstream pipeline (also writes legacy four-audience) ─
-    output = await upstream_run(
-        domain=domain,
-        dns_file=dns_file,
-        audience=audience,
-        partner_context=partner,
-        threat_context=threat,
-        output_dir=output_dir,
-    )
+    # ── Step 1: build the medallion-backed view-model (same flow as run.py) ─
+    # `--dns_file` is a pre-collected payload (a medallion JSON or a legacy scan
+    # output dict); `--domain` runs the live scan + fetches the medallion.
+    legacy: dict | None = None
+    if dns_file:
+        with open(dns_file, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        if is_medallion_payload(payload):
+            vm = view_model_from_medallion(payload)
+            resolved_domain = vm.domain
+        else:                       # a legacy compiled scan-output dict
+            legacy = payload
+            resolved_domain = payload.get("domain", domain or "unknown")
+            vm = view_model_from_legacy_output(payload)
+    else:
+        client = IntelligenceClient()
+        legacy = await _live_scan(domain, partner, threat, output_dir)
+        vm = await build_view_model(domain, client, live_output=legacy)
+        resolved_domain = domain
 
-    # Inject the prepared_for override into the output dict if provided.
-    # The renderer reads this from output["prepared_for"].
-    if prepared_for:
-        output["prepared_for"] = prepared_for
-    resolved_domain = output["domain"]
+    # Prepared-for override (the renderer reads it from the legacy output dict).
+    if prepared_for and legacy is not None:
+        legacy["prepared_for"] = prepared_for
 
-    # ── Step 2: render v8 Health Report ───────────────────────────────────
+    # ── Step 2: render the Health Report ─────────────────────────────────
     out_dir = (output_dir or DEFAULT_OUTPUT_DIR) / resolved_domain.replace(".", "_")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     brand = BrandConfig.load() if hasattr(BrandConfig, "load") else BrandConfig.default()
-    vm = _view_model_from_legacy(output)
-    renderer = HealthReportRenderer(vm, audience=variant, tier=tier, legacy=output)
+    renderer = HealthReportRenderer(vm, audience=variant, tier=tier, legacy=legacy or {})
 
     formats = {
         "html": ("health.html", renderer.to_html(brand=brand)),
