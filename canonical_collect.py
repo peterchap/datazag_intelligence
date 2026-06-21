@@ -26,7 +26,12 @@ import os
 import sys
 from typing import Any, Optional
 
-_CELERY_PATH = os.environ.get("CELERY_REALTIME_PATH", "/root/celery_app_realtime")
+# The real-time DNS collector (source repo celery_app_realtime; deployed on the
+# master as /root/dns_realtime). DNS_REALTIME_PATH preferred; CELERY_REALTIME_PATH
+# kept for back-compat.
+_CELERY_PATH = (os.environ.get("DNS_REALTIME_PATH")
+                or os.environ.get("CELERY_REALTIME_PATH")
+                or "/root/dns_realtime")
 
 
 def _celery_dns_fetcher():
@@ -39,8 +44,8 @@ def _celery_dns_fetcher():
     any `dns_module` already cached from another repo before importing."""
     if not os.path.isdir(_CELERY_PATH):
         raise RuntimeError(
-            f"celery_app_realtime not found at {_CELERY_PATH!r}. Deploy it on this host "
-            f"or set CELERY_REALTIME_PATH. (canonical_collect needs ITS dns_module — "
+            f"real-time DNS collector not found at {_CELERY_PATH!r}. Set DNS_REALTIME_PATH "
+            f"to the deployed dns_realtime folder. (canonical_collect needs ITS dns_module — "
             f"riskscore ships a colliding, incompatible dns_module.)"
         )
     if _CELERY_PATH not in sys.path:
