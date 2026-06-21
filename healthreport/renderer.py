@@ -3277,12 +3277,12 @@ class HealthReportRenderer:
         # Provider/label precedence: annotation lake (authoritative labelling) →
         # medallion (riskscore single source of truth) → live-scan technographics.
         isp = ann.hosting_provider or ann.cloud_provider \
-            or t.isp or tech.get("isp_name") or "—"
-        country = t.isp_country or tech.get("isp_country") or "—"
+            or t.isp or tech.get("isp_name") or ann.asn_name or "—"
+        country = t.isp_country or tech.get("isp_country") or ann.isp_country or "—"
         asn_risk = (ann.asn_risk_level
                     or (t.asn_risk_level if t.asn_risk_level and t.asn_risk_level != "unknown" else None)
                     or tech.get("asn_risk_level") or "unknown")
-        asn_num = t.asn or tech.get("asn") or 0
+        asn_num = t.asn or tech.get("asn") or ann.asn or 0
         # mailbox provider: annotation lake first (resolves MX-over-TXT at source),
         # then live-scan technographics, then the medallion mx_type.
         mx_type = t.mx_type if t.mx_type and t.mx_type != "unknown" else None
@@ -3310,7 +3310,7 @@ class HealthReportRenderer:
 
         return {
             "asn":            f"AS{asn_num}" if asn_num else "—",
-            "prefix":         t.prefix or "—",
+            "prefix":         t.prefix or ann.prefix or "—",
             "isp":            isp,
             "country":        country,
             "asn_risk":       asn_risk,

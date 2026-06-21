@@ -26,6 +26,7 @@ Env:
 """
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import sys
@@ -94,6 +95,42 @@ def _platform_terms(platforms: list[str]) -> list[str]:
     return sorted({p.strip().lower() for p in (platforms or []) if p and p.strip()})
 
 
+def _first_ip(rec: dict) -> Optional[str]:
+    a = rec.get("a") or rec.get("a_list")
+    if isinstance(a, list):
+        return a[0] if a else None
+    return (str(a).split(",")[0].strip() or None) if a else None
+
+
+def _ip_int(ip: str) -> Optional[int]:
+    try:
+        addr = ipaddress.ip_address(ip)
+        return int(addr) if addr.version == 4 else None
+    except ValueError:
+        return None
+
+
+def _resolve_infra(con, rec: dict) -> Optional[dict]:
+    """Hosting network facts for the domain's primary web IP — the lake fallback
+    for ASN / country / prefix when the medallion's facts are sparse."""
+    ip = _first_ip(rec)
+    if not ip:
+        return None
+    n = _ip_int(ip)
+    if n is None:
+        return None
+    try:
+        return _one(con, """
+            SELECT a.asn, a.isp, a.isp_country, a.asn_risk_level, a.prefix, ai.asn_name
+            FROM gold.asn_ip4 a
+            LEFT JOIN intel.asn_intel ai ON ai.asn_number = a.asn
+            WHERE ? BETWEEN a.start_int AND a.end_int
+            LIMIT 1
+        """, [n])
+    except Exception:
+        return None
+
+
 def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] = None) -> dict:
     rec = rec or {}
     d = domain.strip().lower()
@@ -112,6 +149,9 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
         """, [d])
         out["labels"] = labels or _labels_fallback(con, d, rec)
         out["labels_source"] = "v_annotated" if labels else "live"
+
+        # --- Hosting network facts (ASN/country/prefix) from the routing table ---
+        out["infra"] = _resolve_infra(con, rec)
 
         # --- Domain risk + verdict ---
         gr = _one(con, "SELECT domain_risk_score, domain_risk_context FROM gold.gold_risk_domain WHERE domain = ?", [d])
@@ -208,12 +248,21 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
 
     rec = rec or {}
     labels = bundle.get("labels") or {}
+    infra = bundle.get("infra") or {}
     rdap = bundle.get("rdap") or {}
     abuse = bundle.get("abuse") or {}
     scen = (bundle.get("scenario") or {})
     weap = scen.get("weaponization") or {}
 
-    annotation = Annotation(domain=rec.get("domain", ""), **labels)
+    # Merge hosting-network facts (asn_ip4) onto the annotation so the infra block
+    # populates from the lake when the medallion is sparse.
+    ann_in = dict(labels)
+    ann_in["asn"] = infra.get("asn") or labels.get("infra_asn")
+    ann_in["asn_name"] = infra.get("asn_name") or infra.get("isp")
+    ann_in["isp_country"] = infra.get("isp_country")
+    ann_in["prefix"] = infra.get("prefix")
+    ann_in.setdefault("asn_risk_level", infra.get("asn_risk_level"))
+    annotation = Annotation(domain=rec.get("domain", ""), **ann_in)
 
     reg_in = dict(rdap)
     reg_in["domain_age_days"] = _age_days(rdap.get("registered_date"))

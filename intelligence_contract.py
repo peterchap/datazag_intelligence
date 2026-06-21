@@ -340,6 +340,11 @@ class Annotation(_Base):
     hosting_provider: Optional[str] = None
     hosting_class: Optional[str] = None
     is_fronted: bool = False
+    # hosting network facts (lake fallback when the medallion is sparse)
+    asn: Optional[int] = None
+    asn_name: Optional[str] = None
+    isp_country: Optional[str] = None
+    prefix: Optional[str] = None
     # risk labels
     asn_risk_level: Optional[str] = None
     tld_risk_level: Optional[str] = None
