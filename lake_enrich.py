@@ -381,9 +381,10 @@ def _labels_fallback(enricher, domain: str, rec: dict) -> dict:
         out["cname_provider"], out["cname_class"] = cn["provider"], cn["class"]
 
     # --- hosting = cloud first, else CNAME; SCORE-2 fronting/confidence ---
-    out["hosting_provider"] = (cloud or {}).get("provider") or (cn or {}).get("provider")
-    out["hosting_class"] = (cloud or {}).get("class") or (cn or {}).get("class")
-    is_fronted = ((cloud or {}).get("class") == "cdn") or ((cn or {}).get("class") == "cdn")
+    # cloud provider/class now come from ip_facts (set on `out` above), not a local var.
+    out["hosting_provider"] = out.get("cloud_provider") or (cn or {}).get("provider")
+    out["hosting_class"] = out.get("cloud_class") or (cn or {}).get("class")
+    is_fronted = (out.get("cloud_class") == "cdn") or ((cn or {}).get("class") == "cdn")
     out["is_fronted"] = is_fronted
     out["ip_score_confidence"] = "low" if is_fronted else "high"
     # behind a CDN the A-record IP is the CDN's, not the actor's -> drop the infra signal
