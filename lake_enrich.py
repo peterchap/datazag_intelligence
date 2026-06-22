@@ -36,6 +36,24 @@ import duckdb
 
 LAKE = "datazag_lake2"
 
+# Shared enrichment core (the common thread): ONE persistent, cached, hub-backed
+# LakeEnricher reused across the whole report run — replacing the per-domain
+# lake_connect()/close() + the giant asn_ip4/cloud_ranges/ip_risk range scans that
+# OOM-killed the report. Its per-IP lookups go to the master Flight hub when
+# MASTER_FLIGHT_URL is set (no R2 range scan), else DuckLake, both cached.
+_ENR = None
+
+
+def _get_enricher():
+    global _ENR
+    if _ENR is None:
+        dns_path = os.environ.get("DNSPROJECT_PATH", "/root/dnsproject")
+        if dns_path not in sys.path:
+            sys.path.insert(0, dns_path)
+        from scripts.lake_enrich import LakeEnricher  # the shared core
+        _ENR = LakeEnricher()
+    return _ENR
+
 
 def _add_s3_over_r2_secret(con) -> None:
     """Some managed tables in this catalog record their parquet paths with the s3://
@@ -61,6 +79,26 @@ def _add_s3_over_r2_secret(con) -> None:
         )
     except duckdb.Error as e:
         print(f"  lake: could not add s3-over-r2 secret - {str(e).splitlines()[0]}")
+
+
+def _tune_memory(con) -> None:
+    """Bound DuckDB memory and enable disk spill so a large lake scan can't OOM-kill
+    the process on a small host — the OS OOM-killer fires before DuckDB's default
+    (~80% RAM) limit, surfacing only as 'Killed'. With an explicit limit DuckDB spills
+    to temp_directory (or raises a catchable error) instead. Tunable via
+    DUCKDB_MEMORY_LIMIT / DUCKDB_THREADS / DUCKDB_TEMP_DIR / DUCKDB_MAX_TEMP."""
+    import tempfile
+    spill = os.environ.get("DUCKDB_TEMP_DIR") or os.path.join(tempfile.gettempdir(), "duckdb_spill")
+    for stmt in (
+        f"SET memory_limit = '{os.environ.get('DUCKDB_MEMORY_LIMIT', '1GB')}';",
+        f"SET threads = {int(os.environ.get('DUCKDB_THREADS', '2'))};",
+        f"SET temp_directory = '{spill}';",
+        f"SET max_temp_directory_size = '{os.environ.get('DUCKDB_MAX_TEMP', '20GB')}';",
+    ):
+        try:
+            con.execute(stmt)
+        except duckdb.Error as e:
+            print(f"  lake: tune skipped ({stmt.split('=')[0].strip()}) - {str(e).splitlines()[0]}")
 
 
 def lake_connect():
@@ -98,6 +136,7 @@ def lake_connect():
         from scripts.ducklake_conn import connect  # type: ignore
         con = connect()  # loads .env (sets R2_* in os.environ) + creates the r2:// secret
         _add_s3_over_r2_secret(con)
+        _tune_memory(con)
         return con
 
     data_path = os.environ.get("DUCKLAKE_DATA_PATH", "r2://datazag-lake/data/")
@@ -105,6 +144,7 @@ def lake_connect():
     for ext in ("ducklake", "postgres", "httpfs"):
         con.execute(f"INSTALL {ext};")
         con.execute(f"LOAD {ext};")
+    _tune_memory(con)
 
     # Accept both credential namings: the report's own (R2_ACCESS_KEY_ID/
     # R2_SECRET_ACCESS_KEY) and dnsproject's .env (R2_ACCESS_KEY/R2_SECRET_KEY).
@@ -196,85 +236,82 @@ def _resolve_infra(con, rec: dict) -> Optional[dict]:
 def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] = None) -> dict:
     rec = rec or {}
     d = domain.strip().lower()
-    con = lake_connect()
+    # Shared persistent, cached, hub-backed connection — NOT a per-call
+    # lake_connect()/close(). That per-domain re-ATTACH plus the giant asn_ip4/
+    # cloud_ranges/ip_risk range scans (now moved to enricher.ip_facts) were the
+    # report's OOM source.
+    enricher = _get_enricher()
+    con = enricher.con
     out: dict[str, Any] = {}
-    try:
-        # --- Labels / fronting (corpus view; parameterized fallback otherwise) ---
-        # main.v_annotated is a view over the dns_expanded corpus; it may be absent,
-        # or present but unreadable (its parquet files on a dead/old R2 path). Either
-        # way, degrade to the live parameterized fallback rather than aborting the run.
-        labels = None
-        try:
-            labels = _one(con, """
-                SELECT mailbox_provider, mailbox_category, mailbox_role,
-                       ns_provider, ns_category, cloud_provider, cloud_class,
-                       cname_provider, hosting_provider, hosting_class,
-                       is_fronted, ip_score_confidence, infra_asn, prefix_infra_score,
-                       infra_core_risk, infra_core_effective, ip_risk_score, ip_risk_reason,
-                       tld_risk_level, is_parked, trust_label, mailbox_label, hosting_label
-                FROM main.v_annotated WHERE domain = ? LIMIT 1
-            """, [d])
-        except duckdb.Error:
-            pass
-        # The fallback reads ref.* heavily; if the ref schema isn't loaded in this
-        # catalog, degrade labels to empty rather than aborting the whole bundle.
-        out["labels"] = labels or _safe("labels", lambda: _labels_fallback(con, d, rec), {})
-        out["labels_source"] = "v_annotated" if labels else "live"
+    if con is None:
+        return out
 
-        # --- Hosting network facts (ASN/country/prefix) from the routing table ---
-        out["infra"] = _resolve_infra(con, rec)
+    # --- Labels / fronting (parameterized over base ref/gold tables) ---
+    # Deliberately NOT querying main.v_annotated: it's a view over the full
+    # dns_expanded corpus with window-function joins, so `WHERE domain = ?` can't push
+    # the filter down — DuckDB would scan the whole corpus before filtering, OOM-killing
+    # the report. _labels_fallback reproduces the same label logic per domain from the
+    # base ref/gold tables — keyed, bounded, no corpus scan.
+    out["labels"] = _safe("labels", lambda: _labels_fallback(enricher, d, rec), {})
+    out["labels_source"] = "live"
 
-        # --- Domain risk + verdict ---
-        gr = _safe("domain_risk", lambda: _one(con,
-            "SELECT domain_risk_score, domain_risk_context FROM gold.gold_risk_domain WHERE domain = ?", [d]))
-        if gr and isinstance(gr.get("domain_risk_context"), str):
-            try: gr["domain_risk_context"] = json.loads(gr["domain_risk_context"])
-            except Exception: pass
-        out["domain_risk"] = gr
+    # --- Hosting network facts (ASN/country/prefix) from the hub-backed per-IP lookup ---
+    ip0 = _first_ip(rec)
+    f = enricher.ip_facts(ip0) if ip0 else None
+    out["infra"] = {
+        "asn": f.get("asn"), "isp": f.get("isp"), "isp_country": f.get("isp_country"),
+        "asn_risk_level": f.get("asn_risk_level"), "prefix": f.get("prefix"),
+    } if f else None
 
-        # --- Threat decomposition / liveness ---
-        out["scenario"] = {
-            "domain_intel": _safe("scenario_domain_intel", lambda: _one(con, """
-                SELECT dangling_cname_risk, fast_flux_risk, tld_registrar_risk, dga_risk,
-                       concentration_risk, certstream_risk, combined_risk, details
-                FROM gold.scenario_domain_intel WHERE domain = ?""", [d])),
-            "weaponization": _safe("scenario_weaponization", lambda: _one(con, """
-                SELECT weaponization_score, threat_intent, evasion_tactic, is_live
-                FROM gold.scenario_weaponization WHERE domain = ?""", [d])),
-            "mx_intel": _safe("scenario_mx_intel", lambda: _one(con,
-                "SELECT mx_risk_score, mx_risk_context FROM gold.scenario_mx_intel WHERE domain = ?", [d])),
-        }
+    # --- Domain risk + verdict ---
+    gr = _safe("domain_risk", lambda: _one(con,
+        "SELECT domain_risk_score, domain_risk_context FROM gold.gold_risk_domain WHERE domain = ?", [d]))
+    if gr and isinstance(gr.get("domain_risk_context"), str):
+        try: gr["domain_risk_context"] = json.loads(gr["domain_risk_context"])
+        except Exception: pass
+    out["domain_risk"] = gr
 
-        # --- Registration / age ---
-        out["rdap"] = _safe("domain_rdap", lambda: _one(con, """
-            SELECT registrar, registered_date, expires_date, dnssec, status, rdap_risk_score, abuse_email
-            FROM intel.domain_rdap WHERE domain = ?""", [d]))
+    # --- Threat decomposition / liveness ---
+    out["scenario"] = {
+        "domain_intel": _safe("scenario_domain_intel", lambda: _one(con, """
+            SELECT dangling_cname_risk, fast_flux_risk, tld_registrar_risk, dga_risk,
+                   concentration_risk, certstream_risk, combined_risk, details
+            FROM gold.scenario_domain_intel WHERE domain = ?""", [d])),
+        "weaponization": _safe("scenario_weaponization", lambda: _one(con, """
+            SELECT weaponization_score, threat_intent, evasion_tactic, is_live
+            FROM gold.scenario_weaponization WHERE domain = ?""", [d])),
+        "mx_intel": _safe("scenario_mx_intel", lambda: _one(con,
+            "SELECT mx_risk_score, mx_risk_context FROM gold.scenario_mx_intel WHERE domain = ?", [d])),
+    }
 
-        # --- Platform impersonation (current rollup: hits + distinct impersonating domains) ---
-        terms = _platform_terms(platforms or [])
-        out["impersonation"] = _safe("platform_impersonation", lambda: _all(con, """
-            SELECT platform, category, hits, impersonating_domains, loaded_at
-            FROM ref.platform_impersonation WHERE lower(platform) = ANY(?)
-            ORDER BY impersonating_domains DESC""", [terms]), []) if terms else []
+    # --- Registration / age ---
+    out["rdap"] = _safe("domain_rdap", lambda: _one(con, """
+        SELECT registrar, registered_date, expires_date, dnssec, status, rdap_risk_score, abuse_email
+        FROM intel.domain_rdap WHERE domain = ?""", [d]))
 
-        # --- Abuse contacts (remediation routing) ---
-        tld = (out.get("rdap") or {}).get("tld") or d.rsplit(".", 1)[-1]
-        registrar = (out.get("rdap") or {}).get("registrar")
-        out["abuse"] = {
-            "tld_registrar": _safe("tld_registrar_abuse_contacts", lambda: _one(con, """
-                SELECT abuse_email, abuse_url FROM intel.tld_registrar_abuse_contacts
-                WHERE tld = ? AND (registrar = ? OR ? IS NULL) LIMIT 1""", [tld, registrar, registrar])),
-        }
-        infra_asn = (out.get("labels") or {}).get("infra_asn")
-        if infra_asn:
-            out["abuse"]["asn"] = _safe("asn_abuse_contacts", lambda: _one(con, """
-                SELECT abuse_email, abuse_phone FROM intel.asn_abuse_contacts WHERE asn_number = ? LIMIT 1""", [int(infra_asn)]))
-    finally:
-        con.close()
+    # --- Platform impersonation (current rollup: hits + distinct impersonating domains) ---
+    terms = _platform_terms(platforms or [])
+    out["impersonation"] = _safe("platform_impersonation", lambda: _all(con, """
+        SELECT platform, category, hits, impersonating_domains, loaded_at
+        FROM ref.platform_impersonation WHERE lower(platform) = ANY(?)
+        ORDER BY impersonating_domains DESC""", [terms]), []) if terms else []
+
+    # --- Abuse contacts (remediation routing) ---
+    tld = (out.get("rdap") or {}).get("tld") or d.rsplit(".", 1)[-1]
+    registrar = (out.get("rdap") or {}).get("registrar")
+    out["abuse"] = {
+        "tld_registrar": _safe("tld_registrar_abuse_contacts", lambda: _one(con, """
+            SELECT abuse_email, abuse_url FROM intel.tld_registrar_abuse_contacts
+            WHERE tld = ? AND (registrar = ? OR ? IS NULL) LIMIT 1""", [tld, registrar, registrar])),
+    }
+    infra_asn = (out.get("labels") or {}).get("infra_asn")
+    if infra_asn:
+        out["abuse"]["asn"] = _safe("asn_abuse_contacts", lambda: _one(con, """
+            SELECT abuse_email, abuse_phone FROM intel.asn_abuse_contacts WHERE asn_number = ? LIMIT 1""", [int(infra_asn)]))
     return out
 
 
-def _labels_fallback(con, domain: str, rec: dict) -> dict:
+def _labels_fallback(enricher, domain: str, rec: dict) -> dict:
     """Parameterized labelling from the live DNS, computed over the same ref/gold base
     tables that v_enriched/v_annotated join — so the report gets the FULL label set
     (hosting / fronting / IP reputation / taxonomy display labels / trust verdict) for
@@ -282,6 +319,7 @@ def _labels_fallback(con, domain: str, rec: dict) -> dict:
     is a scan-time view over a bound live `src`, not a persistent per-domain lake table,
     so we reproduce its joins per-domain rather than SELECT from it. Mirrors
     dnsproject/scripts/annotation_views.py (enriched_sql / annotated_sql)."""
+    con = enricher.con
     mx_host = (rec.get("mx_host_final") or rec.get("mx") or "").lower()
     mx_regdom = (rec.get("mx_regdom_final") or "").lower()
     ns = (rec.get("ns1") or rec.get("ns") or "").lower()
@@ -314,41 +352,24 @@ def _labels_fallback(con, domain: str, rec: dict) -> dict:
     if tr:
         out["tld_risk_level"] = tr["tld_risk_level"]
 
-    # --- IP-derived signals (mirrors ip_attributes_sql: cloud range, ASN/prefix, IP risk) ---
+    # --- IP-derived signals via the shared, hub-backed lookup. No asn_ip4 /
+    # cloud_ranges / ip_risk range scans here — those per-domain remote scans were the
+    # report's OOM source; ip_facts resolves them once (Flight hub or cached lake). ---
     ip = _first_ip(rec)
-    n = _ip_int(ip) if ip else None
-    cloud = asnmap = iprisk = None
-    if n is not None:
-        cloud = _one(con, """
-            SELECT provider, class FROM ref.cloud_ranges
-            WHERE family=4 AND ? BETWEEN start_int AND end_int
-            ORDER BY (class='cdn') DESC, (end_int - start_int) ASC LIMIT 1""", [n])
-        asnmap = _one(con, """
-            SELECT asn, prefix, asn_risk_level FROM gold.asn_ip4
-            WHERE ? BETWEEN start_int AND end_int
-            ORDER BY (end_int - start_int) ASC LIMIT 1""", [n])
-        iprisk = _one(con, """
-            SELECT risk_score, risk_reason FROM ref.ip_risk
-            WHERE ? BETWEEN start_int AND end_int
-            ORDER BY (end_int - start_int) ASC LIMIT 1""", [n])
-
-    if cloud:
-        out["cloud_provider"], out["cloud_class"] = cloud["provider"], cloud["class"]
-    if iprisk:
-        out["ip_risk_score"], out["ip_risk_reason"] = iprisk.get("risk_score"), iprisk.get("risk_reason")
-
+    f = enricher.ip_facts(ip) if ip else None
     infra_core_risk = None
-    if asnmap:
-        out["infra_asn"] = asnmap.get("asn")
-        out["asn_risk_level"] = asnmap.get("asn_risk_level")
-        if asnmap.get("prefix"):
-            gp = _one(con, "SELECT infra_score FROM gold.gold_risk_prefix WHERE prefix = ? LIMIT 1", [asnmap["prefix"]])
-            if gp:
-                out["prefix_infra_score"] = gp.get("infra_score")
-        if asnmap.get("asn") is not None:
-            ga = _one(con, "SELECT core_risk FROM gold.gold_risk_asn WHERE asn = ? LIMIT 1", [int(asnmap["asn"])])
-            if ga:
-                infra_core_risk = ga.get("core_risk")
+    if f:
+        if f.get("cloud_provider"):
+            out["cloud_provider"], out["cloud_class"] = f.get("cloud_provider"), f.get("cloud_class")
+        if f.get("ip_risk_score") is not None:
+            out["ip_risk_score"], out["ip_risk_reason"] = f.get("ip_risk_score"), f.get("ip_risk_reason")
+        if f.get("asn") is not None:
+            out["infra_asn"] = f.get("asn")
+            out["asn_risk_level"] = f.get("asn_risk_level")
+            if f.get("prefix_infra") is not None:
+                out["prefix_infra_score"] = f.get("prefix_infra")
+            if f.get("core_risk") is not None:
+                infra_core_risk = f.get("core_risk")
                 out["infra_core_risk"] = infra_core_risk
 
     # --- CNAME fronting (ref.cdn_cnames; cname already lowercased) ---
@@ -406,7 +427,7 @@ def _labels_fallback(con, domain: str, rec: dict) -> dict:
             mailbox_trust = tm.get("trust_hint") or 0
 
     # --- headline verdict (mirrors annotated_sql.trust_label) ---
-    ip_risk_score = (iprisk or {}).get("risk_score") or 0
+    ip_risk_score = out.get("ip_risk_score") or 0
     trust = (hosting_trust or 0) + (mailbox_trust or 0)
     if is_parked:
         out["trust_label"] = "Parked"
