@@ -76,6 +76,20 @@ def lake_connect():
 
     Falls back to dnsproject's ducklake_conn.connect() if DUCKLAKE_NEON_DSN is unset.
     """
+    # Load the .env first so the self-contained path has the R2 creds too: it reads
+    # os.environ directly (unlike the dnsproject fallback, which loads .env itself).
+    # Without this, a process that only exports DUCKLAKE_NEON_DSN (R2 vars left in
+    # the .env file) creates no R2 secret, and r2:// reads fall back to AWS -> 404.
+    # override=False so anything already exported in the real environment still wins.
+    try:
+        from dotenv import load_dotenv, find_dotenv  # type: ignore
+        # the .env next to this module (e.g. /root/datazag_intelligence/.env),
+        # regardless of the process cwd, then the usual upward search as a fallback.
+        load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=False)
+        load_dotenv(find_dotenv(usecwd=True), override=False)
+    except Exception:
+        pass
+
     dsn = os.environ.get("DUCKLAKE_NEON_DSN")
     if not dsn:
         dns_path = os.environ.get("DNSPROJECT_PATH", "/root/dnsproject")
