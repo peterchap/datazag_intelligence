@@ -264,15 +264,15 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
     } if f else None
 
     # --- Threat decomposition / liveness ---
-    # gold_risk_domain (domain_risk), scenario_domain_intel and scenario_mx_intel were
-    # fetched here but NEVER consumed by to_view_models — each one a ~3-minute,
-    # 342M-row `WHERE domain = ?` scan over R2 (no domain pruning) run for nothing.
-    # Removed; only scenario_weaponization is actually used (weap in to_view_models).
-    out["scenario"] = {
-        "weaponization": _safe("scenario_weaponization", lambda: _one(con, """
-            SELECT weaponization_score, threat_intent, evasion_tactic, is_live
-            FROM gold.scenario_weaponization WHERE domain = ?""", [d])),
-    }
+    # Deliberately NOT queried for the health report. The scenario/weaponization/
+    # domain-risk gold tables are the riskscore engine's THREAT-ACTOR verdicts ("is
+    # THIS domain malicious?") — ~always benign for a customer's OWN domain (the
+    # report subject) and each a ~3-min, 342M-row WHERE domain=? scan over R2. They
+    # belong on the alert path, scoring suspicious/impersonating domains, not the
+    # protected one. Empty here => to_view_models renders weaponization as benign,
+    # the correct state for a legitimate own-domain. (Alert path is unaffected — it
+    # uses dnsproject/scripts/lake_enrich.py, a separate module.)
+    out["scenario"] = {}
 
     # --- Registration / age ---
     out["rdap"] = _safe("domain_rdap", lambda: _one(con, """
