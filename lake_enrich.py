@@ -263,25 +263,15 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
         "asn_risk_level": f.get("asn_risk_level"), "prefix": f.get("prefix"),
     } if f else None
 
-    # --- Domain risk + verdict ---
-    gr = _safe("domain_risk", lambda: _one(con,
-        "SELECT domain_risk_score, domain_risk_context FROM gold.gold_risk_domain WHERE domain = ?", [d]))
-    if gr and isinstance(gr.get("domain_risk_context"), str):
-        try: gr["domain_risk_context"] = json.loads(gr["domain_risk_context"])
-        except Exception: pass
-    out["domain_risk"] = gr
-
     # --- Threat decomposition / liveness ---
+    # gold_risk_domain (domain_risk), scenario_domain_intel and scenario_mx_intel were
+    # fetched here but NEVER consumed by to_view_models — each one a ~3-minute,
+    # 342M-row `WHERE domain = ?` scan over R2 (no domain pruning) run for nothing.
+    # Removed; only scenario_weaponization is actually used (weap in to_view_models).
     out["scenario"] = {
-        "domain_intel": _safe("scenario_domain_intel", lambda: _one(con, """
-            SELECT dangling_cname_risk, fast_flux_risk, tld_registrar_risk, dga_risk,
-                   concentration_risk, certstream_risk, combined_risk, details
-            FROM gold.scenario_domain_intel WHERE domain = ?""", [d])),
         "weaponization": _safe("scenario_weaponization", lambda: _one(con, """
             SELECT weaponization_score, threat_intent, evasion_tactic, is_live
             FROM gold.scenario_weaponization WHERE domain = ?""", [d])),
-        "mx_intel": _safe("scenario_mx_intel", lambda: _one(con,
-            "SELECT mx_risk_score, mx_risk_context FROM gold.scenario_mx_intel WHERE domain = ?", [d])),
     }
 
     # --- Registration / age ---
