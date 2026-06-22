@@ -92,15 +92,19 @@ def lake_connect():
         con.execute(f"INSTALL {ext};")
         con.execute(f"LOAD {ext};")
 
-    key_id = os.environ.get("R2_ACCESS_KEY_ID")
-    secret = os.environ.get("R2_SECRET_ACCESS_KEY")
+    # Accept both credential namings: the report's own (R2_ACCESS_KEY_ID/
+    # R2_SECRET_ACCESS_KEY) and dnsproject's .env (R2_ACCESS_KEY/R2_SECRET_KEY).
+    # Without this the TYPE R2 secret silently isn't created and r2:// reads fall
+    # back to the AWS S3 endpoint (datazag-lake.s3.amazonaws.com) -> 404.
+    key_id = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get("R2_ACCESS_KEY")
+    secret = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get("R2_SECRET_KEY")
     account = os.environ.get("R2_ACCOUNT_ID")
     if key_id and secret and account:
         con.execute(
             "CREATE OR REPLACE SECRET r2_lake (TYPE R2, KEY_ID ?, SECRET ?, ACCOUNT_ID ?);",
             [key_id, secret, account],
         )
-    # Also resolve s3://<bucket>/... paths (some managed tables) to the R2 endpoint.
+    # Belt-and-suspenders: also resolve any s3://<bucket>/... path to the R2 endpoint.
     _add_s3_over_r2_secret(con)
 
     con.execute(f"ATTACH 'ducklake:postgres:{dsn}' AS {LAKE} (DATA_PATH '{data_path}');")
