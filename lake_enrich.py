@@ -91,6 +91,20 @@ def _all(con, sql: str, params: list) -> list[dict]:
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+def _safe(label: str, fn, default=None):
+    """Run a lake-query thunk, degrading to `default` if the schema/table is missing
+    in the attached catalog (e.g. ref/intel/gold not yet loaded). Keeps one missing
+    feature from aborting the whole enrichment bundle; real errors still surface."""
+    try:
+        return fn()
+    except duckdb.Error as e:
+        # Any lake-side failure (missing schema/table, or a dead R2 data path /
+        # HTTP 404 on a table's parquet files) degrades this section, not the run.
+        msg = str(e).splitlines()[0] if str(e) else e.__class__.__name__
+        print(f"  lake: '{label}' unavailable - {msg}")
+        return default
+
+
 def _platform_terms(platforms: list[str]) -> list[str]:
     return sorted({p.strip().lower() for p in (platforms or []) if p and p.strip()})
 
@@ -137,10 +151,10 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
     con = lake_connect()
     out: dict[str, Any] = {}
     try:
-        # --- Labels / fronting (canonical view; fallback for non-corpus domains) ---
-        # v_annotated is a MotherDuck-side view over the live-ingestion tables; it
-        # isn't present in the attached DuckLake catalog, so a missing view must
-        # degrade to the live fallback rather than abort the whole enrichment.
+        # --- Labels / fronting (corpus view; parameterized fallback otherwise) ---
+        # main.v_annotated is a view over the dns_expanded corpus; it may be absent,
+        # or present but unreadable (its parquet files on a dead/old R2 path). Either
+        # way, degrade to the live parameterized fallback rather than aborting the run.
         labels = None
         try:
             labels = _one(con, """
@@ -152,16 +166,19 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
                        tld_risk_level, is_parked, trust_label, mailbox_label, hosting_label
                 FROM main.v_annotated WHERE domain = ? LIMIT 1
             """, [d])
-        except duckdb.CatalogException:
+        except duckdb.Error:
             pass
-        out["labels"] = labels or _labels_fallback(con, d, rec)
+        # The fallback reads ref.* heavily; if the ref schema isn't loaded in this
+        # catalog, degrade labels to empty rather than aborting the whole bundle.
+        out["labels"] = labels or _safe("labels", lambda: _labels_fallback(con, d, rec), {})
         out["labels_source"] = "v_annotated" if labels else "live"
 
         # --- Hosting network facts (ASN/country/prefix) from the routing table ---
         out["infra"] = _resolve_infra(con, rec)
 
         # --- Domain risk + verdict ---
-        gr = _one(con, "SELECT domain_risk_score, domain_risk_context FROM gold.gold_risk_domain WHERE domain = ?", [d])
+        gr = _safe("domain_risk", lambda: _one(con,
+            "SELECT domain_risk_score, domain_risk_context FROM gold.gold_risk_domain WHERE domain = ?", [d]))
         if gr and isinstance(gr.get("domain_risk_context"), str):
             try: gr["domain_risk_context"] = json.loads(gr["domain_risk_context"])
             except Exception: pass
@@ -169,40 +186,41 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
 
         # --- Threat decomposition / liveness ---
         out["scenario"] = {
-            "domain_intel": _one(con, """
+            "domain_intel": _safe("scenario_domain_intel", lambda: _one(con, """
                 SELECT dangling_cname_risk, fast_flux_risk, tld_registrar_risk, dga_risk,
                        concentration_risk, certstream_risk, combined_risk, details
-                FROM gold.scenario_domain_intel WHERE domain = ?""", [d]),
-            "weaponization": _one(con, """
+                FROM gold.scenario_domain_intel WHERE domain = ?""", [d])),
+            "weaponization": _safe("scenario_weaponization", lambda: _one(con, """
                 SELECT weaponization_score, threat_intent, evasion_tactic, is_live
-                FROM gold.scenario_weaponization WHERE domain = ?""", [d]),
-            "mx_intel": _one(con, "SELECT mx_risk_score, mx_risk_context FROM gold.scenario_mx_intel WHERE domain = ?", [d]),
+                FROM gold.scenario_weaponization WHERE domain = ?""", [d])),
+            "mx_intel": _safe("scenario_mx_intel", lambda: _one(con,
+                "SELECT mx_risk_score, mx_risk_context FROM gold.scenario_mx_intel WHERE domain = ?", [d])),
         }
 
         # --- Registration / age ---
-        out["rdap"] = _one(con, """
+        out["rdap"] = _safe("domain_rdap", lambda: _one(con, """
             SELECT registrar, registered_date, expires_date, dnssec, status, rdap_risk_score, abuse_email
-            FROM intel.domain_rdap WHERE domain = ?""", [d])
+            FROM intel.domain_rdap WHERE domain = ?""", [d]))
 
         # --- Platform impersonation (current rollup: hits + distinct impersonating domains) ---
         terms = _platform_terms(platforms or [])
-        out["impersonation"] = _all(con, """
+        out["impersonation"] = _safe("platform_impersonation", lambda: _all(con, """
             SELECT platform, category, hits, impersonating_domains, loaded_at
             FROM ref.platform_impersonation WHERE lower(platform) = ANY(?)
-            ORDER BY impersonating_domains DESC""", [terms]) if terms else []
+            ORDER BY impersonating_domains DESC""", [terms]), []) if terms else []
 
         # --- Abuse contacts (remediation routing) ---
         tld = (out.get("rdap") or {}).get("tld") or d.rsplit(".", 1)[-1]
         registrar = (out.get("rdap") or {}).get("registrar")
         out["abuse"] = {
-            "tld_registrar": _one(con, """
+            "tld_registrar": _safe("tld_registrar_abuse_contacts", lambda: _one(con, """
                 SELECT abuse_email, abuse_url FROM intel.tld_registrar_abuse_contacts
-                WHERE tld = ? AND (registrar = ? OR ? IS NULL) LIMIT 1""", [tld, registrar, registrar]),
+                WHERE tld = ? AND (registrar = ? OR ? IS NULL) LIMIT 1""", [tld, registrar, registrar])),
         }
         infra_asn = (out.get("labels") or {}).get("infra_asn")
         if infra_asn:
-            out["abuse"]["asn"] = _one(con, """
-                SELECT abuse_email, abuse_phone FROM intel.asn_abuse_contacts WHERE asn_number = ? LIMIT 1""", [int(infra_asn)])
+            out["abuse"]["asn"] = _safe("asn_abuse_contacts", lambda: _one(con, """
+                SELECT abuse_email, abuse_phone FROM intel.asn_abuse_contacts WHERE asn_number = ? LIMIT 1""", [int(infra_asn)]))
     finally:
         con.close()
     return out
