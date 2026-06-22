@@ -37,6 +37,32 @@ import duckdb
 LAKE = "datazag_lake2"
 
 
+def _add_s3_over_r2_secret(con) -> None:
+    """Some managed tables in this catalog record their parquet paths with the s3://
+    scheme even though the data lives in the Cloudflare R2 bucket. A TYPE R2 secret
+    only matches r2:// URLs, so s3://<bucket>/... misses it and falls back to AWS S3
+    (datazag-lake.s3.amazonaws.com) and 404s. Add a TYPE S3 secret pointing at the R2
+    endpoint, scoped to the bucket, so those s3:// reads resolve to R2. Accepts either
+    credential naming (R2_ACCESS_KEY_ID/.. or R2_ACCESS_KEY/..)."""
+    account = os.environ.get("R2_ACCOUNT_ID")
+    key = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get("R2_ACCESS_KEY")
+    secret = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get("R2_SECRET_KEY")
+    if not (account and key and secret):
+        return
+    bucket = os.environ.get("DUCKLAKE_S3_BUCKET", "datazag-lake")
+    endpoint = f"{account}.r2.cloudflarestorage.com"
+    try:
+        con.execute(
+            """CREATE OR REPLACE SECRET s3_over_r2 (
+                   TYPE S3, KEY_ID ?, SECRET ?, ENDPOINT ?,
+                   URL_STYLE 'path', REGION 'auto', SCOPE ?
+               );""",
+            [key, secret, endpoint, f"s3://{bucket}"],
+        )
+    except duckdb.Error as e:
+        print(f"  lake: could not add s3-over-r2 secret - {str(e).splitlines()[0]}")
+
+
 def lake_connect():
     """Self-contained DuckLake connection: install/load the extensions, add the R2
     secret, ATTACH the catalog, USE it. Mirrors the dnsproject ducklake_conn so the
@@ -56,7 +82,9 @@ def lake_connect():
         if dns_path not in sys.path:
             sys.path.insert(0, dns_path)
         from scripts.ducklake_conn import connect  # type: ignore
-        return connect()
+        con = connect()  # loads .env (sets R2_* in os.environ) + creates the r2:// secret
+        _add_s3_over_r2_secret(con)
+        return con
 
     data_path = os.environ.get("DUCKLAKE_DATA_PATH", "r2://datazag-lake/data/")
     con = duckdb.connect(":memory:")
@@ -72,6 +100,8 @@ def lake_connect():
             "CREATE OR REPLACE SECRET r2_lake (TYPE R2, KEY_ID ?, SECRET ?, ACCOUNT_ID ?);",
             [key_id, secret, account],
         )
+    # Also resolve s3://<bucket>/... paths (some managed tables) to the R2 endpoint.
+    _add_s3_over_r2_secret(con)
 
     con.execute(f"ATTACH 'ducklake:postgres:{dsn}' AS {LAKE} (DATA_PATH '{data_path}');")
     con.execute(f"USE {LAKE};")
