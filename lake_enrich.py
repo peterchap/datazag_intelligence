@@ -138,15 +138,22 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
     out: dict[str, Any] = {}
     try:
         # --- Labels / fronting (canonical view; fallback for non-corpus domains) ---
-        labels = _one(con, """
-            SELECT mailbox_provider, mailbox_category, mailbox_role,
-                   ns_provider, ns_category, cloud_provider, cloud_class,
-                   cname_provider, hosting_provider, hosting_class,
-                   is_fronted, ip_score_confidence, infra_asn, prefix_infra_score,
-                   infra_core_risk, infra_core_effective, ip_risk_score, ip_risk_reason,
-                   tld_risk_level, is_parked, trust_label, mailbox_label, hosting_label
-            FROM main.v_annotated WHERE domain = ? LIMIT 1
-        """, [d])
+        # v_annotated is a MotherDuck-side view over the live-ingestion tables; it
+        # isn't present in the attached DuckLake catalog, so a missing view must
+        # degrade to the live fallback rather than abort the whole enrichment.
+        labels = None
+        try:
+            labels = _one(con, """
+                SELECT mailbox_provider, mailbox_category, mailbox_role,
+                       ns_provider, ns_category, cloud_provider, cloud_class,
+                       cname_provider, hosting_provider, hosting_class,
+                       is_fronted, ip_score_confidence, infra_asn, prefix_infra_score,
+                       infra_core_risk, infra_core_effective, ip_risk_score, ip_risk_reason,
+                       tld_risk_level, is_parked, trust_label, mailbox_label, hosting_label
+                FROM main.v_annotated WHERE domain = ? LIMIT 1
+            """, [d])
+        except duckdb.CatalogException:
+            pass
         out["labels"] = labels or _labels_fallback(con, d, rec)
         out["labels_source"] = "v_annotated" if labels else "live"
 
@@ -202,14 +209,21 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
 
 
 def _labels_fallback(con, domain: str, rec: dict) -> dict:
-    """Parameterized labelling for domains not in the corpus, from the live DNS —
-    same ref tables v_annotated uses. Best-effort; mailbox/NS/TLD are the high-value ones."""
+    """Parameterized labelling from the live DNS, computed over the same ref/gold base
+    tables that v_enriched/v_annotated join — so the report gets the FULL label set
+    (hosting / fronting / IP reputation / taxonomy display labels / trust verdict) for
+    any domain, not just mailbox/NS/TLD. This is the authoritative path here: v_annotated
+    is a scan-time view over a bound live `src`, not a persistent per-domain lake table,
+    so we reproduce its joins per-domain rather than SELECT from it. Mirrors
+    dnsproject/scripts/annotation_views.py (enriched_sql / annotated_sql)."""
     mx_host = (rec.get("mx_host_final") or rec.get("mx") or "").lower()
     mx_regdom = (rec.get("mx_regdom_final") or "").lower()
-    ns = (rec.get("ns1") or "").lower()
+    ns = (rec.get("ns1") or rec.get("ns") or "").lower()
+    cname = (rec.get("cname") or "").lower()
     tld = domain.rsplit(".", 1)[-1]
     out: dict[str, Any] = {"_fallback": True}
 
+    # --- mailbox provider: MX host (exact > suffix) beats MX regdom (provider_catalog) ---
     mbx = _one(con, """
         SELECT provider, category, provider_role FROM ref.provider_catalog
         WHERE (match_type='host' AND ((match_kind='exact' AND lower(?)=key)
@@ -221,6 +235,7 @@ def _labels_fallback(con, domain: str, rec: dict) -> dict:
     if mbx:
         out["mailbox_provider"], out["mailbox_category"], out["mailbox_role"] = mbx["provider"], mbx["category"], mbx.get("provider_role")
 
+    # --- nameserver brand: substring of the brand slug in the NS host ---
     nsb = _one(con, """
         SELECT provider, category FROM ref.provider_catalog
         WHERE match_type='ns_brand' AND ? <> '' AND lower(?) LIKE '%' || key || '%'
@@ -228,9 +243,118 @@ def _labels_fallback(con, domain: str, rec: dict) -> dict:
     if nsb:
         out["ns_provider"], out["ns_category"] = nsb["provider"], nsb["category"]
 
+    # --- TLD risk ---
     tr = _one(con, "SELECT tld_risk_level FROM ref.tld_risk WHERE tld = ? LIMIT 1", [tld])
     if tr:
         out["tld_risk_level"] = tr["tld_risk_level"]
+
+    # --- IP-derived signals (mirrors ip_attributes_sql: cloud range, ASN/prefix, IP risk) ---
+    ip = _first_ip(rec)
+    n = _ip_int(ip) if ip else None
+    cloud = asnmap = iprisk = None
+    if n is not None:
+        cloud = _one(con, """
+            SELECT provider, class FROM ref.cloud_ranges
+            WHERE family=4 AND ? BETWEEN start_int AND end_int
+            ORDER BY (class='cdn') DESC, (end_int - start_int) ASC LIMIT 1""", [n])
+        asnmap = _one(con, """
+            SELECT asn, prefix, asn_risk_level FROM gold.asn_ip4
+            WHERE ? BETWEEN start_int AND end_int
+            ORDER BY (end_int - start_int) ASC LIMIT 1""", [n])
+        iprisk = _one(con, """
+            SELECT risk_score, risk_reason FROM ref.ip_risk
+            WHERE ? BETWEEN start_int AND end_int
+            ORDER BY (end_int - start_int) ASC LIMIT 1""", [n])
+
+    if cloud:
+        out["cloud_provider"], out["cloud_class"] = cloud["provider"], cloud["class"]
+    if iprisk:
+        out["ip_risk_score"], out["ip_risk_reason"] = iprisk.get("risk_score"), iprisk.get("risk_reason")
+
+    infra_core_risk = None
+    if asnmap:
+        out["infra_asn"] = asnmap.get("asn")
+        out["asn_risk_level"] = asnmap.get("asn_risk_level")
+        if asnmap.get("prefix"):
+            gp = _one(con, "SELECT infra_score FROM gold.gold_risk_prefix WHERE prefix = ? LIMIT 1", [asnmap["prefix"]])
+            if gp:
+                out["prefix_infra_score"] = gp.get("infra_score")
+        if asnmap.get("asn") is not None:
+            ga = _one(con, "SELECT core_risk FROM gold.gold_risk_asn WHERE asn = ? LIMIT 1", [int(asnmap["asn"])])
+            if ga:
+                infra_core_risk = ga.get("core_risk")
+                out["infra_core_risk"] = infra_core_risk
+
+    # --- CNAME fronting (ref.cdn_cnames; cname already lowercased) ---
+    cn = _one(con, """
+        SELECT provider, class FROM ref.cdn_cnames
+        WHERE ends_with(?, cname_suffix)
+        ORDER BY length(cname_suffix) DESC LIMIT 1""", [cname]) if cname else None
+    if cn:
+        out["cname_provider"], out["cname_class"] = cn["provider"], cn["class"]
+
+    # --- hosting = cloud first, else CNAME; SCORE-2 fronting/confidence ---
+    out["hosting_provider"] = (cloud or {}).get("provider") or (cn or {}).get("provider")
+    out["hosting_class"] = (cloud or {}).get("class") or (cn or {}).get("class")
+    is_fronted = ((cloud or {}).get("class") == "cdn") or ((cn or {}).get("class") == "cdn")
+    out["is_fronted"] = is_fronted
+    out["ip_score_confidence"] = "low" if is_fronted else "high"
+    # behind a CDN the A-record IP is the CDN's, not the actor's -> drop the infra signal
+    out["infra_core_effective"] = None if is_fronted else infra_core_risk
+
+    # --- parked: NS/CNAME indicators OR the NS resolves to a parking brand ---
+    is_parked = (out.get("ns_category") or "").lower() == "parking"
+    if not is_parked and (ns or cname):
+        pk = _one(con, """
+            SELECT 1 FROM ref.parked_indicators
+            WHERE (indicator_type='NS' AND ? <> '' AND (
+                      (match_type='exact' AND ? = lower(pattern)) OR
+                      (match_type='like'  AND ? LIKE lower(pattern))))
+               OR (indicator_type='CNAME' AND ? <> '' AND (
+                      (match_type='exact' AND ? = lower(pattern)) OR
+                      (match_type='like'  AND ? LIKE lower(pattern))))
+            LIMIT 1""", [ns, ns, ns, cname, cname, cname])
+        is_parked = bool(pk)
+    out["is_parked"] = is_parked
+
+    # --- taxonomy display labels + trust hints (ref.taxonomy_map / category_alias) ---
+    hosting_trust = mailbox_trust = 0
+    hclass = out.get("hosting_class")
+    if hclass:
+        ti = _one(con, """
+            SELECT display_label, trust_hint FROM ref.taxonomy_map
+            WHERE key_type='infra' AND internal_key = ? LIMIT 1""", [hclass])
+        if ti:
+            out["hosting_label"] = ti.get("display_label")
+            hosting_trust = ti.get("trust_hint") or 0
+    mcat = out.get("mailbox_category")
+    if mcat:
+        tm = _one(con, """
+            SELECT tm.display_label, tm.trust_hint
+            FROM ref.category_alias ca
+            JOIN ref.taxonomy_map tm
+              ON tm.key_type = ca.key_type AND tm.internal_key = ca.internal_key
+            WHERE ca.raw_category = lower(trim(?)) LIMIT 1""", [mcat])
+        if tm:
+            out["mailbox_label"] = tm.get("display_label")
+            mailbox_trust = tm.get("trust_hint") or 0
+
+    # --- headline verdict (mirrors annotated_sql.trust_label) ---
+    ip_risk_score = (iprisk or {}).get("risk_score") or 0
+    trust = (hosting_trust or 0) + (mailbox_trust or 0)
+    if is_parked:
+        out["trust_label"] = "Parked"
+    elif ip_risk_score >= 80:
+        out["trust_label"] = "High Risk"
+    elif out.get("tld_risk_level") == "critical":
+        out["trust_label"] = "Suspicious TLD"
+    elif trust >= 5:
+        out["trust_label"] = "Trusted"
+    elif trust <= -5:
+        out["trust_label"] = "High Risk"
+    else:
+        out["trust_label"] = "Unverified"
+
     return out
 
 
