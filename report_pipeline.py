@@ -178,10 +178,17 @@ async def build_view_model(
     enr: dict = {}
     try:
         import lake_enrich
-        bundle = lake_enrich.enrich(domain, live_output or {}, ext.detected_platforms)
+        bundle: dict = {}
+        try:
+            bundle = lake_enrich.enrich(domain, live_output or {}, ext.detected_platforms)
+        except Exception as e:
+            # enrich() degrades per-section now, but guard anyway: a wholesale lake
+            # failure must NOT cost us to_view_models, which still parses the
+            # lake-free hygiene (DMARC/SPF/DNSSEC) straight from the live rec.
+            print(f"  lake enrichment degraded (empty bundle): {e}")
         enr = lake_enrich.to_view_models(live_output or {}, bundle)
     except Exception as e:
-        print(f"  lake enrichment unavailable: {e}")
+        print(f"  enrichment view-models unavailable: {e}")
 
     return build_view_models(
         di,

@@ -180,16 +180,17 @@ def _all(con, sql: str, params: list) -> list[dict]:
 
 
 def _safe(label: str, fn, default=None):
-    """Run a lake-query thunk, degrading to `default` if the schema/table is missing
-    in the attached catalog (e.g. ref/intel/gold not yet loaded). Keeps one missing
-    feature from aborting the whole enrichment bundle; real errors still surface."""
+    """Run a lake-query thunk, degrading to `default` on ANY failure so one section
+    can't abort the whole enrichment bundle. Originally only caught duckdb.Error
+    (missing schema/table, dead R2 path/404), but a non-duckdb error in any single
+    section — a hub/Flight transport drop, a pyarrow conversion, a stray
+    NameError — would propagate and blank every other section too (incl. the
+    lake-free hygiene). Degrade per-section, log loudly so bugs stay visible."""
     try:
         return fn()
-    except duckdb.Error as e:
-        # Any lake-side failure (missing schema/table, or a dead R2 data path /
-        # HTTP 404 on a table's parquet files) degrades this section, not the run.
+    except Exception as e:
         msg = str(e).splitlines()[0] if str(e) else e.__class__.__name__
-        print(f"  lake: '{label}' unavailable - {msg}")
+        print(f"  lake: '{label}' unavailable - {e.__class__.__name__}: {msg}")
         return default
 
 
@@ -257,7 +258,7 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
 
     # --- Hosting network facts (ASN/country/prefix) from the hub-backed per-IP lookup ---
     ip0 = _first_ip(rec)
-    f = enricher.ip_facts(ip0) if ip0 else None
+    f = _safe("ip_facts", lambda: enricher.ip_facts(ip0), None) if ip0 else None
     out["infra"] = {
         "asn": f.get("asn"), "isp": f.get("isp"), "isp_country": f.get("isp_country"),
         "asn_risk_level": f.get("asn_risk_level"), "prefix": f.get("prefix"),
@@ -289,10 +290,15 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
     # --- Abuse contacts (remediation routing) ---
     tld = (out.get("rdap") or {}).get("tld") or d.rsplit(".", 1)[-1]
     registrar = (out.get("rdap") or {}).get("registrar")
+    # Only return a registrar abuse contact when the registrar is actually known.
+    # The old predicate `(registrar = ? OR ? IS NULL)` degraded, when registrar was
+    # unknown (no RDAP row), to `tld = ?` alone — returning an ARBITRARY .com
+    # registrar's contact (LIMIT 1, no ORDER BY; a different wrong one each run).
+    # Unknown registrar => None, never a guess.
     out["abuse"] = {
         "tld_registrar": _safe("tld_registrar_abuse_contacts", lambda: _one(con, """
             SELECT abuse_email, abuse_url FROM intel.tld_registrar_abuse_contacts
-            WHERE tld = ? AND (registrar = ? OR ? IS NULL) LIMIT 1""", [tld, registrar, registrar])),
+            WHERE tld = ? AND registrar = ? LIMIT 1""", [tld, registrar])) if registrar else None,
     }
     infra_asn = (out.get("labels") or {}).get("infra_asn")
     if infra_asn:
@@ -448,7 +454,19 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
         Annotation, Registration, DnsHygiene, AbuseContacts, PlatformImpersonation,
     )
 
+    def _vm(label, fn, default):
+        """Build one view-model section defensively. A failure (lake gap, bad row,
+        validation error) degrades THAT section to its empty default — never the
+        whole bundle. Critically keeps the lake-free `hygiene` (parsed from the live
+        rec) intact when a lake-derived section fails."""
+        try:
+            return fn()
+        except Exception as e:
+            print(f"  enrich view-model '{label}' failed - {e.__class__.__name__}: {e}")
+            return default
+
     rec = rec or {}
+    bundle = bundle or {}
     labels = bundle.get("labels") or {}
     infra = bundle.get("infra") or {}
     rdap = bundle.get("rdap") or {}
@@ -458,58 +476,68 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
 
     # Merge hosting-network facts (asn_ip4) onto the annotation so the infra block
     # populates from the lake when the medallion is sparse.
-    ann_in = dict(labels)
-    ann_in["asn"] = infra.get("asn") or labels.get("infra_asn")
-    ann_in["asn_name"] = infra.get("asn_name") or infra.get("isp")
-    ann_in["isp_country"] = infra.get("isp_country")
-    ann_in["prefix"] = infra.get("prefix")
-    ann_in.setdefault("asn_risk_level", infra.get("asn_risk_level"))
-    annotation = Annotation(domain=rec.get("domain", ""), **ann_in)
+    def _build_annotation():
+        ann_in = dict(labels)
+        ann_in["asn"] = infra.get("asn") or labels.get("infra_asn")
+        ann_in["asn_name"] = infra.get("asn_name") or infra.get("isp")
+        ann_in["isp_country"] = infra.get("isp_country")
+        ann_in["prefix"] = infra.get("prefix")
+        ann_in.setdefault("asn_risk_level", infra.get("asn_risk_level"))
+        return Annotation(domain=rec.get("domain", ""), **ann_in)
+    annotation = _vm("annotation", _build_annotation, Annotation(domain=rec.get("domain", "")))
 
-    reg_in = dict(rdap)
-    reg_in["domain_age_days"] = _age_days(rdap.get("registered_date"))
-    # dates → iso strings for the model
-    for k in ("registered_date", "expires_date"):
-        if reg_in.get(k) is not None:
-            reg_in[k] = str(reg_in[k])
-    registration = Registration(**reg_in)
+    def _build_registration():
+        reg_in = dict(rdap)
+        reg_in["domain_age_days"] = _age_days(rdap.get("registered_date"))
+        # dates → iso strings for the model
+        for k in ("registered_date", "expires_date"):
+            if reg_in.get(k) is not None:
+                reg_in[k] = str(reg_in[k])
+        return Registration(**reg_in)
+    registration = _vm("registration", _build_registration, Registration())
 
-    spf = (rec.get("spf") or "")
-    dmarc = (rec.get("dmarc") or "")
-    hygiene = DnsHygiene(
-        spf_record=rec.get("spf") or None,
-        spf_strict="-all" in spf.lower(),
-        dmarc_record=rec.get("dmarc") or None,
-        dmarc_policy=_dmarc_policy(dmarc),
-        dnssec=bool(rec.get("dnssec")),
-        mta_sts_mode=rec.get("mta_sts_mode") or None,
-        tlsrpt_present=bool(rec.get("tlsrpt_rua")),
-        bimi_present=bool(rec.get("bimi")),
-        caa_present=bool(rec.get("caa")),
-        tls_issuer=rec.get("https_cert_issuer"),
-        tls_days_left=rec.get("https_cert_days_left"),
-        has_security_txt=bool(rec.get("has_security_txt")),
-    )
-
-    tldr = abuse.get("tld_registrar") or {}
-    asnc = abuse.get("asn") or {}
-    abuse_model = AbuseContacts(
-        registrar_abuse_email=tldr.get("abuse_email"),
-        registrar_abuse_url=tldr.get("abuse_url"),
-        asn_abuse_email=asnc.get("abuse_email"),
-        asn_abuse_phone=asnc.get("abuse_phone"),
-    )
-
-    imps = [
-        PlatformImpersonation(
-            platform=r.get("platform", ""),
-            category=r.get("category") or "",
-            impersonating_domains=int(r.get("impersonating_domains") or 0),
-            hits=int(r.get("hits") or 0),
-            count_30d=int(r.get("impersonating_domains") or 0),  # current proxy until windowed
+    def _build_hygiene():
+        spf = (rec.get("spf") or "")
+        dmarc = (rec.get("dmarc") or "")
+        return DnsHygiene(
+            spf_record=rec.get("spf") or None,
+            spf_strict="-all" in spf.lower(),
+            dmarc_record=rec.get("dmarc") or None,
+            dmarc_policy=_dmarc_policy(dmarc),
+            dnssec=bool(rec.get("dnssec")),
+            mta_sts_mode=rec.get("mta_sts_mode") or None,
+            tlsrpt_present=bool(rec.get("tlsrpt_rua")),
+            bimi_present=bool(rec.get("bimi")),
+            caa_present=bool(rec.get("caa")),
+            tls_issuer=rec.get("https_cert_issuer"),
+            tls_days_left=rec.get("https_cert_days_left"),
+            has_security_txt=bool(rec.get("has_security_txt")),
         )
-        for r in (bundle.get("impersonation") or [])
-    ]
+    hygiene = _vm("hygiene", _build_hygiene, DnsHygiene())
+
+    def _build_abuse():
+        tldr = abuse.get("tld_registrar") or {}
+        asnc = abuse.get("asn") or {}
+        return AbuseContacts(
+            registrar_abuse_email=tldr.get("abuse_email"),
+            registrar_abuse_url=tldr.get("abuse_url"),
+            asn_abuse_email=asnc.get("abuse_email"),
+            asn_abuse_phone=asnc.get("abuse_phone"),
+        )
+    abuse_model = _vm("abuse", _build_abuse, AbuseContacts())
+
+    def _build_imps():
+        return [
+            PlatformImpersonation(
+                platform=r.get("platform", ""),
+                category=r.get("category") or "",
+                impersonating_domains=int(r.get("impersonating_domains") or 0),
+                hits=int(r.get("hits") or 0),
+                count_30d=int(r.get("impersonating_domains") or 0),  # current proxy until windowed
+            )
+            for r in (bundle.get("impersonation") or [])
+        ]
+    imps = _vm("impersonations", _build_imps, [])
 
     return {
         "annotation": annotation,
