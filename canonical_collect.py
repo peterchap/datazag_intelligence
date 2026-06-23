@@ -26,6 +26,13 @@ import os
 import sys
 from typing import Any, Optional
 
+# Realtime report collection must be up-to-the-minute: disable the batch DNS
+# cache (this codebase is branched from the batch processor, whose LMDB negative
+# cache otherwise returns a stale empty MX even when the live record exists).
+# Set before the dns_module import below; `setdefault` lets an operator force
+# the cache back on (DNS_DISABLE_CACHE=0) for debugging.
+os.environ.setdefault("DNS_DISABLE_CACHE", "1")
+
 # The real-time DNS collector (source repo celery_app_realtime; deployed on the
 # master as /root/dns_realtime). DNS_REALTIME_PATH preferred; CELERY_REALTIME_PATH
 # kept for back-compat.
