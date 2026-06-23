@@ -173,6 +173,32 @@ async def _ensure_rdap(domain: str, bundle: dict) -> dict:
     return bundle
 
 
+async def _ensure_subdomains(domain: str) -> list[dict]:
+    """Live subdomain discovery from CT logs via CertSpotter — a per-domain pull
+    (like RDAP), NOT a corpus scan, so it can't reintroduce the slow per-report
+    scan. Reuses dnsproject/intelligence/cert_pipeline.fetch_certspotter_subdomains
+    (keyed off CERTSPOTTER_API_KEY). Best-effort: a missing key / rate-limit /
+    network error yields [] (section degrades to 'no subdomains observed')."""
+    try:
+        import os
+        import sys
+        parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if parent not in sys.path:
+            sys.path.append(parent)
+        from dnsproject.intelligence.cert_pipeline import fetch_certspotter_subdomains
+    except Exception as e:
+        print(f"  subdomains: cert_pipeline unavailable: {e}")
+        return []
+    try:
+        result = await fetch_certspotter_subdomains(domain)
+        subs = (result or {}).get("subdomains") or []
+        print(f"  subdomains: {len(subs)} observed via CertSpotter")
+        return subs
+    except Exception as e:
+        print(f"  subdomains: CertSpotter lookup failed: {e}")
+        return []
+
+
 async def build_view_model(
     domain: str,
     client: IntelligenceClient,
@@ -241,6 +267,9 @@ async def build_view_model(
     except Exception as e:
         print(f"  enrichment view-models unavailable: {e}")
 
+    # Live CT-log subdomains (CertSpotter, per-domain pull — no corpus scan).
+    subdomains = await _ensure_subdomains(domain)
+
     return build_view_models(
         di,
         detected_platforms=ext.detected_platforms,
@@ -256,6 +285,7 @@ async def build_view_model(
         abuse=enr.get("abuse"),
         weaponization=enr.get("weaponization"),
         dns_records=enr.get("dns_records"),
+        subdomains=subdomains,
     )
 
 

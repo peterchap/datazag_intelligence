@@ -549,6 +549,9 @@ class ReportViewModel(BaseModel):
     hygiene: DnsHygiene = Field(default_factory=DnsHygiene)
     abuse: AbuseContacts = Field(default_factory=AbuseContacts)
     dns_records: DnsRecordSet = Field(default_factory=DnsRecordSet)
+    # Live CT-log subdomain observations (CertSpotter) — list of dicts with
+    # dns_name / is_expired / days_remaining / issuer_category / source.
+    subdomains: list[dict] = Field(default_factory=list)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -681,6 +684,7 @@ def build_view_models(
     abuse: Optional[AbuseContacts] = None,
     weaponization: Optional[dict] = None,
     dns_records: Optional[DnsRecordSet] = None,
+    subdomains: Optional[list[dict]] = None,
 ) -> ReportViewModel:
     """Compose the renderer view-model from the medallion payload + impersonation data
     + DuckLake/live-DNS enrichment (annotation/registration/hygiene/abuse/weaponization)."""
@@ -695,6 +699,7 @@ def build_view_models(
     hygiene = hygiene or DnsHygiene()
     abuse = abuse or AbuseContacts()
     dns_records = dns_records or DnsRecordSet()
+    subdomains = subdomains or []
     weaponization = weaponization or {}
 
     external = ExternalThreat(
@@ -725,6 +730,7 @@ def build_view_models(
             hygiene=hygiene,
             abuse=abuse,
             dns_records=dns_records,
+            subdomains=subdomains,
         )
 
     trust01 = _trust_penalty(di)
@@ -790,4 +796,5 @@ def build_view_models(
         hygiene=hygiene,
         abuse=abuse,
         dns_records=dns_records,
+        subdomains=subdomains,
     )
