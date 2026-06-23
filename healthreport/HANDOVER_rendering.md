@@ -60,12 +60,13 @@ confirm those are fed from `vm.registration`. **Fix: point these at the contract
 (same shape as the `_ea_from_hygiene`/`_dns_from_contract` adapters, or read `self.vm`
 directly).
 
-**P2 — cert_analysis (data already in hand).** `report_pipeline._ensure_subdomains`
-calls `fetch_certspotter_subdomains`, which ALSO returns `cert_analysis` (summary,
-wildcard_zones, issuer_breakdown, expiring_soon, expired, missed_renewals, cert_churn,
-cross_domain_sans, cn_anomalies). Add a `cert_analysis` contract field (carry the dict),
-thread it, and point `self.cert_analysis` at it. The "Certificate & web" section then
-populates with real cert hygiene.
+**P2 — cert_analysis (data ALREADY on the contract; only the render wire left).**
+`report_pipeline._ensure_cert_intel` fetches it via CertSpotter and it's now populated
+on `vm.cert_analysis` (summary, wildcard_zones, issuer_breakdown, expiring_soon, expired,
+missed_renewals, cert_churn, cross_domain_sans, cn_anomalies). The ONLY remaining step is
+the render wire: `self.cert_analysis` (renderer.py ~2309) still reads `legacy` — point it
+at `vm.cert_analysis` (one line, same pattern as `subdomains`). Then the "Certificate &
+web" section populates with real cert hygiene.
 
 **P3 — SPF include chain not decoded (rendering).** `vm.hygiene.spf_record` has the
 full SPF (`v=spf1 include:...spf.has.pphosted.com ~all`). The renderer shows only the
