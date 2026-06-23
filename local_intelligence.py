@@ -19,15 +19,68 @@ Env:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import re
 import sys
 
-from intelligence_contract import DomainIntelligence, ExternalThreat, PlatformImpersonation
+from intelligence_contract import (
+    BrandExposure, DomainIntelligence, ExternalThreat, PlatformImpersonation,
+)
 
 # riskscore lives as a sibling repo on the master; import its pure scoring class.
 _RISKSCORE_PATH = os.environ.get("RISKSCORE_PATH", "/root/riskscore")
 if _RISKSCORE_PATH not in sys.path:
     sys.path.insert(0, _RISKSCORE_PATH)
+
+# Windowed impersonation rollup (kind/name/count_7d/count_30d/sample_domains),
+# written by riskscore's compute_platform_impersonation_rollup and mirrored to R2
+# gold. Read over R2 via the shared lake connection.
+_ROLLUP_PARQUET = os.environ.get(
+    "PLATFORM_IMPERSONATION_ROLLUP",
+    "r2://ducklake-silver/gold/platform_impersonation_rollup_latest.parquet")
+
+
+# --- pure rollup matching (mirrors riskscore/intelligence_service.query_rollup) ---
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _brand_key(brand: str) -> str:
+    label = (brand or "").strip().lower()
+    if "." in label:
+        label = label.split(".")[0]
+    return _norm(label)
+
+
+def _samples(raw) -> list:
+    try:
+        return list(json.loads(raw or "[]"))[:5]
+    except (TypeError, ValueError):
+        return []
+
+
+def _match_platform(rows: list, requested: str) -> dict:
+    rq = _norm(requested)
+    best = None
+    for name, c7, c30, samples in rows:
+        rn = _norm(name)
+        if rq and rn and (rn in rq or rq in rn):
+            if best is None or c30 > best[2]:
+                best = (name, c7, c30, samples)
+    if best:
+        return {"platform": requested, "category": "", "count_7d": int(best[1] or 0),
+                "count_30d": int(best[2] or 0), "sample_domains": _samples(best[3])}
+    return {"platform": requested, "category": "", "count_7d": 0, "count_30d": 0, "sample_domains": []}
+
+
+def _match_brand(rows: list, brand_key: str) -> dict:
+    for name, c7, c30, samples in rows:
+        if _norm(name) == brand_key:
+            return {"count_7d": int(c7 or 0), "count_30d": int(c30 or 0),
+                    "sample_domains": _samples(samples)}
+    return {"count_7d": 0, "count_30d": 0, "sample_domains": []}
 
 try:
     from infrastructure.domain_intelligence_api import DomainIntelligenceAPI  # type: ignore
@@ -78,35 +131,53 @@ class LocalIntelligenceClient:
         return DomainIntelligence.model_validate(payload)
 
     async def fetch_platform_impersonations(self, platforms: list[str], brand: str | None = None) -> ExternalThreat:
-        """Platform-impersonation activity from the lake's `ref.platform_impersonation`
-        rollup. That table is a CURRENT snapshot (platform, hits, impersonating_domains,
-        loaded_at) — no 7/30-day split — so impersonating_domains maps to count_30d and
-        count_7d stays 0 until a windowed source exists. Degrades to an empty
+        """Platform-impersonation activity from the WINDOWED rollup
+        (platform_impersonation_rollup_latest.parquet, mirrored to R2 gold by
+        riskscore's compute_platform_impersonation_rollup) — real 7/30-day distinct
+        impersonating-domain counts per platform. EXACT matches drive
+        `impersonations`; fuzzy typosquat candidates (FP-heavy, lower confidence) come
+        back separately as `lookalike_candidates`. Mirrors intelligence_service.
+        query_rollup so the local + HTTP clients agree. Degrades to an empty
         ExternalThreat (detected_platforms preserved) so the report still renders."""
         detected = list(platforms or [])
-        if not detected:
+        if not detected and not brand:
             return ExternalThreat(detected_platforms=detected)
         try:
-            return await asyncio.to_thread(self._query_impersonations, detected)
+            return await asyncio.to_thread(self._query_impersonations, detected, brand)
         except Exception as e:  # impersonations are supplementary — never fatal
             print(f"[local_intelligence] impersonation lookup failed: {e}")
             return ExternalThreat(detected_platforms=detected)
 
-    def _query_impersonations(self, platforms: list[str]) -> ExternalThreat:
-        from lake_enrich import lake_connect  # shared self-contained DuckLake connector
+    def _query_impersonations(self, platforms: list[str], brand: str | None = None) -> ExternalThreat:
+        from lake_enrich import lake_connect  # shared DuckLake connector (carries R2 creds)
 
-        table = os.environ.get("PLATFORM_IMPERSONATION_TABLE", "ref.platform_impersonation")
-        terms = sorted({p.strip().lower() for p in platforms if p and p.strip()})
         con = lake_connect()
         try:
             rows = con.execute(
-                f"SELECT platform, hits, impersonating_domains FROM {table} WHERE lower(platform) = ANY(?)",
-                [terms],
+                f"SELECT kind, name, count_7d, count_30d, sample_domains "
+                f"FROM read_parquet('{_ROLLUP_PARQUET}')"
             ).fetchall()
         finally:
             con.close()
-        imps = [
-            PlatformImpersonation(platform=r[0], count_7d=0, count_30d=int(r[2] or r[1] or 0))
-            for r in rows
-        ]
-        return ExternalThreat(detected_platforms=platforms, impersonations=imps)
+
+        by_kind = {k: [(r[1], r[2], r[3], r[4]) for r in rows if r[0] == k]
+                   for k in ("platform", "platform_typosquat", "brand", "brand_typosquat")}
+
+        exact = [_match_platform(by_kind["platform"], p) for p in platforms]
+        looks = [p for p in (_match_platform(by_kind["platform_typosquat"], p) for p in platforms)
+                 if p["count_30d"] > 0]
+
+        kw = {}
+        if brand:
+            bk = _brand_key(brand)
+            kw["own_brand"] = BrandExposure.model_validate(
+                {**_match_brand(by_kind["brand"], bk), "confidence": "exact"})
+            kw["own_brand_lookalikes"] = BrandExposure.model_validate(
+                {**_match_brand(by_kind["brand_typosquat"], bk), "confidence": "lookalike"})
+
+        return ExternalThreat(
+            detected_platforms=platforms,
+            impersonations=[PlatformImpersonation.model_validate({**x, "confidence": "exact"}) for x in exact],
+            lookalike_candidates=[PlatformImpersonation.model_validate({**x, "confidence": "lookalike"}) for x in looks],
+            **kw,
+        )
