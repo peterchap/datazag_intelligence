@@ -2219,118 +2219,48 @@ HEALTH_REPORT_TEMPLATE = r"""
 
 
 # ---------------------------------------------------------------------------
-# Raw-rec → legacy-shape adapter
+# Contract -> renderer-binding adapters
 # ---------------------------------------------------------------------------
-# The in-process live pipeline (run.py / the workers) passes
-# `canonical_collect.collect(domain)` straight through as `legacy`. That is the
-# RAW celery DNSRecords-as-dict — flat keys (spf, dmarc, mx, mx_host_final, ns1,
-# caa, dnssec, ...) — NOT the pre-split compiled shape the renderer's legacy
-# bindings (self.ea / self.dns / self.tech) expect. Without adaptation those
-# bindings read empty sub-dicts, so the email-auth controls and the Full-DNS-
-# records section blank out (DMARC shows MISSING despite p=reject; MX shows
-# "(none)") even though the data WAS collected. SPF only survived because its
-# control has a _capture_field(...→self.o) fallback the others lack.
-
-_PROVIDER_HINTS = [
-    ("mail.protection.outlook.com", "Microsoft 365"),
-    ("outlook.com", "Microsoft 365"),
-    ("protection.office365", "Microsoft 365"),
-    ("google.com", "Google Workspace"),
-    ("googlemail.com", "Google Workspace"),
-    ("pphosted.com", "Proofpoint"),
-    ("ppe-hosted.com", "Proofpoint"),
-    ("mimecast.com", "Mimecast"),
-    ("mimecast.co", "Mimecast"),
-    ("messagelabs.com", "Symantec.cloud"),
-    ("akam.net", "Akamai"),
-    ("akamai", "Akamai"),
-    ("awsdns", "AWS Route 53"),
-    ("cloudflare", "Cloudflare"),
-    ("azure-dns", "Azure DNS"),
-    ("ultradns", "UltraDNS"),
-    ("dnsmadeeasy", "DNS Made Easy"),
-    ("nsone.net", "NS1"),
-    ("dynect.net", "Dyn"),
-]
+# The renderer's section methods read self.ea / self.dns (the old compiled-output
+# sub-dict shape). Source those from the data CONTRACT (vm.hygiene / vm.dns_records)
+# so the renderer no longer depends on a side-channel `legacy` raw rec. A real
+# compiled-output `legacy` dict (the --input_json path) still wins when present.
 
 
-def _provider_from_host(host: Any) -> Optional[str]:
-    """Best-effort provider name from an MX/NS hostname. A small, unambiguous
-    fallback for when the DuckLake provider_catalog annotation is unavailable —
-    e.g. *.mail.protection.outlook.com is always Microsoft 365."""
-    h = (host or "")
-    h = h.lower() if isinstance(h, str) else ""
-    for key, name in _PROVIDER_HINTS:
-        if key in h:
-            return name
-    return None
-
-
-def _rec_split(value: Any) -> list[str]:
-    if not value:
-        return []
-    if isinstance(value, list):
-        return [str(v) for v in value if v]
-    return [p.strip() for p in str(value).split(",") if p.strip()]
-
-
-def _rec_to_legacy(rec: dict) -> dict:
-    """Adapt a raw celery DNSRecords-as-dict into the structured sub-dicts the
-    renderer's legacy bindings expect: {email_auth, dns_records, technographics}.
-    Only the gaps are produced — callers merge this UNDER any explicit legacy
-    keys, so a real compiled-output dict is never overwritten."""
-    dmarc_raw = rec.get("dmarc") or ""
-    dmarc_policy = ""
-    for part in str(dmarc_raw).lower().split(";"):
-        part = part.strip()
-        if part.startswith("p="):
-            dmarc_policy = part[2:].strip()
-            break
-    spf = rec.get("spf") or ""
-    spf_strictness = ("strict" if "-all" in spf else
-                      "soft" if "~all" in spf else
-                      ("neutral" if spf else ""))
-
-    mx_host = rec.get("mx_host_final") or rec.get("mx") or ""
-    mx_rows = [{"priority": rec.get("mx_priority") or 0, "host": mx_host}] if mx_host else []
-    ns_list = _rec_split(rec.get("ns1") or rec.get("ns"))
-
-    email_auth = {
+def _ea_from_hygiene(hygiene) -> dict:
+    """Adapt the contract's DnsHygiene -> the `email_auth` dict the email-auth
+    controls read (self.ea.get(...)). Sources email-auth from the data package,
+    not a side-channel rec, while leaving the existing call sites untouched."""
+    if hygiene is None:
+        return {}
+    spf = getattr(hygiene, "spf_record", None) or ""
+    policy = getattr(hygiene, "dmarc_policy", None)
+    return {
         "spf": spf or None,
-        "spf_strictness": spf_strictness or None,
-        "mail_spf": rec.get("mail_spf") or None,
-        "dmarc_raw": dmarc_raw or None,
-        "dmarc_policy": dmarc_policy or None,
-        "bimi_present": bool(rec.get("bimi")),
-        "mta_sts_mode": rec.get("mta_sts_mode") or None,
-        "tlsrpt_present": bool(rec.get("tlsrpt_rua")),
-        "is_spoofable": dmarc_policy in ("", "none"),
+        "spf_strictness": ("strict" if getattr(hygiene, "spf_strict", False)
+                           else "soft" if "~all" in spf else ("neutral" if spf else None)),
+        "dmarc_raw": getattr(hygiene, "dmarc_record", None),
+        "dmarc_policy": policy,
+        "is_spoofable": policy in (None, "", "none"),
+        "mta_sts_mode": getattr(hygiene, "mta_sts_mode", None),
+        "tlsrpt_present": bool(getattr(hygiene, "tlsrpt_present", False)),
+        "bimi_present": bool(getattr(hygiene, "bimi_present", False)),
+        "caa_present": bool(getattr(hygiene, "caa_present", False)),
+        "dnssec": bool(getattr(hygiene, "dnssec", False)),
     }
-    dns_records = {
-        "a":    _rec_split(rec.get("a")),
-        "aaaa": _rec_split(rec.get("aaaa")),
-        "mx":   mx_rows,
-        "ns":   ns_list,
-        "caa":  _rec_split(rec.get("caa")),
-        "txt":  _rec_split(rec.get("txt")),
-    }
-    tech: dict[str, Any] = {}
-    mbp = _provider_from_host(mx_host)
-    if mbp:
-        tech["mx_provider_name"] = mbp
-    nsp = _provider_from_host(ns_list[0] if ns_list else "")
-    if nsp:
-        tech["ns_provider_name"] = nsp
-    return {"email_auth": email_auth, "dns_records": dns_records, "technographics": tech}
 
 
-def _is_raw_celery_rec(legacy: dict) -> bool:
-    """True when `legacy` is the raw celery rec (flat DNS fields) rather than the
-    pre-split compiled-output shape — i.e. it lacks the structured sub-dicts but
-    carries the flat DNS signature fields."""
-    if not isinstance(legacy, dict) or legacy.get("email_auth") or legacy.get("dns_records"):
-        return False
-    return any(k in legacy for k in ("spf", "dmarc", "mx_host_final", "ns1", "registered_domain"))
+def _dns_from_contract(dns_records) -> dict:
+    """Adapt the contract's DnsRecordSet -> the `dns_records` dict _build_dns_records
+    reads (a/aaaa/mx/ns/caa/txt). mx entries are display strings ('pref host')."""
+    if dns_records is None:
+        return {}
+
+    def g(n):
+        return list(getattr(dns_records, n, None) or [])
+
+    return {"a": g("a"), "aaaa": g("aaaa"), "mx": g("mx"),
+            "ns": g("ns"), "caa": g("caa"), "txt": g("txt")}
 
 
 # ---------------------------------------------------------------------------
@@ -2367,17 +2297,14 @@ class HealthReportRenderer:
         self.tier = tier
 
         legacy = legacy or {}
-        # The in-process live pipeline passes the RAW celery rec here. Fold it
-        # into the structured sub-dict shape the bindings below expect (synth
-        # merged UNDER explicit keys, so a real compiled-output dict wins).
-        if _is_raw_celery_rec(legacy):
-            legacy = {**_rec_to_legacy(legacy), **legacy}
         self.o = legacy
-        # Legacy-dict bindings — every one optional (live-scan enrichment only).
-        self.ea            = legacy.get("email_auth") or {}
+        # Renderer bindings. email-auth + raw DNS records now come from the data
+        # CONTRACT (vm.hygiene / vm.dns_records) when the caller didn't pass an
+        # explicit compiled-output dict; everything else stays legacy-optional.
+        self.ea            = legacy.get("email_auth") or _ea_from_hygiene(vm.hygiene)
         self.tech          = legacy.get("technographics") or {}
         self.txt_intel     = legacy.get("txt_intelligence") or {}
-        self.dns           = legacy.get("dns_records") or {}
+        self.dns           = legacy.get("dns_records") or _dns_from_contract(getattr(vm, "dns_records", None))
         self.subdomains    = legacy.get("subdomains") or []
         self.cert_analysis = legacy.get("cert_analysis") or {}
         self.rdap          = legacy.get("rdap") or {}
