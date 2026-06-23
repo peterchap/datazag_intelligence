@@ -197,11 +197,115 @@ async def _ensure_cert_intel(domain: str) -> dict:
         result = await fetch_certspotter_subdomains(domain) or {}
         subs = result.get("subdomains") or []
         ca = result.get("cert_analysis") or {}
+        subs = await _resolve_subdomains(subs)
         print(f"  cert-intel: {len(subs)} subdomains + cert_analysis via CertSpotter")
         return {"subdomains": subs, "cert_analysis": ca}
     except Exception as e:
         print(f"  cert-intel: CertSpotter lookup failed: {e}")
         return empty
+
+
+# Classic subdomain-takeover CNAME targets — resolvable but the resource may be
+# unclaimed; flagged for review even when not a hard NXDOMAIN dangle.
+_TAKEOVER_SUFFIXES = (
+    "s3.amazonaws.com", "s3-website", "cloudfront.net", "github.io", "herokuapp.com",
+    "herokudns.com", "azurewebsites.net", "cloudapp.net", "trafficmanager.net",
+    "blob.core.windows.net", "ghost.io", "wpengine.com", "pantheonsite.io",
+    "zendesk.com", "readthedocs.io", "surge.sh", "bitbucket.io", "netlify.app",
+    "myshopify.com", "statuspage.io", "unbouncepages.com", "fastly.net",
+)
+
+
+async def _resolve_subdomains(subs: list[dict], limit: int = 250) -> list[dict]:
+    """Resolve each CertSpotter subdomain (A/AAAA/CNAME/MX/PTR) and derive risk:
+      - HANGING CNAME (CNAME present but target is NXDOMAIN) -> subdomain-takeover, high
+      - CNAME to a takeover-prone service (s3/github.io/herokuapp/...) -> review
+      - PRIVATE/RFC1918 A in public DNS (internal endpoint leaked) -> review
+    Also surfaces per-subdomain MX (can reveal other mail platforms). Bounded
+    concurrency, best-effort per name; mutates the dicts in place."""
+    if not subs:
+        return subs
+    try:
+        import asyncio as _asyncio
+        import ipaddress
+        import os
+        import dns.asyncresolver
+        import dns.resolver
+        import dns.reversename
+    except Exception as e:
+        print(f"  subdomain-resolve: dnspython unavailable: {e}")
+        return subs
+
+    targets = [s for s in subs[:limit] if s.get("dns_name") and not str(s["dns_name"]).startswith("*.")]
+    resolver = dns.asyncresolver.Resolver()
+    resolver.lifetime = float(os.environ.get("SUBDOMAIN_RESOLVE_TIMEOUT", "6"))
+    sem = _asyncio.Semaphore(int(os.environ.get("SUBDOMAIN_RESOLVE_CONCURRENCY", "12")))
+
+    async def _q(name, rtype):
+        try:
+            return await resolver.resolve(name, rtype)
+        except dns.resolver.NXDOMAIN:
+            raise
+        except Exception:
+            return None
+
+    async def _one(s: dict):
+        fqdn = str(s["dns_name"]).rstrip(".")
+        a, aaaa, cname, mx, ptr, dangling = [], [], None, [], None, False
+        async with sem:
+            ans = await _q(fqdn, "CNAME")
+            if ans:
+                cname = str(ans[0].target).rstrip(".")
+            try:
+                ans = await resolver.resolve(fqdn, "A")
+                a = [str(r) for r in ans]
+            except dns.resolver.NXDOMAIN:
+                if cname:
+                    dangling = True
+            except Exception:
+                pass
+            ans = await _q(fqdn, "AAAA")
+            if ans:
+                aaaa = [str(r) for r in ans]
+            ans = await _q(fqdn, "MX")
+            if ans:
+                mx = sorted(f"{r.preference} {str(r.exchange).rstrip('.')}" for r in ans)
+            if a:
+                try:
+                    rev = dns.reversename.from_address(a[0])
+                    pa = await resolver.resolve(rev, "PTR")
+                    ptr = str(pa[0]).rstrip(".")
+                except Exception:
+                    pass
+
+        def _is_private(ip):
+            try:
+                return ipaddress.ip_address(ip).is_private
+            except ValueError:
+                return False
+
+        private = [ip for ip in a if _is_private(ip)]
+        takeover = bool(cname) and any(suf in cname.lower() for suf in _TAKEOVER_SUFFIXES)
+        s["a_records"], s["aaaa_records"] = a, aaaa
+        s["cname"], s["mx"], s["ptr"] = cname, mx, ptr
+        s["is_dangling"] = dangling
+        if dangling:
+            s["risk_level"] = "high"
+            s["note"] = f"hanging CNAME -> {cname} (NXDOMAIN) — subdomain-takeover risk"
+        elif takeover:
+            s["risk_level"] = "review"
+            s["note"] = f"CNAME -> {cname} — verify the resource is still claimed (takeover risk)"
+        elif private:
+            s["risk_level"] = "review"
+            s["note"] = f"private/RFC1918 IP in public DNS ({private[0]}) — internal endpoint exposed"
+
+    await _asyncio.gather(*[_one(s) for s in targets], return_exceptions=True)
+    n_dang = sum(1 for s in targets if s.get("is_dangling"))
+    n_priv = sum(1 for s in targets if (s.get("risk_level") == "review" and "private" in (s.get("note") or "")))
+    n_mx = sum(1 for s in targets if s.get("mx"))
+    print(f"  subdomain-resolve: {len(targets)} resolved · {n_dang} hanging CNAMEs · "
+          f"{n_priv} private-IP exposures · {n_mx} with own MX")
+    return subs
 
 
 async def build_view_model(
