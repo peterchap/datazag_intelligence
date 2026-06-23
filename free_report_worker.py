@@ -47,7 +47,7 @@ import urllib.request
 
 # Refactored report pipeline (same as run.py / health report).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from run import _live_scan                              # type: ignore  # noqa: E402
+import canonical_collect                                # noqa: E402
 from report_pipeline import build_view_model, render_variants  # noqa: E402
 from intelligence_client import IntelligenceClient, IntelligenceUnavailable  # noqa: E402
 from branding import BrandConfig                        # noqa: E402
@@ -90,7 +90,7 @@ def claim_one(conn):
 
 async def _collect(domain: str):
     """Live scan + medallion view-model. Returns (vm, legacy_output, teaser)."""
-    output = await _live_scan(domain)
+    output = await canonical_collect.collect(domain)
     client = IntelligenceClient()
     vm = await build_view_model(domain, client, live_output=output)
     ext = vm.external_threat

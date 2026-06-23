@@ -42,7 +42,6 @@ load_dotenv()
 # guarantee Peter wanted (old keeps producing; new produces alongside under
 # different filenames).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from run import _live_scan                          # type: ignore  # noqa: E402
 
 from playwright.async_api import async_playwright  # noqa: E402
 
