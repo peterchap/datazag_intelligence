@@ -232,6 +232,7 @@ async def _resolve_subdomains(subs: list[dict], limit: int = 250) -> list[dict]:
         import dns.asyncresolver
         import dns.resolver
         import dns.reversename
+        from mx_platforms import classify_mx
     except Exception as e:
         print(f"  subdomain-resolve: dnspython unavailable: {e}")
         return subs
@@ -286,9 +287,11 @@ async def _resolve_subdomains(subs: list[dict], limit: int = 250) -> list[dict]:
 
         private = [ip for ip in a if _is_private(ip)]
         takeover = bool(cname) and any(suf in cname.lower() for suf in _TAKEOVER_SUFFIXES)
+        mx_provider, mx_category = (classify_mx(mx[0]) if mx else (None, None))
         s["a_records"], s["aaaa_records"] = a, aaaa
         s["cname"], s["mx"], s["ptr"] = cname, mx, ptr
         s["is_dangling"] = dangling
+        s["mx_platform"], s["mx_category"] = mx_provider, mx_category
         if dangling:
             s["risk_level"] = "high"
             s["note"] = f"hanging CNAME -> {cname} (NXDOMAIN) — subdomain-takeover risk"
@@ -298,13 +301,17 @@ async def _resolve_subdomains(subs: list[dict], limit: int = 250) -> list[dict]:
         elif private:
             s["risk_level"] = "review"
             s["note"] = f"private/RFC1918 IP in public DNS ({private[0]}) — internal endpoint exposed"
+        elif mx_provider:
+            # informational — surfaces an email platform this subdomain runs
+            s["note"] = f"MX -> {mx_provider} ({mx_category})"
 
     await _asyncio.gather(*[_one(s) for s in targets], return_exceptions=True)
     n_dang = sum(1 for s in targets if s.get("is_dangling"))
     n_priv = sum(1 for s in targets if (s.get("risk_level") == "review" and "private" in (s.get("note") or "")))
     n_mx = sum(1 for s in targets if s.get("mx"))
+    n_esp = sum(1 for s in targets if s.get("mx_platform"))
     print(f"  subdomain-resolve: {len(targets)} resolved · {n_dang} hanging CNAMEs · "
-          f"{n_priv} private-IP exposures · {n_mx} with own MX")
+          f"{n_priv} private-IP exposures · {n_mx} with own MX ({n_esp} platform-identified)")
     return subs
 
 
