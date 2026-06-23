@@ -82,8 +82,11 @@ takeover) and `review` for takeover-prone CNAME targets or private/RFC1918 IPs i
 public DNS (internal-endpoint leak — qbeeurope had 4: api-integration*/anypoint* →
 10.28.x). Render work: (a) map the `review` level in the subdomain table/Risk column
 (today it only styles `high`/Info, so `_estate_count('high')` misses `review`), (b)
-surface the new columns (CNAME / MX / PTR / note). MX can reveal other mail platforms
-where a subdomain has its own. Optionally also flag `-dev`/`-test`/`-staging`/`sftp`/
+surface the new columns (CNAME / MX / PTR / note). Subdomain MX is now classified to a
+platform via `mx_platforms.classify_mx` — each sub also carries `mx_platform` /
+`mx_category` (Transactional ESP / Marketing ESP / Security Gateway / Support Platform /
+Mailbox Provider), so the render can surface the email-vendor footprint (SendGrid,
+Mailgun, Marketo, Proofpoint...). Optionally also flag `-dev`/`-test`/`-staging`/`sftp`/
 `admin` naming as elevated.
 
 **P5 — Remaining legacy sections.** `txt_intelligence`, `threat_flags`,
