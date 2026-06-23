@@ -74,10 +74,17 @@ full SPF (`v=spf1 include:...spf.has.pphosted.com ~all`). The renderer shows onl
 (`pphosted.com` → Proofpoint, etc.). Either render-side parse or a small parsed
 `spf_includes` contract enrichment.
 
-**P4 — Subdomain risk scoring.** CertSpotter subdomains all render `risk_level=Info`
-(cert_pipeline doesn't set it). Flag exposed non-prod endpoints (`-dev`/`-test`/
-`-staging`/`sftp`/`vpn`/`admin`) as elevated — they're high-value recon. Scoring lives
-either in `_ensure_subdomains` (set `risk_level` per sub) or the renderer.
+**P4 — Subdomain risk + resolution (data DONE; render the new fields).**
+`report_pipeline._resolve_subdomains` now resolves every subdomain and sets on each
+dict: `a_records` / `aaaa_records` / `cname` / `mx` / `ptr` / `is_dangling` /
+`risk_level` / `note`. `risk_level` is `high` for hanging CNAMEs (CNAME→NXDOMAIN,
+takeover) and `review` for takeover-prone CNAME targets or private/RFC1918 IPs in
+public DNS (internal-endpoint leak — qbeeurope had 4: api-integration*/anypoint* →
+10.28.x). Render work: (a) map the `review` level in the subdomain table/Risk column
+(today it only styles `high`/Info, so `_estate_count('high')` misses `review`), (b)
+surface the new columns (CNAME / MX / PTR / note). MX can reveal other mail platforms
+where a subdomain has its own. Optionally also flag `-dev`/`-test`/`-staging`/`sftp`/
+`admin` naming as elevated.
 
 **P5 — Remaining legacy sections.** `txt_intelligence`, `threat_flags`,
 `change_signals`, `narrative` — promote to typed contract fields if/when those sections
