@@ -2219,6 +2219,121 @@ HEALTH_REPORT_TEMPLATE = r"""
 
 
 # ---------------------------------------------------------------------------
+# Raw-rec → legacy-shape adapter
+# ---------------------------------------------------------------------------
+# The in-process live pipeline (run.py / the workers) passes
+# `canonical_collect.collect(domain)` straight through as `legacy`. That is the
+# RAW celery DNSRecords-as-dict — flat keys (spf, dmarc, mx, mx_host_final, ns1,
+# caa, dnssec, ...) — NOT the pre-split compiled shape the renderer's legacy
+# bindings (self.ea / self.dns / self.tech) expect. Without adaptation those
+# bindings read empty sub-dicts, so the email-auth controls and the Full-DNS-
+# records section blank out (DMARC shows MISSING despite p=reject; MX shows
+# "(none)") even though the data WAS collected. SPF only survived because its
+# control has a _capture_field(...→self.o) fallback the others lack.
+
+_PROVIDER_HINTS = [
+    ("mail.protection.outlook.com", "Microsoft 365"),
+    ("outlook.com", "Microsoft 365"),
+    ("protection.office365", "Microsoft 365"),
+    ("google.com", "Google Workspace"),
+    ("googlemail.com", "Google Workspace"),
+    ("pphosted.com", "Proofpoint"),
+    ("ppe-hosted.com", "Proofpoint"),
+    ("mimecast.com", "Mimecast"),
+    ("mimecast.co", "Mimecast"),
+    ("messagelabs.com", "Symantec.cloud"),
+    ("akam.net", "Akamai"),
+    ("akamai", "Akamai"),
+    ("awsdns", "AWS Route 53"),
+    ("cloudflare", "Cloudflare"),
+    ("azure-dns", "Azure DNS"),
+    ("ultradns", "UltraDNS"),
+    ("dnsmadeeasy", "DNS Made Easy"),
+    ("nsone.net", "NS1"),
+    ("dynect.net", "Dyn"),
+]
+
+
+def _provider_from_host(host: Any) -> Optional[str]:
+    """Best-effort provider name from an MX/NS hostname. A small, unambiguous
+    fallback for when the DuckLake provider_catalog annotation is unavailable —
+    e.g. *.mail.protection.outlook.com is always Microsoft 365."""
+    h = (host or "")
+    h = h.lower() if isinstance(h, str) else ""
+    for key, name in _PROVIDER_HINTS:
+        if key in h:
+            return name
+    return None
+
+
+def _rec_split(value: Any) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value if v]
+    return [p.strip() for p in str(value).split(",") if p.strip()]
+
+
+def _rec_to_legacy(rec: dict) -> dict:
+    """Adapt a raw celery DNSRecords-as-dict into the structured sub-dicts the
+    renderer's legacy bindings expect: {email_auth, dns_records, technographics}.
+    Only the gaps are produced — callers merge this UNDER any explicit legacy
+    keys, so a real compiled-output dict is never overwritten."""
+    dmarc_raw = rec.get("dmarc") or ""
+    dmarc_policy = ""
+    for part in str(dmarc_raw).lower().split(";"):
+        part = part.strip()
+        if part.startswith("p="):
+            dmarc_policy = part[2:].strip()
+            break
+    spf = rec.get("spf") or ""
+    spf_strictness = ("strict" if "-all" in spf else
+                      "soft" if "~all" in spf else
+                      ("neutral" if spf else ""))
+
+    mx_host = rec.get("mx_host_final") or rec.get("mx") or ""
+    mx_rows = [{"priority": rec.get("mx_priority") or 0, "host": mx_host}] if mx_host else []
+    ns_list = _rec_split(rec.get("ns1") or rec.get("ns"))
+
+    email_auth = {
+        "spf": spf or None,
+        "spf_strictness": spf_strictness or None,
+        "mail_spf": rec.get("mail_spf") or None,
+        "dmarc_raw": dmarc_raw or None,
+        "dmarc_policy": dmarc_policy or None,
+        "bimi_present": bool(rec.get("bimi")),
+        "mta_sts_mode": rec.get("mta_sts_mode") or None,
+        "tlsrpt_present": bool(rec.get("tlsrpt_rua")),
+        "is_spoofable": dmarc_policy in ("", "none"),
+    }
+    dns_records = {
+        "a":    _rec_split(rec.get("a")),
+        "aaaa": _rec_split(rec.get("aaaa")),
+        "mx":   mx_rows,
+        "ns":   ns_list,
+        "caa":  _rec_split(rec.get("caa")),
+        "txt":  _rec_split(rec.get("txt")),
+    }
+    tech: dict[str, Any] = {}
+    mbp = _provider_from_host(mx_host)
+    if mbp:
+        tech["mx_provider_name"] = mbp
+    nsp = _provider_from_host(ns_list[0] if ns_list else "")
+    if nsp:
+        tech["ns_provider_name"] = nsp
+    return {"email_auth": email_auth, "dns_records": dns_records, "technographics": tech}
+
+
+def _is_raw_celery_rec(legacy: dict) -> bool:
+    """True when `legacy` is the raw celery rec (flat DNS fields) rather than the
+    pre-split compiled-output shape — i.e. it lacks the structured sub-dicts but
+    carries the flat DNS signature fields."""
+    if not isinstance(legacy, dict) or legacy.get("email_auth") or legacy.get("dns_records"):
+        return False
+    return any(k in legacy for k in ("spf", "dmarc", "mx_host_final", "ns1", "registered_domain"))
+
+
+# ---------------------------------------------------------------------------
 # Renderer
 # ---------------------------------------------------------------------------
 
@@ -2252,6 +2367,11 @@ class HealthReportRenderer:
         self.tier = tier
 
         legacy = legacy or {}
+        # The in-process live pipeline passes the RAW celery rec here. Fold it
+        # into the structured sub-dict shape the bindings below expect (synth
+        # merged UNDER explicit keys, so a real compiled-output dict wins).
+        if _is_raw_celery_rec(legacy):
+            legacy = {**_rec_to_legacy(legacy), **legacy}
         self.o = legacy
         # Legacy-dict bindings — every one optional (live-scan enrichment only).
         self.ea            = legacy.get("email_auth") or {}

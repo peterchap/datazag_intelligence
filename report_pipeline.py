@@ -131,6 +131,48 @@ def fallback_asn_ip(output: dict) -> tuple[Optional[int], Optional[str]]:
 # View-model assembly
 # ---------------------------------------------------------------------------
 
+async def _ensure_rdap(domain: str, bundle: dict) -> dict:
+    """Guarantee the package carries registration facts. The lake's intel.domain_rdap
+    has no row for many domains (e.g. qbeeurope.com), leaving the whole registration
+    section — registrar, dates, age, locks — and the registrar abuse contact blank.
+    When the lake row is missing, fetch RDAP live (rdap.org) and map it onto the
+    bundle. Best-effort: a slow/failed RDAP never breaks the report."""
+    bundle = bundle or {}
+    rdap = bundle.get("rdap") or {}
+    if rdap.get("registrar") or rdap.get("registered_date"):
+        return bundle  # lake already has it
+
+    try:
+        import rdap_lookup
+        live = await rdap_lookup.rdap_lookup_async(domain)
+    except Exception as e:
+        print(f"  live RDAP unavailable: {e}")
+        return bundle
+    if not live or not live.get("rdap_available"):
+        return bundle
+
+    def _clean(v):
+        return None if v in (None, "", "N/A", "-1", -1) else v
+
+    bundle["rdap"] = {
+        "registrar":       _clean(live.get("registrar_name")),
+        "registered_date": _clean(live.get("registered")),
+        "expires_date":    _clean(live.get("expires")),
+        "dnssec":          bool(live.get("dnssec_enabled")),
+        "status":          ", ".join(live.get("status") or []) or None,
+        "rdap_risk_score": _clean(live.get("rdap_risk_score")),
+        "tld":             domain.rsplit(".", 1)[-1],
+    }
+    # Registrar abuse contact straight from RDAP entities — authoritative, and
+    # avoids the tld-registrar table guess. Only set when RDAP actually provides one.
+    abuse_email = _clean(live.get("abuse_email"))
+    if abuse_email:
+        bundle.setdefault("abuse", {})["tld_registrar"] = {
+            "abuse_email": abuse_email, "abuse_url": None,
+        }
+    return bundle
+
+
 async def build_view_model(
     domain: str,
     client: IntelligenceClient,
@@ -186,6 +228,7 @@ async def build_view_model(
             # failure must NOT cost us to_view_models, which still parses the
             # lake-free hygiene (DMARC/SPF/DNSSEC) straight from the live rec.
             print(f"  lake enrichment degraded (empty bundle): {e}")
+        bundle = await _ensure_rdap(domain, bundle)
         enr = lake_enrich.to_view_models(live_output or {}, bundle)
     except Exception as e:
         print(f"  enrichment view-models unavailable: {e}")
