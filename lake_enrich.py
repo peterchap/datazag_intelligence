@@ -307,6 +307,27 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
     return out
 
 
+_NS_PROVIDER_HINTS = [
+    ("akam.net", "Akamai"), ("akamai", "Akamai"), ("akamaiedge", "Akamai"),
+    ("awsdns", "AWS Route 53"), ("cloudflare", "Cloudflare"),
+    ("azure-dns", "Azure DNS"), ("ultradns", "UltraDNS"),
+    ("dnsmadeeasy", "DNS Made Easy"), ("nsone.net", "NS1"), ("ns1.net", "NS1"),
+    ("dynect.net", "Dyn"), ("googledomains", "Google"), ("ns.cloudflare", "Cloudflare"),
+    ("verisign", "Verisign"), ("domaincontrol.com", "GoDaddy"),
+    ("registrar-servers.com", "Namecheap"), ("cscdns", "CSC"), ("cscglobal", "CSC"),
+]
+
+
+def _ns_provider_hint(ns_str: str) -> Optional[str]:
+    """Best-effort NS provider from the nameserver host(s) when the catalog has no
+    ns_brand row — the unambiguous big operators only (e.g. *.akam.net => Akamai)."""
+    s = (ns_str or "").lower()
+    for key, name in _NS_PROVIDER_HINTS:
+        if key in s:
+            return name
+    return None
+
+
 def _labels_fallback(enricher, domain: str, rec: dict) -> dict:
     """Parameterized labelling from the live DNS, computed over the same ref/gold base
     tables that v_enriched/v_annotated join — so the report gets the FULL label set
@@ -342,6 +363,13 @@ def _labels_fallback(enricher, domain: str, rec: dict) -> dict:
         ORDER BY length(key) DESC LIMIT 1""", [ns, ns]) if ns else None
     if nsb:
         out["ns_provider"], out["ns_category"] = nsb["provider"], nsb["category"]
+    elif ns:
+        # Fallback for major NS operators not yet carried in ref.provider_catalog
+        # ns_brand (e.g. Akamai *.akam.net). Durable fix is catalog data; this keeps
+        # the report's nameserver provider from going blank in the meantime.
+        hint = _ns_provider_hint(ns)
+        if hint:
+            out["ns_provider"], out["ns_category"] = hint, "DNS Provider"
 
     # --- TLD risk ---
     tr = _one(con, "SELECT tld_risk_level FROM ref.tld_risk WHERE tld = ? LIMIT 1", [tld])
