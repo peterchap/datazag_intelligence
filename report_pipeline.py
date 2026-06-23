@@ -173,12 +173,16 @@ async def _ensure_rdap(domain: str, bundle: dict) -> dict:
     return bundle
 
 
-async def _ensure_subdomains(domain: str) -> list[dict]:
-    """Live subdomain discovery from CT logs via CertSpotter — a per-domain pull
-    (like RDAP), NOT a corpus scan, so it can't reintroduce the slow per-report
-    scan. Reuses dnsproject/intelligence/cert_pipeline.fetch_certspotter_subdomains
-    (keyed off CERTSPOTTER_API_KEY). Best-effort: a missing key / rate-limit /
-    network error yields [] (section degrades to 'no subdomains observed')."""
+async def _ensure_cert_intel(domain: str) -> dict:
+    """Live CT-log intel via CertSpotter — a per-domain pull (like RDAP), NOT a corpus
+    scan, so it can't reintroduce the slow per-report scan. Reuses dnsproject/
+    intelligence/cert_pipeline.fetch_certspotter_subdomains (keyed off
+    CERTSPOTTER_API_KEY) which returns BOTH the subdomains and the cert_analysis
+    (wildcard zones, issuer breakdown, expiring/expired, churn). Best-effort: a
+    missing key / rate-limit / network error yields empties.
+
+    Returns {"subdomains": [...], "cert_analysis": {...}}."""
+    empty = {"subdomains": [], "cert_analysis": {}}
     try:
         import os
         import sys
@@ -187,16 +191,17 @@ async def _ensure_subdomains(domain: str) -> list[dict]:
             sys.path.append(parent)
         from dnsproject.intelligence.cert_pipeline import fetch_certspotter_subdomains
     except Exception as e:
-        print(f"  subdomains: cert_pipeline unavailable: {e}")
-        return []
+        print(f"  cert-intel: cert_pipeline unavailable: {e}")
+        return empty
     try:
-        result = await fetch_certspotter_subdomains(domain)
-        subs = (result or {}).get("subdomains") or []
-        print(f"  subdomains: {len(subs)} observed via CertSpotter")
-        return subs
+        result = await fetch_certspotter_subdomains(domain) or {}
+        subs = result.get("subdomains") or []
+        ca = result.get("cert_analysis") or {}
+        print(f"  cert-intel: {len(subs)} subdomains + cert_analysis via CertSpotter")
+        return {"subdomains": subs, "cert_analysis": ca}
     except Exception as e:
-        print(f"  subdomains: CertSpotter lookup failed: {e}")
-        return []
+        print(f"  cert-intel: CertSpotter lookup failed: {e}")
+        return empty
 
 
 async def build_view_model(
@@ -267,8 +272,9 @@ async def build_view_model(
     except Exception as e:
         print(f"  enrichment view-models unavailable: {e}")
 
-    # Live CT-log subdomains (CertSpotter, per-domain pull — no corpus scan).
-    subdomains = await _ensure_subdomains(domain)
+    # Live CT-log intel (CertSpotter, per-domain pull — no corpus scan): subdomains
+    # AND cert_analysis, both onto the contract (cert_analysis render is deferred).
+    cert_intel = await _ensure_cert_intel(domain)
 
     return build_view_models(
         di,
@@ -285,7 +291,8 @@ async def build_view_model(
         abuse=enr.get("abuse"),
         weaponization=enr.get("weaponization"),
         dns_records=enr.get("dns_records"),
-        subdomains=subdomains,
+        subdomains=cert_intel.get("subdomains") or [],
+        cert_analysis=cert_intel.get("cert_analysis") or {},
     )
 
 

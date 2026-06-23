@@ -552,6 +552,10 @@ class ReportViewModel(BaseModel):
     # Live CT-log subdomain observations (CertSpotter) — list of dicts with
     # dns_name / is_expired / days_remaining / issuer_category / source.
     subdomains: list[dict] = Field(default_factory=list)
+    # Cert hygiene from the same CertSpotter pull (summary / wildcard_zones /
+    # issuer_breakdown / expiring_soon / expired / churn). On the contract now;
+    # render wire deferred to the rendering session.
+    cert_analysis: dict = Field(default_factory=dict)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -685,6 +689,7 @@ def build_view_models(
     weaponization: Optional[dict] = None,
     dns_records: Optional[DnsRecordSet] = None,
     subdomains: Optional[list[dict]] = None,
+    cert_analysis: Optional[dict] = None,
 ) -> ReportViewModel:
     """Compose the renderer view-model from the medallion payload + impersonation data
     + DuckLake/live-DNS enrichment (annotation/registration/hygiene/abuse/weaponization)."""
@@ -700,6 +705,7 @@ def build_view_models(
     abuse = abuse or AbuseContacts()
     dns_records = dns_records or DnsRecordSet()
     subdomains = subdomains or []
+    cert_analysis = cert_analysis or {}
     weaponization = weaponization or {}
 
     external = ExternalThreat(
@@ -731,6 +737,7 @@ def build_view_models(
             abuse=abuse,
             dns_records=dns_records,
             subdomains=subdomains,
+            cert_analysis=cert_analysis,
         )
 
     trust01 = _trust_penalty(di)
@@ -797,4 +804,5 @@ def build_view_models(
         abuse=abuse,
         dns_records=dns_records,
         subdomains=subdomains,
+        cert_analysis=cert_analysis,
     )
