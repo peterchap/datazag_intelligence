@@ -46,22 +46,6 @@ DEFAULT_OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", Path(__file__).parent / "
 _EXT = {"html": "html", "markdown": "md"}
 
 
-async def _live_scan(domain: str, partner_context=None, threat_context=None,
-                     output_dir: Path = None) -> dict:
-    """Run dnsproject's live DNS scan + enrichment on this host. Imported lazily
-    so the module loads (and unit-tests) without dnsproject present."""
-    import sys
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from dnsproject.scripts.compile_intelligence import run as compile_intel
-    return await compile_intel(
-        domain=domain,
-        partner_context=partner_context,
-        threat_context=threat_context,
-        output_dir=output_dir or DEFAULT_OUTPUT_DIR,
-        skip_narrative=True,   # narrative is regenerated against the medallion contract
-    )
-
-
 async def run(
     input_json: str = None,
     domain: str = None,
@@ -99,12 +83,11 @@ async def run(
         # In-process riskscore (imports DomainIntelligenceAPI; no HTTP service needed).
         from local_intelligence import LocalIntelligenceClient
         client = LocalIntelligenceClient()
-        if live:
-            print(f"  Live DNS scan for {domain}...")
-            import canonical_collect
-            legacy = await canonical_collect.collect(domain)   # full DNS via celery_app_realtime
         try:
-            vm = await build_view_model(domain, client, live_output=legacy)
+            # The backend collects the live scan (when --live) AND assembles the
+            # complete view-model; run.py stays presentation-only — no raw `legacy`
+            # rec threaded through. The renderer reads everything from the contract.
+            vm = await build_view_model(domain, client, live=live)
         except IntelligenceUnavailable as e:
             raise SystemExit(
                 f"  Intelligence unavailable: {e}\n"

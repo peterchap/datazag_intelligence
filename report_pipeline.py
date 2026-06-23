@@ -178,19 +178,27 @@ async def build_view_model(
     client: IntelligenceClient,
     *,
     live_output: Optional[dict] = None,
+    live: bool = False,
     profile: Optional[str] = None,
 ) -> ReportViewModel:
-    """Fetch the medallion (POST with the live scan when present, else snapshot
-    GET) + impersonations, then compose the view-model.
+    """Assemble the COMPLETE view-model: collect the live DNS scan (when `live` and no
+    `live_output` is supplied), fetch the medallion (+ impersonations), enrich from the
+    lake + live RDAP, and compose. The backend owns data collection so callers (run.py)
+    only render — pass `live=True` instead of pre-collecting and threading a `legacy`
+    rec through. Callers that already hold a rec may still pass `live_output`.
 
     Raises IntelligenceUnavailable if the medallion endpoint is unreachable —
     the caller decides whether to fall back to a cached payload or abort. A 404
     (domain not in corpus) is NOT an error: it yields a 'not yet assessed'
     view-model.
     """
-    # Live DNS now comes from celery_app_realtime (DNSRecords shape) — build the
-    # slim live_dns_report + fallback asn/ip from that.
+    # Live DNS comes from celery_app_realtime (DNSRecords shape). Collect it here so
+    # the backend hands back one complete package; build the slim live_dns_report +
+    # fallback asn/ip from it.
     import canonical_collect
+    if live_output is None and live:
+        print(f"  Live DNS scan for {domain}...")
+        live_output = await canonical_collect.collect(domain)
     live_dns_report = canonical_collect.build_live_dns_report(live_output) if live_output else None
     fb_asn, fb_ip = canonical_collect.fallback_asn_ip(live_output) if live_output else (None, None)
 
