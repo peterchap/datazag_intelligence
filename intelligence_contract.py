@@ -520,6 +520,18 @@ class AbuseContacts(_Base):
         return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
 
 
+class DnsRecordSet(_Base):
+    """Raw resolved DNS records for the report's Full-DNS-records section — sourced
+    from the live celery rec (NOT the lake). Carried on the contract so the renderer
+    reads records from the package instead of a side-channel `legacy` dict."""
+    a: list[str] = Field(default_factory=list)
+    aaaa: list[str] = Field(default_factory=list)
+    mx: list[str] = Field(default_factory=list)    # "pref host" display strings
+    ns: list[str] = Field(default_factory=list)
+    caa: list[str] = Field(default_factory=list)
+    txt: list[str] = Field(default_factory=list)
+
+
 class ReportViewModel(BaseModel):
     domain: str
     generated_at: Optional[str] = None
@@ -536,6 +548,7 @@ class ReportViewModel(BaseModel):
     registration: Registration = Field(default_factory=Registration)
     hygiene: DnsHygiene = Field(default_factory=DnsHygiene)
     abuse: AbuseContacts = Field(default_factory=AbuseContacts)
+    dns_records: DnsRecordSet = Field(default_factory=DnsRecordSet)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -667,6 +680,7 @@ def build_view_models(
     hygiene: Optional[DnsHygiene] = None,
     abuse: Optional[AbuseContacts] = None,
     weaponization: Optional[dict] = None,
+    dns_records: Optional[DnsRecordSet] = None,
 ) -> ReportViewModel:
     """Compose the renderer view-model from the medallion payload + impersonation data
     + DuckLake/live-DNS enrichment (annotation/registration/hygiene/abuse/weaponization)."""
@@ -680,6 +694,7 @@ def build_view_models(
     registration = registration or Registration()
     hygiene = hygiene or DnsHygiene()
     abuse = abuse or AbuseContacts()
+    dns_records = dns_records or DnsRecordSet()
     weaponization = weaponization or {}
 
     external = ExternalThreat(
@@ -709,6 +724,7 @@ def build_view_models(
             registration=registration,
             hygiene=hygiene,
             abuse=abuse,
+            dns_records=dns_records,
         )
 
     trust01 = _trust_penalty(di)
@@ -773,4 +789,5 @@ def build_view_models(
         registration=registration,
         hygiene=hygiene,
         abuse=abuse,
+        dns_records=dns_records,
     )

@@ -247,6 +247,7 @@ async def build_view_model(
         hygiene=enr.get("hygiene"),
         abuse=enr.get("abuse"),
         weaponization=enr.get("weaponization"),
+        dns_records=enr.get("dns_records"),
     )
 
 

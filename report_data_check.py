@@ -118,13 +118,13 @@ async def main(domain: str, as_json: bool) -> int:
         v = getattr(vm.trust, f, None)
         print(f"  {'✓' if _present(v) else '·'} trust.{f:<14} {v!r}")
 
+    _dump_model("dns_records  (raw A/AAAA/MX/NS/CAA/TXT — now on the contract)", getattr(vm, "dns_records", None))
+
     # 4. CONTRACT HOLES — what the renderer needs with no contract field -
     print("\n── 4. CONTRACT HOLES (renderer falls back to `legacy` for these) ──")
     holes = {
-        "raw DNS records (A/MX/NS/CAA/TXT list)": "no ReportViewModel field — only DomainDnsFacts summary",
         "cert_analysis (SMTP/HTTPS cert detail)": "legacy['cert_analysis']",
         "subdomains": "legacy['subdomains']",
-        "technographics (mx/ns provider names)": "legacy['technographics'] (overlaps annotation)",
         "txt_intelligence / threat_flags / narrative": "legacy[...]",
     }
     for k, v in holes.items():

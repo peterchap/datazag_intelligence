@@ -480,6 +480,7 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
     ready to splat into build_view_models()."""
     from intelligence_contract import (  # local import: contract lives alongside
         Annotation, Registration, DnsHygiene, AbuseContacts, PlatformImpersonation,
+        DnsRecordSet,
     )
 
     def _vm(label, fn, default):
@@ -567,6 +568,19 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
         ]
     imps = _vm("impersonations", _build_imps, [])
 
+    def _build_dns_records():
+        mxh = rec.get("mx_host_final") or rec.get("mx")
+        mx = [f"{rec.get('mx_priority') or 0} {mxh}"] if mxh else []
+        return DnsRecordSet(
+            a=_rec_list(rec.get("a")),
+            aaaa=_rec_list(rec.get("aaaa")),
+            mx=mx,
+            ns=_rec_list(rec.get("ns1") or rec.get("ns")),
+            caa=_rec_list(rec.get("caa")),
+            txt=_rec_list(rec.get("txt")),
+        )
+    dns_records = _vm("dns_records", _build_dns_records, DnsRecordSet())
+
     return {
         "annotation": annotation,
         "registration": registration,
@@ -574,7 +588,17 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
         "abuse": abuse_model,
         "impersonations": imps,
         "weaponization": weap,
+        "dns_records": dns_records,
     }
+
+
+def _rec_list(value) -> list[str]:
+    """Normalize a celery rec field (comma-joined string or list) to a clean list."""
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value if v]
+    return [p.strip() for p in str(value).split(",") if p.strip()]
 
 
 def _dmarc_policy(dmarc: str) -> Optional[str]:
