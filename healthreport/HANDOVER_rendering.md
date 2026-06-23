@@ -24,7 +24,17 @@ when the data exists on the contract.
 
 `domain, generated_at, has_intelligence, composite_score, grade, trust, threat,
 external_threat, findings, annotation, registration, hygiene, abuse, dns_records,
-subdomains`.
+subdomains, cert_analysis`.
+
+Notable sub-structures now populated (were empty/proxy before):
+- **`external_threat.impersonations`** — real **7/30-day** windowed counts per platform
+  (`count_7d`, `count_30d`, `sample_domains`), EXACT matches only. Plus
+  **`external_threat.lookalike_candidates`** — the fuzzy *typosquat* matches (FP-heavy,
+  lower confidence) kept SEPARATE from the headline. (`own_brand` / `own_brand_lookalikes`
+  too when a brand is supplied.) Source: the hourly-refreshed impersonation rollup.
+- **`subdomains`** — each dict now resolved + risk-scored: `a_records`/`aaaa_records`/
+  `cname`/`mx`/`ptr`/`is_dangling`/`risk_level`/`note` + `mx_platform`/`mx_category`.
+- **`cert_analysis`** — CertSpotter cert hygiene (on the contract; render wire pending).
 
 Diagnostic: `python report_data_check.py <domain>` dumps populated-vs-empty per source.
 
@@ -37,7 +47,7 @@ Diagnostic: `python report_data_check.py <domain>` dumps populated-vs-empty per 
 | `self.subdomains` | `vm.subdomains` | ✅ contract |
 | `self.annotation` | `vm.annotation` | ✅ contract |
 | `self.rdap` | `legacy['rdap']` (EMPTY live) | ❌ **data is in `vm.registration` / `vm.abuse`** |
-| `self.cert_analysis` | `legacy['cert_analysis']` (EMPTY) | ❌ **data already fetched (CertSpotter), not on contract yet** |
+| `self.cert_analysis` | `legacy['cert_analysis']` (EMPTY) | ❌ **data now on `vm.cert_analysis`** — render wire only (P2) |
 | `self.txt_intel` | `legacy['txt_intelligence']` | ⏸ no contract field yet |
 | `self.flags` | `legacy['threat_flags']` | ⏸ no contract field yet |
 | `self.changes` | `legacy['change_signals']` | ⏸ no contract field yet |
@@ -93,6 +103,18 @@ Mailgun, Marketo, Proofpoint...). Optionally also flag `-dev`/`-test`/`-staging`
 `change_signals`, `narrative` — promote to typed contract fields if/when those sections
 matter. `tech`/`infra`/`certs` are largely superseded by `vm.annotation`/`vm.trust`/
 cert_analysis.
+
+**P6 — Platform impersonation now has real 7/30-day data (surface it).** The "attacker
+problem — platform impersonation" section read `count_30d` (was 0/proxy → "No active
+impersonation"). It now carries real windowed counts from the hourly rollup, so the
+headline updates automatically. Render work: (a) surface **`count_7d` AND `count_30d`**
+(today only the 30-day window is shown), (b) show **`sample_domains`** — the actual
+impersonating domains observed, high-impact evidence, (c) render
+`external_threat.lookalike_candidates` as a SEPARATE, clearly-lower-confidence
+"lookalike candidates" block and **do NOT fold it into the headline** — those are the
+fuzzy typosquat matches that are FP-heavy (FP cleanup of the raw hits is a separate
+backend task; until then the headline stays clean because only EXACT matches drive it).
+`confidence` is `"exact"` vs `"lookalike"` on each `PlatformImpersonation`.
 
 ## The pattern to follow (how the migrated ones were done)
 
