@@ -4,12 +4,14 @@ free_report_worker.py
 Generates the FREE external threat report for public lead-gen requests created by
 the Customer Portal (`free_reports` table on Neon).
 
-Runs the SAME refactored pipeline the paid report uses (report_pipeline), so the
-free report shares the design system and the medallion/CT-log impersonation data:
+Runs the SAME refactored pipeline the paid report uses (report_pipeline) to build
+the view-model, then renders the 5-page **Free Single-Domain Cyber Exposure
+Report** (freereport) — the lead magnet whose page-5 seam upsells the Cross-Estate
+Report. Shares the design system and the medallion/CT-log impersonation data:
 
   1. live DNS scan (~1s) -> build_view_model (medallion + platform impersonations)
      -> write teaser (grade + detected platforms + 7/30-day counts), status='teaser_ready'
-  2. render the `external_threat` audience at tier='teaser' (HTML + MD) -> PDF
+  2. render the 5-page free report (HTML + MD) -> PDF
      -> status='ready', email the /r/<token> link
 
 Run on the master:
@@ -45,18 +47,17 @@ except ImportError:  # pragma: no cover
 
 import urllib.request
 
-# Refactored report pipeline (same as run.py / health report).
+# Refactored report pipeline (same as run.py / health report) + the free renderer.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import canonical_collect                                # noqa: E402
-from report_pipeline import build_view_model, render_variants  # noqa: E402
+from report_pipeline import build_view_model            # noqa: E402
+from freereport.renderer import FreeReportRenderer      # noqa: E402
 from intelligence_client import IntelligenceClient, IntelligenceUnavailable  # noqa: E402
 from branding import BrandConfig                        # noqa: E402
 
 DSN = os.environ.get("PORTAL_DATABASE_URL") or os.environ.get("DATABASE_URL")
 POLL = int(os.environ.get("FREE_WORKER_POLL_SECONDS", "10"))
 BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://datazag.com").rstrip("/")
-AUDIENCE = os.environ.get("FREE_REPORT_AUDIENCE", "external_threat")
-TIER = os.environ.get("FREE_REPORT_TIER", "teaser")
 
 if not DSN:
     print("FATAL: DATABASE_URL (portal Neon) not set", file=sys.stderr)
@@ -187,12 +188,11 @@ def process(conn, claimed):
     # Stage 1: live scan + medallion -> teaser
     vm, output, teaser = asyncio.run(_collect(domain))
     write_teaser(conn, rid, teaser)
-    # Stage 2: render (pure/sync) -> PDF -> finalize -> email
+    # Stage 2: render the 5-page free report (pure/sync) -> PDF -> finalize -> email
     brand = BrandConfig.load() if hasattr(BrandConfig, "load") else BrandConfig.default()
-    variants = render_variants(vm, audiences=[AUDIENCE], tier=TIER,
-                               formats=("html", "markdown"), legacy=output, brand=brand)
-    html = variants[AUDIENCE]["html"]
-    md = variants[AUDIENCE]["markdown"]
+    renderer = FreeReportRenderer(vm, brand=brand)
+    html = renderer.to_html(brand=brand)
+    md = renderer.to_markdown()
     pdf = asyncio.run(_html_to_pdf(html))
     finalize(conn, rid, html, md, pdf)
     send_email(email, domain, token)
@@ -200,7 +200,7 @@ def process(conn, claimed):
 
 
 def main():
-    print(f"[free_report_worker] starting (driver={_DRIVER}, poll={POLL}s, audience={AUDIENCE}/{TIER})")
+    print(f"[free_report_worker] starting (driver={_DRIVER}, poll={POLL}s, report=free_single_domain/v1.3)")
     conn = _connect()
     while True:
         try:
