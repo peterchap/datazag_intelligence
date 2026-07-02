@@ -89,9 +89,10 @@ def test_corpus_discovery_classifies_owned_candidate_and_hostile():
         mvp = build_estate_from_manifest(MANIFEST, discovery=prov, now=NOW)
         owned = {d["domain"] for d in mvp.completeness.delta}
         cands = {d["domain"] for d in mvp.completeness.candidates}
-        # infra-corroborated + clean brand extensions → owned
-        assert {"acme.co.uk", "acme.net", "acme-group.com"} <= owned
-        # brand-family w/ no corroboration → held candidate
+        # ONLY infra-corroborated (shared NS) domains are owned — the gate rule
+        assert {"acme.co.uk", "acme-group.com"} <= owned
+        # exact brand stem but NO shared infra → held for review, never claimed owned
+        assert "acme.net" in cands and "acme.net" not in owned
         assert "acme-store.info" in cands
         # DGA lookalike → NOT owned (hostile lane, mapped to defensive tier)
         assert "acme-9284756.com" not in owned
@@ -99,7 +100,8 @@ def test_corpus_discovery_classifies_owned_candidate_and_hostile():
         from estatereport.build import build_estate_report
         d = build_estate_report(mvp, discovery=prov, now=NOW).discovery
         assert "acme-9284756.com" in {x.domain for x in d.tiers["defensive"]}
-        assert {"acme.co.uk", "acme.net"} <= {x.domain for x in d.tiers["strong"]}
+        strong = {x.domain for x in d.tiers["strong"]}
+        assert "acme.co.uk" in strong and "acme.net" not in strong
 
 
 def _run_all():

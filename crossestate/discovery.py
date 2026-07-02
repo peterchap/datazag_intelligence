@@ -192,21 +192,25 @@ class ConnectedDomainDiscoveryProvider:
                 if exact:
                     corr.append("exact brand stem, different TLD")
 
-                if infra:                                   # shared NS/MX = strong ownership
+                # Ownership requires CORROBORATION (shared infra / cert / CRN) — a
+                # brand stem across TLDs is NOT proof of ownership (mastercard.ru
+                # may be a squatter). The gate rule: string-match qualifies, it
+                # never decides. So `strong/owned` needs `infra`; everything else
+                # is held for review (possible) or flagged (hostile).
+                if infra:                                   # shared NS/MX = corroborated ownership
                     discovered.append(DiscoveredDomain(dom, "owned", "strong",
                                        ev + [{"kind": "ns", "detail": corr[0]}], 0.9, corr))
-                elif exact and dga < 0.5 and not typo:      # clean brand extension you own
-                    discovered.append(DiscoveredDomain(dom, "owned", "strong", ev, 0.8,
-                                       corr or ["exact brand stem"]))
                 elif typo or dga >= self.dga_threshold:     # lookalike/typosquat — hostile lane
                     hostile.append(DiscoveredDomain(dom, "hostile", "defensive",
                                     ev + [{"kind": "dga",
                                            "detail": f"lookalike signature (dga {dga}"
                                                      + (", typosquat" if typo else "") + ")"}],
                                     0.4, ["lookalike/DGA signature — alert, not owned"]))
-                else:                                       # brand-family, no corroboration → review
+                else:                                       # brand-family, no ownership corroboration → review
+                    reason = ("exact brand stem, different TLD — ownership not corroborated"
+                              if exact else "brand-family match, no infra corroboration")
                     candidates.append(DiscoveredDomain(dom, "ambiguous", "possible", ev, 0.5,
-                                       ["brand-family match, no infra corroboration — held for review"]))
+                                       corr + [reason + " — held for review"]))
 
 
 def default_discovery() -> DiscoveryProvider:
