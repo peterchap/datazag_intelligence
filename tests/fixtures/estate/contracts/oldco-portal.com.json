@@ -1,0 +1,170 @@
+{
+  "domain": "oldco-portal.com",
+  "generated_at": null,
+  "data_freshness": {},
+  "has_intelligence": true,
+  "composite_score": 82,
+  "grade": {
+    "letter": "E",
+    "headline": "High exposure",
+    "description": "Multiple material risks; immediate prioritisation needed.",
+    "scale_position": 0.75,
+    "arc_fill": 0.22
+  },
+  "trust": {
+    "score": 82,
+    "grade": {
+      "letter": "E",
+      "headline": "High exposure",
+      "description": "Multiple material risks; immediate prioritisation needed.",
+      "scale_position": 0.75,
+      "arc_fill": 0.22
+    },
+    "dmarc_risk": true,
+    "spf_risk": true,
+    "modern_security_present": false,
+    "mx_type": "self-hosted",
+    "mx_risk_score": 0.0,
+    "asn": 26496,
+    "prefix": null,
+    "isp": "GoDaddy",
+    "isp_country": null,
+    "asn_risk_level": "unknown",
+    "rpki_state": "unknown",
+    "is_manrs_member": false,
+    "manrs_status": "Unknown",
+    "is_manrs_culprit": false,
+    "moas_detected": false,
+    "prefixes_churn_total": 0
+  },
+  "threat": {
+    "score": 82,
+    "grade": {
+      "letter": "E",
+      "headline": "High exposure",
+      "description": "Multiple material risks; immediate prioritisation needed.",
+      "scale_position": 0.75,
+      "arc_fill": 0.22
+    },
+    "infra_score": 0.0,
+    "ip_direct_threat_score": 0.0,
+    "fast_flux_risk": 0.0,
+    "dga_risk": 0.0,
+    "concentration_risk": 0.0,
+    "certstream_risk": 0.0,
+    "dangling_cname_risk": 0.0,
+    "is_dangling_cname": false,
+    "cname_target": null,
+    "certstream_hits": 0,
+    "listed_feeds": [],
+    "pivot_findings": [],
+    "historical_velocity": {
+      "ip_changes_30d": 0,
+      "asn_diversity_30d": 0,
+      "geo_diversity_30d": 0,
+      "ip_churn_score": 0.0
+    },
+    "reason_codes": [],
+    "is_live": false,
+    "weaponization_score": 0,
+    "threat_intent": null,
+    "evasion_tactic": null,
+    "tld_risk_level": null
+  },
+  "external_threat": {
+    "detected_platforms": [],
+    "impersonations": [],
+    "own_brand": {
+      "count_7d": 0,
+      "count_30d": 0,
+      "sample_domains": [],
+      "confidence": "exact"
+    },
+    "lookalike_candidates": [],
+    "own_brand_lookalikes": {
+      "count_7d": 0,
+      "count_30d": 0,
+      "sample_domains": [],
+      "confidence": "exact"
+    },
+    "brand_funnel": {
+      "monitored": false,
+      "candidates_generated": 0,
+      "checked": 0,
+      "registered": 0,
+      "resolving": 0,
+      "dga_flagged": 0,
+      "near_miss": null,
+      "samples": []
+    }
+  },
+  "findings": [],
+  "annotation": {
+    "domain": "oldco-portal.com",
+    "mailbox_provider": "self-hosted",
+    "mailbox_category": null,
+    "mailbox_role": null,
+    "ns_provider": "GoDaddy DNS",
+    "ns_category": null,
+    "cloud_provider": null,
+    "cloud_class": null,
+    "hosting_provider": null,
+    "hosting_class": null,
+    "is_fronted": false,
+    "asn": 26496,
+    "asn_name": null,
+    "isp_country": null,
+    "prefix": null,
+    "asn_risk_level": null,
+    "tld_risk_level": null,
+    "is_parked": false,
+    "trust_label": null,
+    "hosting_trust": null,
+    "mailbox_trust": null,
+    "platform_signals": []
+  },
+  "registration": {
+    "registrar": "GoDaddy",
+    "registered_date": null,
+    "expires_date": "2027-02-02",
+    "domain_age_days": null,
+    "dnssec": false,
+    "status": "ok",
+    "rdap_risk_score": null
+  },
+  "hygiene": {
+    "spf_record": "v=spf1 ~all",
+    "spf_strict": false,
+    "dmarc_record": null,
+    "dmarc_policy": "none",
+    "dkim_present": false,
+    "dnssec": false,
+    "mta_sts_mode": null,
+    "tlsrpt_present": false,
+    "bimi_present": false,
+    "caa_present": false,
+    "tls_issuer": null,
+    "tls_days_left": null,
+    "has_security_txt": false
+  },
+  "abuse": {
+    "registrar_abuse_email": null,
+    "registrar_abuse_url": null,
+    "asn_abuse_email": null,
+    "asn_abuse_phone": null
+  },
+  "dns_records": {
+    "a": [],
+    "aaaa": [],
+    "mx": [],
+    "ns": [],
+    "caa": [],
+    "txt": []
+  },
+  "subdomains": [],
+  "cert_analysis": {
+    "issuer_breakdown": {
+      "Sectigo": 1
+    }
+  }
+}

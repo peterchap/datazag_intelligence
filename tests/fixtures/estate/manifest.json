@@ -1,0 +1,49 @@
+{
+  "group": "Acme Group",
+  "domains": [
+    {
+      "domain": "acme.com",
+      "segment": "corp",
+      "contract_path": "contracts/acme.com.json"
+    },
+    {
+      "domain": "acme-mail.com",
+      "segment": "corp",
+      "contract_path": "contracts/acme-mail.com.json"
+    },
+    {
+      "domain": "acmeretail.com",
+      "segment": "retail",
+      "contract_path": "contracts/acmeretail.com.json"
+    },
+    {
+      "domain": "acmeshop.com",
+      "segment": "retail",
+      "contract_path": "contracts/acmeshop.com.json"
+    },
+    {
+      "domain": "oldco.com",
+      "segment": "acquired",
+      "contract_path": "contracts/oldco.com.json"
+    },
+    {
+      "domain": "oldco-portal.com",
+      "segment": "acquired",
+      "contract_path": "contracts/oldco-portal.com.json"
+    },
+    {
+      "domain": "docs.acme.com",
+      "contract_path": "contracts/docs.acme.com.json"
+    },
+    {
+      "domain": "admin.acmeretail.com",
+      "segment": "corp",
+      "contract_path": "contracts/admin.acmeretail.com.json"
+    },
+    {
+      "domain": "dormant.acme.io",
+      "segment": "corp",
+      "contract_path": "contracts/dormant.acme.io.json"
+    }
+  ]
+}
