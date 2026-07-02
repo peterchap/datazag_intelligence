@@ -49,6 +49,7 @@ class DiscoveryResult:
     declared: list[str]
     discovered: list[DiscoveredDomain] = field(default_factory=list)   # owned, corroborated
     candidates: list[DiscoveredDomain] = field(default_factory=list)   # low-confidence, held separate
+    hostile: list[DiscoveredDomain] = field(default_factory=list)      # lookalike/typosquat — alert, not headlined as owned
     note: str = ""
 
 
@@ -88,9 +89,11 @@ class ConnectedDomainDiscoveryProvider:
     """
 
     def __init__(self, active_check: Optional[Callable[[str], dict]] = None,
-                 min_confidence: float = 0.5):
+                 corpus=None, min_confidence: float = 0.5, dga_threshold: float = 0.6):
         self.active_check = active_check
+        self.corpus = corpus                 # ParquetCorpusIndex | None — the corpus stem-sweep source
         self.min_confidence = min_confidence
+        self.dga_threshold = dga_threshold
 
     def discover(self, group: str, refs) -> DiscoveryResult:
         declared = {r.domain.lower() for r in refs}
@@ -105,7 +108,10 @@ class ConnectedDomainDiscoveryProvider:
 
         discovered: list[DiscoveredDomain] = []
         candidates: list[DiscoveredDomain] = []
+        hostile: list[DiscoveredDomain] = []
+        seen: set = set(declared)
         for dom, links in sorted(cand.items()):
+            seen.add(dom)
             apex = registrable(dom)
             stem = apex.split(".")[0]
             apex_match = apex in estate_apex
@@ -135,11 +141,87 @@ class ConnectedDomainDiscoveryProvider:
                                                    round(min(conf, 0.6), 2),
                                                    corr + ["no apex/brand corroboration — held for review"]))
 
-        note = (f"Discovery ran over shared-certificate links across {len(refs)} declared domains. "
+        # ── Corpus stem-sweep source (the tailored index) ────────────────────
+        corpus_n = 0
+        if self.corpus is not None:
+            self._corpus_pass(refs, declared, seen, discovered, candidates, hostile)
+            corpus_n = len(discovered) + len(candidates) + len(hostile) - len(cand)
+
+        src = "shared-certificate links" + (" + corpus stem-sweep" if self.corpus is not None else "")
+        note = (f"Discovery ran over {src} across {len(refs)} declared domains. "
                 f"{len(discovered)} undeclared owned domain(s) surfaced; {len(candidates)} low-confidence "
-                "candidate(s) held for review. Corpus/CRN sweep and the live impersonation feed extend this.")
+                f"candidate(s) held for review"
+                + (f"; {len(hostile)} lookalike(s) flagged (feed-delivered, not claimed as owned)"
+                   if hostile else "")
+                + ". Companies House CRN (UK) and the live impersonation feed extend this.")
         return DiscoveryResult(available=True, declared=sorted(declared),
-                               discovered=discovered, candidates=candidates, note=note)
+                               discovered=discovered, candidates=candidates,
+                               hostile=hostile, note=note)
+
+    def _corpus_pass(self, refs, declared, seen, discovered, candidates, hostile) -> None:
+        """Sweep the tailored corpus index per estate stem; classify brand-family
+        domains via infra corroboration + DGA/entropy. The corpus DNS columns give
+        both the estate's own infra fingerprint (from the declared rows) and each
+        candidate's — so ownership is corroborated straight from the file."""
+        from crossestate.entropy import dga_score, is_typosquat
+
+        by_stem: dict[str, list] = {}
+        for r in refs:
+            by_stem.setdefault(registrable(r.domain).split(".")[0], []).append(r)
+
+        for stem, _group in by_stem.items():
+            if not stem:
+                continue
+            rows = self.corpus.stem_matches(stem)          # declared + candidates, one partition read
+            estate_ns = {r.ns_domain for r in rows if r.domain.lower() in declared and r.ns_domain}
+            estate_mx = {r.mx_domain for r in rows if r.domain.lower() in declared and r.mx_domain}
+            for c in rows:
+                dom = c.domain.lower()
+                if dom in seen:
+                    continue
+                seen.add(dom)
+                dga = dga_score(c.stem)
+                infra = bool((c.ns_domain and c.ns_domain in estate_ns)
+                             or (c.mx_domain and c.mx_domain in estate_mx))
+                exact = (c.stem == stem)
+                typo = is_typosquat(c.stem, stem)
+                ev = [{"kind": "corpus", "detail": f"Brand-family domain in the corpus (stem '{c.stem}')"}]
+                corr: list[str] = []
+                if infra:
+                    corr.append(f"shares infrastructure with the estate ({c.ns_domain or c.mx_domain})")
+                if exact:
+                    corr.append("exact brand stem, different TLD")
+
+                if infra:                                   # shared NS/MX = strong ownership
+                    discovered.append(DiscoveredDomain(dom, "owned", "strong",
+                                       ev + [{"kind": "ns", "detail": corr[0]}], 0.9, corr))
+                elif exact and dga < 0.5 and not typo:      # clean brand extension you own
+                    discovered.append(DiscoveredDomain(dom, "owned", "strong", ev, 0.8,
+                                       corr or ["exact brand stem"]))
+                elif typo or dga >= self.dga_threshold:     # lookalike/typosquat — hostile lane
+                    hostile.append(DiscoveredDomain(dom, "hostile", "defensive",
+                                    ev + [{"kind": "dga",
+                                           "detail": f"lookalike signature (dga {dga}"
+                                                     + (", typosquat" if typo else "") + ")"}],
+                                    0.4, ["lookalike/DGA signature — alert, not owned"]))
+                else:                                       # brand-family, no corroboration → review
+                    candidates.append(DiscoveredDomain(dom, "ambiguous", "possible", ev, 0.5,
+                                       ["brand-family match, no infra corroboration — held for review"]))
+
+
+def default_discovery() -> DiscoveryProvider:
+    """The provider the reports use unless one is injected. Wires the tailored
+    corpus index when `CORPUS_INDEX_DIR` points at a built index; otherwise runs
+    cert-SAN discovery only (no corpus needed locally / in tests)."""
+    import os
+    idx = os.environ.get("CORPUS_INDEX_DIR")
+    if idx and os.path.isdir(idx):
+        try:
+            from crossestate.corpus_index import ParquetCorpusIndex
+            return ConnectedDomainDiscoveryProvider(corpus=ParquetCorpusIndex(idx))
+        except Exception as e:  # pragma: no cover - never let discovery config sink a report
+            print(f"  discovery: corpus index at {idx} unavailable ({e}); cert-SAN only")
+    return ConnectedDomainDiscoveryProvider()
 
 
 def _cross_domain_sans(vm, declared: set) -> set:

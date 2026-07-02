@@ -30,11 +30,7 @@ from crossestate.contract import (
     Segment,
     SegmentPosture,
 )
-from crossestate.discovery import (
-    ConnectedDomainDiscoveryProvider,
-    DiscoveryProvider,
-    to_completeness,
-)
+from crossestate.discovery import DiscoveryProvider, default_discovery, to_completeness
 from crossestate.exceptions import derive_estate_exceptions
 from crossestate.manifest import ManifestEntry, load_contract, load_manifest
 from crossestate.segments import resolve_segments
@@ -62,7 +58,7 @@ def build_estate_view_model(
     now: Optional[datetime] = None,
 ) -> EstateViewModel:
     thresholds = thresholds or EstateThresholds()
-    discovery = discovery or ConnectedDomainDiscoveryProvider()
+    discovery = discovery or default_discovery()
     now = now or datetime.now(timezone.utc)
 
     # ── Load contracts (per-file failure is non-fatal) ───────────────────

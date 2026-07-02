@@ -23,11 +23,12 @@ from crossestate.discovery import (  # re-export the shared engine
     DiscoveryProvider,
     DiscoveryResult,
     NullDiscoveryProvider,
+    default_discovery,
 )
 from estatereport.contract import DiscoveredDomain, EstateDiscovery, Evidence
 
 __all__ = ["ConnectedDomainDiscoveryProvider", "DiscoveryProvider", "NullDiscoveryProvider",
-           "to_estate_discovery"]
+           "default_discovery", "to_estate_discovery"]
 
 
 def _convert(dd) -> DiscoveredDomain:
@@ -49,6 +50,8 @@ def to_estate_discovery(result: DiscoveryResult, declared_domains: list[str]) ->
         tiers[bucket].append(_convert(dd))
     for dd in result.candidates:                 # low-confidence, held separate
         tiers["possible"].append(_convert(dd))
+    for dd in result.hostile:                    # lookalike/typosquat → monitor / recover
+        tiers["defensive"].append(_convert(dd))
 
     total = sum(len(v) for v in tiers.values())
     note = result.note if result.available else NullDiscoveryProvider.NOTE
