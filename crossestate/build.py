@@ -30,7 +30,11 @@ from crossestate.contract import (
     Segment,
     SegmentPosture,
 )
-from crossestate.discovery import DiscoveryProvider, NullDiscoveryProvider
+from crossestate.discovery import (
+    ConnectedDomainDiscoveryProvider,
+    DiscoveryProvider,
+    to_completeness,
+)
 from crossestate.exceptions import derive_estate_exceptions
 from crossestate.manifest import ManifestEntry, load_contract, load_manifest
 from crossestate.segments import resolve_segments
@@ -58,7 +62,7 @@ def build_estate_view_model(
     now: Optional[datetime] = None,
 ) -> EstateViewModel:
     thresholds = thresholds or EstateThresholds()
-    discovery = discovery or NullDiscoveryProvider()
+    discovery = discovery or ConnectedDomainDiscoveryProvider()
     now = now or datetime.now(timezone.utc)
 
     # ── Load contracts (per-file failure is non-fatal) ───────────────────
@@ -90,7 +94,7 @@ def build_estate_view_model(
     variance = compute_variance(refs, thresholds)
     exposure = compute_exposure(refs, thresholds)
     calendar = compute_calendar(refs, thresholds, now=now)
-    completeness = discovery.estate_completeness(group, [e.domain for e in entries])
+    completeness = to_completeness(discovery.discover(group, refs))
 
     # ── Segment hierarchy (posture from the variance block) ──────────────
     posture_by_seg = {sp.segment: sp for sp in variance.per_segment}

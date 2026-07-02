@@ -13,6 +13,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+from crossestate.discovery import NullDiscoveryProvider  # noqa: E402
 from estatereport import resilience  # noqa: E402
 from estatereport.build import build_estate_report_from_manifest  # noqa: E402
 from estatereport.renderer import EstateReportRenderer  # noqa: E402
@@ -121,12 +122,38 @@ def test_now_strings_are_formatted_not_raw_field_names():
 # ── discovery structure (§3.1) ──────────────────────────────────────────────
 
 def test_four_tier_structure_renders_even_when_disabled():
-    d = _report().discovery
+    r = build_estate_report_from_manifest(MANIFEST, discovery=NullDiscoveryProvider(), now=NOW)
+    d = r.discovery
     assert d.enabled is False
     for t in ("declared", "strong", "possible", "defensive"):
         assert t in d.tiers
     assert d.declared_count == 9 and d.tier_count("declared") == 9
     assert "not enabled" in d.note.lower()
+
+
+def test_completeness_block_hook_declared_to_discovered():
+    from crossestate.build import build_estate_from_manifest
+    c = build_estate_from_manifest(MANIFEST, now=NOW).completeness
+    assert c.available is True
+    assert c.declared_n == 9 and c.discovered_n == 11        # "you have 9; we found 11"
+    owned = {d["domain"] for d in c.delta}
+    assert "acme-group.com" in owned                          # owned, corroborated
+    assert {cd["domain"] for cd in c.candidates} == {"sharedcdn-tenant42.net"}  # held separate
+
+
+def test_real_discovery_finds_owned_via_shared_cert_and_holds_co_tenants():
+    d = _report().discovery                                    # default = real provider
+    assert d.enabled is True
+    strong = {x.domain for x in d.tiers["strong"]}
+    possible = {x.domain for x in d.tiers["possible"]}
+    # brand/apex-corroborated shared-cert links are surfaced as owned...
+    assert "acme-group.com" in strong and "oldco-legacy.com" in strong
+    # ...but a shared cert with NO corroboration (CDN co-tenant) is held, never headlined
+    assert "sharedcdn-tenant42.net" in possible
+    assert "sharedcdn-tenant42.net" not in strong
+    # every discovered row carries evidence
+    for x in d.tiers["strong"] + d.tiers["possible"]:
+        assert x.evidence and x.evidence[0].detail
 
 
 # ── render ──────────────────────────────────────────────────────────────────

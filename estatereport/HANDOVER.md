@@ -55,11 +55,21 @@ raw field names.
   pills + variance; Appendix A worksheet). **PDF (Playwright) verified on the master.**
 - jinja2 lazy-imported; local env has pydantic (jinja pip-installed to verify HTML).
 
-## Not yet built (real discovery)
+## Discovery (real, passive) — in `crossestate/discovery.py`
 
-`NullDiscoveryProvider` is the stub. The real `DiscoveryProvider` needs the 340M
-corpus + Companies House CRN + connected-domain inference (SAN/MX-SPF/redirect/
-registrar/NS/lexical) producing the four tiers with evidence + the active check
-(DNS → website → CV/screenshot) for the hostile/ambiguous lanes. When it lands it
-drops in behind the same interface; page 2 (funnel, tiers, disc-table, deltas) and
-the concentration pre/post-discovery deltas populate automatically.
+Discovery is the ONE shared engine in `crossestate/discovery.py` (spec §2.7); this
+package only ADAPTS its `DiscoveryResult` into the four tiers (`estatereport/
+discovery.py:to_estate_discovery`). `ConnectedDomainDiscoveryProvider` is the real
+default: it surfaces undeclared domains from **cross-domain certificate SANs** on
+the loaded contracts (`cert_analysis.cross_domain_sans`), and the corroboration
+stack (shared apex/brand + SAN-link count) assigns the tier. The gate rule is
+enforced — a shared cert with no apex/brand corroboration (a CDN "universal"
+co-tenant) is held as a low-confidence `possible` candidate, never headlined as
+owned. Verified on the fixture: 9 declared → 11 owned (acme-group.com, oldco-legacy.com);
+sharedcdn-tenant42.net held as a candidate.
+
+Still hooks (not in-repo): the 340M-corpus brand sweep, Companies House CRN, and the
+live active-check (DNS→website→CV) for the hostile/ambiguous lanes — inject via
+`ConnectedDomainDiscoveryProvider(active_check=…)`. The hostile lane stays
+feed-delivered (SKU-2). Concentration pre/post-discovery deltas populate once the
+graded estate expands with discovered domains (needs their contracts loaded too).

@@ -190,6 +190,9 @@
         "dns_name": "oldco.com",
         "days_remaining": -9
       }
+    ],
+    "cross_domain_sans": [
+      "oldco-legacy.com"
     ]
   }
 }

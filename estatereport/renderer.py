@@ -90,11 +90,22 @@ class EstateReportRenderer:
         for i, ch in enumerate(chunks):
             appendix_pages.append({"n": i + 1, "patterns": ch,
                                    "adm_strip": (i == 0), "glossary": (i == len(chunks) - 1)})
+        # Discovery table: discovered rows first (the interesting ones — every one
+        # carries its connection evidence), then declared, capped at 18.
+        disc_rows = []
+        for t in ("strong", "possible", "defensive", "declared"):
+            for d in r.discovery.tiers.get(t, []):
+                disc_rows.append({
+                    "domain": d.domain, "tier": t,
+                    "label": {"strong": "Strong", "possible": "Possible",
+                              "defensive": "Defensive", "declared": "Declared"}[t],
+                    "evidence": "; ".join(e.detail for e in d.evidence) or "—",
+                })
         return {
             "r": r, "group": r.group, "snapshot": (r.generated_at or "")[:10],
             "pri_label": _PRI_LABEL, "grade_rows": grade_rows,
             "appendix_pages": appendix_pages, "appendix_total": len(appendix_pages),
-            "gradepill_cls": _GRADE_CLS, "brand": brand,
+            "gradepill_cls": _GRADE_CLS, "brand": brand, "disc_rows": disc_rows[:18],
         }
 
 
@@ -386,9 +397,9 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
     <div class="discovery-note"><b>Discovery not enabled for this run.</b> {{ r.discovery.note }}</div>
     {% endif %}
     <table class="disc-table"><tr><th>Domain</th><th>Tier</th><th>Connection evidence</th></tr>
-    {% for d in r.discovery.tiers.get('declared', [])[:18] %}
-      <tr><td class="dom">{{ d.domain }}</td><td><span class="tpill declared">Declared</span></td>
-        <td class="ev">{% for e in d.evidence %}{{ e.detail }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+    {% for d in disc_rows %}
+      <tr><td class="dom">{{ d.domain }}</td><td><span class="tpill {{ d.tier }}">{{ d.label }}</span></td>
+        <td class="ev">{{ d.evidence }}</td></tr>
     {% endfor %}
     </table>
     <div class="discovery-note">{{ r.grade_scope_note }}</div>

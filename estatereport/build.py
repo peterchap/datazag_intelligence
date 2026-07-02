@@ -18,7 +18,11 @@ from crossestate.build import build_estate_from_manifest, build_estate_view_mode
 from crossestate.contract import EstateThresholds
 from estatereport import transform
 from estatereport.contract import EstateReport
-from estatereport.discovery import DiscoveryProvider, NullDiscoveryProvider
+from estatereport.discovery import (
+    ConnectedDomainDiscoveryProvider,
+    DiscoveryProvider,
+    to_estate_discovery,
+)
 from estatereport.exceptions2 import build_exceptions
 from estatereport.remediation import build_remediation
 from freereport.compose import SCOPE_CAVEAT
@@ -39,10 +43,11 @@ def build_estate_report_from_manifest(manifest_path: str,
 def build_estate_report(mvp, discovery: Optional[DiscoveryProvider] = None,
                         now: Optional[datetime] = None) -> EstateReport:
     now = now or datetime.now(timezone.utc)
-    discovery = discovery or NullDiscoveryProvider()
+    discovery = discovery or ConnectedDomainDiscoveryProvider()
 
-    declared = [d.domain for seg in mvp.segments for d in seg.domains]
-    disc = discovery.discover(mvp.group, declared)
+    refs = [d for seg in mvp.segments for d in seg.domains]
+    declared = [r.domain for r in refs]
+    disc = to_estate_discovery(discovery.discover(mvp.group, refs), declared)
 
     conc = transform.concentration(mvp)
     var, baseline = transform.variance(mvp)

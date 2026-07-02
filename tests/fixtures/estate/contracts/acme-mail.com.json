@@ -179,6 +179,9 @@
   "cert_analysis": {
     "issuer_breakdown": {
       "Let's Encrypt": 3
-    }
+    },
+    "cross_domain_sans": [
+      "acme-group.com"
+    ]
   }
 }
