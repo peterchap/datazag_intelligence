@@ -20,7 +20,7 @@ Run on the master:
 Env:
     DATABASE_URL / PORTAL_DATABASE_URL   portal Neon DSN (required)
     INTELLIGENCE_BASE_URL, INTELLIGENCE_API_KEY   riskscore medallion endpoint
-    PUBLIC_BASE_URL                      e.g. https://datazag.com (for the /r/<token> link)
+    PUBLIC_BASE_URL                      e.g. https://portal.datazag.com (for the /r/<token> link)
     RESEND_API_KEY, EMAIL_FROM           outbound email (optional)
     FREE_REPORT_AUDIENCE                 default 'external_threat'
     FREE_REPORT_TIER                     default 'teaser'
@@ -57,7 +57,9 @@ from branding import BrandConfig                        # noqa: E402
 
 DSN = os.environ.get("PORTAL_DATABASE_URL") or os.environ.get("DATABASE_URL")
 POLL = int(os.environ.get("FREE_WORKER_POLL_SECONDS", "10"))
-BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://datazag.com").rstrip("/")
+# /r/<token> is served by the customer portal, NOT the marketing site —
+# datazag.com redirects to www which 404s on /r/*.
+BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://portal.datazag.com").rstrip("/")
 
 if not DSN:
     print("FATAL: DATABASE_URL (portal Neon) not set", file=sys.stderr)
