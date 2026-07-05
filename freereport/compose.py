@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from freereport import maturity
+from mx_platforms import classify_mx
 
 # Verbatim scope caveat (spec: mandatory, verbatim intent).
 SCOPE_CAVEAT = (
@@ -65,6 +66,17 @@ def _mx_host(vm) -> Optional[str]:
     return None
 
 
+def mailbox_provider(vm) -> tuple[Optional[str], Optional[str]]:
+    """(provider, category) for the mailbox platform. The lake annotation label
+    when present; else classified from the live MX host (mx_platforms), so a
+    mailbox visible in the scan does not render "not determined" when the lake
+    has no row for the domain."""
+    ann = vm.annotation
+    if ann.mailbox_provider:
+        return ann.mailbox_provider, ann.mailbox_category
+    return classify_mx(_mx_host(vm) or "")
+
+
 def confirmed_platforms(vm) -> list[dict]:
     """Platforms evidenced by MX / SPF-include / CNAME — never ownership TXT tokens.
     Returns [{mark, name, category, note, evidence}]. De-duplicated by name."""
@@ -80,9 +92,10 @@ def confirmed_platforms(vm) -> list[dict]:
                     "note": note, "evidence": evidence})
 
     ann = vm.annotation
-    if ann.mailbox_provider:
+    mbp, mbp_cat = mailbox_provider(vm)
+    if mbp:
         mx = _mx_host(vm)
-        add(ann.mailbox_provider, ann.mailbox_category or "Mailbox platform",
+        add(mbp, mbp_cat or "Mailbox platform",
             "One of the most-impersonated surfaces in the credential-harvesting economy",
             f"MX → {mx}" if mx else "MX-derived from your mail configuration")
 
@@ -104,7 +117,7 @@ def top_platform(vm) -> str:
     plats = confirmed_platforms(vm)
     if plats:
         return plats[0]["name"]
-    return vm.annotation.mailbox_provider or "the cloud platforms you use"
+    return mailbox_provider(vm)[0] or "the cloud platforms you use"
 
 
 # ---------------------------------------------------------------------------
@@ -290,12 +303,13 @@ def _strengths(vm) -> list[dict]:
         out.append({"plain": "email authentication enforced at the strongest level",
                     "html": "DMARC fully enforced at <code>p=reject</code> — the strongest available "
                             "protection against domain spoofing"})
-    if vm.annotation.mailbox_provider:
+    mbp = mailbox_provider(vm)[0]
+    if mbp:
         gw = next((p["name"] for p in confirmed_platforms(vm)
-                   if p["name"] != vm.annotation.mailbox_provider), None)
+                   if p["name"] != mbp), None)
         if gw:
-            out.append({"plain": f"an enterprise mail path ({gw} in front of {vm.annotation.mailbox_provider})",
-                        "html": f"Enterprise mail security: {gw} gateway in front of {vm.annotation.mailbox_provider}"})
+            out.append({"plain": f"an enterprise mail path ({gw} in front of {mbp})",
+                        "html": f"Enterprise mail security: {gw} gateway in front of {mbp}"})
     if has_locks(vm):
         rg = vm.registration.registrar or "an enterprise registrar"
         out.append({"plain": f"an enterprise registrar ({rg}) with domain locks",
@@ -408,7 +422,7 @@ def surfaces(vm, now: datetime) -> list[dict]:
     loc = vm.trust.isp_country or ann.isp_country
     host.append({"b": "ok" if loc else "na", "html": "<b style='color:var(--ink)'>Location:</b>&nbsp;"
                  + (loc or "not determined")})
-    mail = ann.mailbox_provider
+    mail = mailbox_provider(vm)[0]
     gw = next((p["name"] for p in confirmed_platforms(vm) if p["name"] != mail), None)
     mail_line = (mail + (f" via {gw}" if gw else "")) if mail else "not determined"
     host.append({"b": "ok" if mail else "na", "html": f"<b style='color:var(--ink)'>Mail:</b>&nbsp;{mail_line}"})

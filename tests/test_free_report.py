@@ -97,6 +97,33 @@ def test_google_workspace_mx_classifier_not_token_trap():
     assert "google-site-verification" not in _render(vm)
 
 
+def test_mx_fallback_when_lake_annotation_missing():
+    # addaction.org.uk regression: lake has no annotation row, but the live scan
+    # captured a Google MX — the mailbox must classify from the MX, not render
+    # "not determined" with an empty platform table.
+    vm = _vm(mailbox=None, mx=["1 aspmx.l.google.com"])
+    assert compose.mailbox_provider(vm) == ("Google Workspace", "Mailbox Provider")
+    plats = compose.confirmed_platforms(vm)
+    assert [p["name"] for p in plats] == ["Google Workspace"]
+    assert "aspmx.l.google.com" in plats[0]["evidence"]
+    assert compose.top_platform(vm) == "Google Workspace"
+    mail_line = next(i["html"] for s in compose.surfaces(vm, NOW)
+                     if s["name"].startswith("Hosting") for i in s["items"] if "Mail:" in i["html"])
+    assert "Google Workspace" in mail_line and "not determined" not in mail_line
+    # annotation label still wins when the lake has one
+    vm2 = _vm(mailbox="Proofpoint-fronted M365", mx=["1 aspmx.l.google.com"])
+    assert compose.mailbox_provider(vm2)[0] == "Proofpoint-fronted M365"
+
+
+def test_no_mx_still_renders_honest_empty_state():
+    # no annotation AND no MX in the scan → the honest empty-state stands
+    vm = _vm(mailbox=None, mx=[])
+    assert compose.mailbox_provider(vm) == (None, None)
+    mail_line = next(i["html"] for s in compose.surfaces(vm, NOW)
+                     if s["name"].startswith("Hosting") for i in s["items"] if "Mail:" in i["html"])
+    assert "not determined" in mail_line
+
+
 def test_lookalikes_excluded_from_headline():
     vm = _vm(imps=[PlatformImpersonation(platform="m365", count_30d=2, confidence="exact")])
     vm.external_threat.lookalike_candidates = [
