@@ -23,6 +23,12 @@ from freereport.compose import compose_context
 
 _PRI_LABEL = {"now": "Now", "soon": "Soon", "plan": "Maturity"}
 
+# Outbound links baked into the shipped artefact. The page-5 seam lands on the
+# /reports Cross-Estate anchor (WU19); WU20 re-points it at the scope flow when
+# that ships — this constant is the single swap point.
+SEAM_CROSS_ESTATE_URL = "https://www.datazag.com/reports?src=free-report#cross-estate"
+WATCH_URL = "https://www.datazag.com/alerts"
+
 
 class FreeReportRenderer:
     def __init__(self, vm, generated_at: Optional[str] = None, now=None, brand: Any = None):
@@ -376,7 +382,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         <div class="sol-h">A captured login is silent. The certificate isn't.</div>
         <div class="sol-b">The fake login page needs a certificate, and that is public the moment it's issued. Platform &amp; Brand Impersonation Watch alerts your team within 5–10 seconds of a certificate for your platforms appearing — one of the earliest moments to act.</div>
       </div>
-      <a href="#" class="sol-cta">See the Watch →</a>
+      <a href=""" + '"' + WATCH_URL + '"' + r""" class="sol-cta">See the Watch →</a>
     </div>
   </div>
   <div class="foot"><div>The cyber attack economy</div><div>Datazag · Confidential · 2 / 5</div></div>
@@ -511,7 +517,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         <div class="uc-h">Find the domains your teams forgot — before attackers do.</div>
         <div class="uc-b">Enter your known domains in the Datazag portal — we'll discover the rest and assess systemic risk across the whole estate.</div>
       </div>
-      <a href="#" class="uc-btn">Request the Cross-Estate Report →</a>
+      <a href=""" + '"' + SEAM_CROSS_ESTATE_URL + '"' + r""" class="uc-btn">Request the Cross-Estate Report →</a>
     </div>
     <div class="gloss-strip">
       <b>Key terms:</b> <span><b>DMARC/SPF</b> — email authentication that reduces mail being spoofed as you.</span> <span><b>CAA</b> — restricts which authorities may issue your certificates.</span> <span><b>Certificate SAN</b> — the list of domains sharing one certificate; a declared link between them.</span> <span><b>Platform impersonation</b> — fake login pages for trusted platforms rather than your brand.</span>

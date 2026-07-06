@@ -24,6 +24,9 @@ from estatereport.contract import EstateReport
 _PRI_LABEL = {"now": "Now", "soon": "Soon", "plan": "Maturity"}
 _GRADE_CLS = {"A": "ga", "B": "gb", "C": "gc", "D": "gd", "E": "ge", "F": "gf"}
 
+# Outbound link baked into the shipped artefact (page-6 upgrade CTA).
+UPGRADE_CONTACT_URL = "https://www.datazag.com/contact"
+
 
 class EstateReportRenderer:
     def __init__(self, report: EstateReport, brand: Any = None):
@@ -501,7 +504,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
     <div class="seam"><div class="seam-h"><div class="seam-n">02</div><div class="seam-t"><div class="seam-title">Continuous discovery &amp; drift</div><div class="seam-sub">Estate change becomes its own alert stream.</div></div></div>
       <div class="seam-body"><p class="seam-lead">Re-run across the {{ r.corpus_label }}-domain corpus on a cadence: new domains appearing in your estate, segments drifting below baseline, sleeper lookalikes activating — "3 new domains appeared in your estate this week; one is RED."</p>
         <div class="seam-note"><b>Runs over time</b> turn this snapshot into a monitored posture with drift/delta alerts.</div></div></div>
-    <div class="upgrade-cta"><div class="uc-text"><div class="uc-h">Move from snapshot to monitored estate.</div><div class="uc-b">Wire the feed and schedule continuous discovery — the estate you can't fully see, watched continuously.</div></div><a href="#" class="uc-btn">Talk to Datazag →</a></div>
+    <div class="upgrade-cta"><div class="uc-text"><div class="uc-h">Move from snapshot to monitored estate.</div><div class="uc-b">Wire the feed and schedule continuous discovery — the estate you can't fully see, watched continuously.</div></div><a href=""" + '"' + UPGRADE_CONTACT_URL + '"' + r""" class="uc-btn">Talk to Datazag →</a></div>
     <div class="limits"><div class="lim-h">Scope &amp; limits of this assessment</div><div class="lim-grid">
       <div class="lim-item"><b>Grade scope.</b> Declared + strongly-associated domains. Possible-tier listed ungraded; defensive-tier never graded.</div>
       <div class="lim-item"><b>Externally observable only.</b> Public DNS + certificate transparency at a point in time. No endpoint, network-segmentation, IAM or patch posture.</div>
