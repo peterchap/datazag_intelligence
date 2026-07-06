@@ -207,6 +207,9 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 .surf .sf-item{display:flex;align-items:flex-start;gap:8px;font-size:11px;line-height:1.4;margin-bottom:8px;color:var(--ink-2)}
 .surf .sf-item:last-child{margin-bottom:0}
 .surf .sf-item .b{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+/* Single flex child so mixed inline HTML (b/code/text) wraps as one block
+   instead of splitting into side-by-side anonymous flex items. */
+.surf .sf-item .sf-txt{flex:1;min-width:0}
 .b.ok{background:var(--good)}.b.warn{background:var(--warn)}.b.bad{background:var(--bad)}.b.na{background:var(--ink-4)}.b.cy{background:var(--cyan-deep)}
 .surf .sf-foot{padding:10px 15px;border-top:1px solid var(--rule);font-size:10px;color:var(--ink-3);line-height:1.45;background:var(--tint)}
 .physical-line{margin-bottom:16px;background:var(--tint);border:1px solid var(--rule);border-left:3px solid var(--ink-4);border-radius:8px;padding:11px 15px;font-size:11px;line-height:1.5;color:var(--ink-3)}
@@ -400,7 +403,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         </div>
         <div class="sf-body">
           {% for it in s['items'] %}
-          <div class="sf-item"><span class="b {{ it.b }}"></span>{{ it.html|safe }}</div>
+          <div class="sf-item"><span class="b {{ it.b }}"></span><span class="sf-txt">{{ it.html|safe }}</span></div>
           {% endfor %}
         </div>
         <div class="sf-foot">{{ s.foot }}</div>

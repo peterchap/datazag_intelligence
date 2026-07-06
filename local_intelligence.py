@@ -72,6 +72,9 @@ def _match_platform(rows: list, requested: str) -> dict:
     if best:
         return {"platform": requested, "category": "", "count_7d": int(best[1] or 0),
                 "count_30d": int(best[2] or 0), "sample_domains": _samples(best[3])}
+    if rq:
+        print(f"  [impersonation-lake] no rollup match for platform {requested!r} "
+              f"({len(rows)} rollup entries) — reporting zero")
     return {"platform": requested, "category": "", "count_7d": 0, "count_30d": 0, "sample_domains": []}
 
 

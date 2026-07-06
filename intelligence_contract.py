@@ -494,6 +494,9 @@ class DnsHygiene(_Base):
     dkim_present: bool = False
     dnssec: bool = False
     mta_sts_mode: Optional[str] = None
+    # TXT record published but policy file absent → mta_sts_txt_present=True with
+    # empty mode: a half-finished deployment, reported as such (not "absent").
+    mta_sts_txt_present: bool = False
     tlsrpt_present: bool = False
     bimi_present: bool = False
     caa_present: bool = False

@@ -384,7 +384,13 @@ def surfaces(vm, now: datetime) -> list[dict]:
         comm.append({"b": "ok", "html": "No confirmed platform impersonation (30d)"})
     if h.spf_record and h.spf_record.strip().endswith("~all"):
         comm.append({"b": "warn", "html": "SPF soft-fail (<code>~all</code>) — minor tightening available"})
-    adv = [c.label for c in maturity.absent_controls(vm, tier="advanced") if c.key in ("mta_sts", "tls_rpt")]
+    # TXT published but policy file missing = half-deployed, not "absent".
+    partial_sts = bool(getattr(h, "mta_sts_txt_present", False)) and not h.mta_sts_mode
+    if partial_sts:
+        comm.append({"b": "warn", "html": "<b style='color:var(--ink)'>MTA-STS:</b>&nbsp;TXT published "
+                     "but policy file missing — not yet active"})
+    adv = [c.label for c in maturity.absent_controls(vm, tier="advanced")
+           if c.key in ("mta_sts", "tls_rpt") and not (partial_sts and c.key == "mta_sts")]
     if adv:
         comm.append({"b": "cy", "html": "<b style='color:var(--ink)'>Advanced:</b>&nbsp;"
                      + " / ".join(adv) + " not yet adopted"})
@@ -510,16 +516,32 @@ def fixes(vm, now: datetime) -> list[dict]:
                     f"{d}.  IN  CAA  0 iodef \"mailto:security@{d}\""),
         })
 
+    partial_sts = bool(getattr(h, "mta_sts_txt_present", False)) and not h.mta_sts_mode
+    if partial_sts:
+        out.append({
+            "title": "Finish the MTA-STS deployment", "priority": "soon",
+            "why": ("The MTA-STS TXT record is published, but the policy file it points senders to is "
+                    "missing — so MTA-STS is not yet active. Serve the policy over HTTPS, then move "
+                    "<code>mode</code> from <code>testing</code> to <code>enforce</code> once TLS-RPT "
+                    "confirms clean delivery."),
+            "cmd": (f"<span class=\"cm\"># https://mta-sts.{d}/.well-known/mta-sts.txt</span>\n"
+                    "version: STSv1\nmode: testing\n"
+                    "mx: &lt;your MX host&gt;\n"
+                    "max_age: 86400"),
+        })
     adv_gold = maturity_note_controls(vm)
-    if any(c.key in ("mta_sts", "tls_rpt", "dnssec", "dane") for c in adv_gold):
+    if any(c.key in ("mta_sts", "tls_rpt", "dnssec", "dane") and not (partial_sts and c.key == "mta_sts")
+           for c in adv_gold):
         out.append({
             "title": "Adopt advanced mail-in-transit controls", "priority": "plan",
             "why": ("<b>Good-to-have, not urgent.</b> MTA-STS enforces TLS on inbound mail and TLS-RPT "
                     "reports failures — the advanced tier above the baseline you already meet. "
                     "DNSSEC/DANE is the gold-standard layer. Plan these; their absence does not create "
                     "exploitable risk today."),
-            "cmd": (f"_mta-sts.{d}.   TXT  \"v=STSv1; id=20260701\"\n"
+            "cmd": (f"_mta-sts.{d}.   TXT  \"v=STSv1; id={now:%Y%m%d}\"\n"
                     f"_smtp._tls.{d}. TXT  \"v=TLSRPTv1; rua=mailto:tls@{d}\"\n"
+                    f"<span class=\"cm\"># MTA-STS also needs its policy file served at "
+                    f"https://mta-sts.{d}/.well-known/mta-sts.txt</span>\n"
                     "<span class=\"cm\"># gold standard: DNSSEC signing at your registrar, then DANE</span>"),
         })
 

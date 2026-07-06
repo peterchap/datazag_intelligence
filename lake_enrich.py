@@ -535,6 +535,7 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
             dmarc_policy=_dmarc_policy(dmarc),
             dnssec=bool(rec.get("dnssec")),
             mta_sts_mode=rec.get("mta_sts_mode") or None,
+            mta_sts_txt_present=bool(rec.get("has_mta_sts") or rec.get("mta_sts_txt")),
             tlsrpt_present=bool(rec.get("tlsrpt_rua")),
             bimi_present=bool(rec.get("bimi")),
             caa_present=bool(rec.get("caa")),

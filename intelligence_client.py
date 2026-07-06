@@ -138,10 +138,14 @@ class IntelligenceClient:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(url, params=params, headers=self._headers) as resp:
                     if resp.status != 200:
+                        print(f"  [impersonation-api] HTTP {resp.status} from {url} — reporting zero impersonations")
                         return empty
                     data = await resp.json()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
-            return empty   # impersonation data is supplementary — never fatal
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            # Supplementary — never fatal, but never silent either: a swallowed
+            # failure here renders as a false "no impersonation" all-clear.
+            print(f"  [impersonation-api] unreachable ({e!r}) — reporting zero impersonations")
+            return empty
 
         def _imps(key: str, confidence: str) -> list[PlatformImpersonation]:
             return [PlatformImpersonation.model_validate({**x, "confidence": confidence})

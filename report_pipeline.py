@@ -355,6 +355,8 @@ async def build_view_model(
     ext: ExternalThreat = await client.fetch_platform_impersonations(platforms, brand=domain)
     if not ext.detected_platforms:
         ext.detected_platforms = platforms
+    print(f"  impersonations: platforms={platforms or '—'} → exact={len(ext.impersonations)} "
+          f"lookalike={len(ext.lookalike_candidates)} 7d={ext.total_7d} 30d={ext.total_30d}")
 
     # Active-scan brand funnel for the free health report — computed by the
     # dnsproject scan (pattern-gen + corpus resolution, where that data lives) and
@@ -382,6 +384,15 @@ async def build_view_model(
         enr = lake_enrich.to_view_models(live_output or {}, bundle)
     except Exception as e:
         print(f"  enrichment view-models unavailable: {e}")
+    hyg = enr.get("hygiene")
+    if hyg is not None:
+        # One-line audit of what THIS run's live scan observed — makes stale-DNS
+        # complaints diagnosable from the worker log alone.
+        print(f"  live-dns hygiene: dmarc={hyg.dmarc_policy or '—'} spf_strict={hyg.spf_strict} "
+              f"mta_sts_txt={getattr(hyg, 'mta_sts_txt_present', False)} mta_sts_mode={hyg.mta_sts_mode or '—'} "
+              f"tlsrpt={hyg.tlsrpt_present} caa={hyg.caa_present} dnssec={hyg.dnssec}")
+    else:
+        print("  live-dns hygiene: UNAVAILABLE — maturity flags will render from defaults (all absent)")
 
     # Live CT-log intel (CertSpotter, per-domain pull — no corpus scan): subdomains
     # AND cert_analysis, both onto the contract (cert_analysis render is deferred).
