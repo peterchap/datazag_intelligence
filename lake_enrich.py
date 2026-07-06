@@ -309,7 +309,7 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
     infra_asn = (out.get("labels") or {}).get("infra_asn")
     if infra_asn:
         out["abuse"]["asn"] = _safe("asn_abuse_contacts", lambda: _one(con, """
-            SELECT abuse_email, abuse_phone FROM intel.asn_abuse_contacts WHERE asn_number = ? LIMIT 1""", [int(infra_asn)]))
+            SELECT abuse_email, abuse_phone FROM intel.asn_abuse_contacts WHERE asn = ? LIMIT 1""", [int(infra_asn)]))
     return out
 
 
