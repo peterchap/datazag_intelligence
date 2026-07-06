@@ -153,9 +153,27 @@ def gen_tokens_py(tokens: dict) -> str:
     )
 
 
+def gen_tailwind_css(tokens: dict) -> str:
+    """Tailwind v4 CSS-first config (@theme) — the portal is on v4, where the
+    theme lives in CSS, not tailwind.config.js. Same keys as the JS fragment."""
+    colors = "".join(f"  --color-{n}: {v};\n" for n, v in tokens["color"].items())
+    semantic = "".join(f"  --color-{n}: {v};\n" for n, v in _semantic_flat(tokens).items())
+    radius = "".join(f"  --radius-{n}: {v};\n" for n, v in tokens["radius"].items())
+    return (
+        f"/* {HEADER} */\n"
+        "@theme {\n"
+        f"  --font-sans: {tokens['font']['sans']};\n"
+        f"  --font-mono: {tokens['font']['mono']};\n"
+        f"{colors}{semantic}{radius}"
+        "}\n"
+        + _logo_css(tokens) + "\n"
+    )
+
+
 TARGETS = {
     "tokens.css": gen_tokens_css,
     "tailwind.tokens.js": gen_tailwind,
+    "tailwind.tokens.css": gen_tailwind_css,
     "_tokens.css.j2": gen_tokens_css_j2,
     "tokens.py": gen_tokens_py,
     "logo-dark.svg": lambda t: _logo_svg(t, "dark"),
