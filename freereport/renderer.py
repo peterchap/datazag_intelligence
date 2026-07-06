@@ -4,7 +4,8 @@ freereport/renderer.py
 `FreeReportRenderer` — renders the 5-page Free Single-Domain Cyber Exposure
 Report from a `ReportViewModel`, reproducing `free_report_v1_3.html`.
 
-The CSS is carried verbatim from the prototype (the shared design system); the
+The CSS is carried from the prototype (the shared design system) with the brand
+:root tokens injected from the generated design-token include; the
 body is a Jinja port whose dynamic content comes from `compose.compose_context`.
 jinja2 is imported lazily (inside `to_html`) so `to_markdown`/`to_dict` work in
 environments without it installed.
@@ -17,6 +18,7 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
+from design.generated.tokens import CSS_ROOT
 from freereport.compose import compose_context
 
 _PRI_LABEL = {"now": "Now", "soon": "Soon", "plan": "Maturity"}
@@ -104,8 +106,9 @@ def _strip(html: str) -> str:
     return re.sub(r"<[^>]+>", "", html or "").replace("&nbsp;", " ").replace("&amp;", "&").strip()
 
 
-# The CSS block below is carried VERBATIM from free_report_v1_3.html (the shared
-# design system). Only the <body> is templatised.
+# The CSS block below is carried from free_report_v1_3.html (the shared design
+# system); the brand :root tokens are injected from the generated design-token
+# include (design/tokens.json is canonical). Only the <body> is templatised.
 FREE_REPORT_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -116,15 +119,9 @@ FREE_REPORT_TEMPLATE = r"""<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+""" + CSS_ROOT + r"""
+/* report-layer dark-surface helpers — deliberately not brand tokens */
 :root{
-  --navy:#0F1923;--navy-2:#16263A;--navy-deep:#0A121C;
-  --ink:#0F172A;--ink-2:#33415A;--ink-3:#64748B;--ink-4:#94A3B8;
-  --paper:#FFFFFF;--tint:#F6F8FB;--tint-2:#EEF3F8;
-  --rule:#E2E8F0;--rule-2:#F0F4F8;
-  --cyan:#00C2FF;--cyan-deep:#0091C7;--cyan-wash:#E8F8FF;
-  --good:#0E9F6E;--good-wash:#E7F7F0;--good-line:#A8E6CC;
-  --warn:#D97706;--warn-wash:#FEF4E6;--warn-line:#F6D9A8;
-  --bad:#E02424;--bad-wash:#FDECEC;--bad-line:#F5C6C6;
   --w:#FFFFFF;--w2:rgba(255,255,255,.82);--w3:rgba(255,255,255,.58);--w4:rgba(255,255,255,.34);
   --rd:rgba(255,255,255,.12);
 }

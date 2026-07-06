@@ -3,7 +3,8 @@ estatereport/renderer.py
 ------------------------
 `EstateReportRenderer` — renders the Cross-Estate Domain Risk Report (v2.2):
 6 fixed core pages + Appendix A (remediation worksheet, A1–An), reproducing
-`cross_estate_v2.html`. The CSS is carried verbatim from that render, which is
+`cross_estate_v2.html`. The CSS is carried from that render — brand `:root`
+tokens injected from the generated design-token include — and is
 itself built on the free-report design system (shared `:root`, `.page/.runner/
 .foot`, tiers, seam, CTA). jinja2 is imported lazily.
 
@@ -17,6 +18,7 @@ import json
 import math
 from typing import Any
 
+from design.generated.tokens import CSS_ROOT
 from estatereport.contract import EstateReport
 
 _PRI_LABEL = {"now": "Now", "soon": "Soon", "plan": "Maturity"}
@@ -114,8 +116,9 @@ def _strip(html: str) -> str:
     return re.sub(r"<[^>]+>", "", html or "").replace("&nbsp;", " ").replace("&amp;", "&").strip()
 
 
-# CSS carried verbatim from cross_estate_v2.html (built on the free-report design
-# system). Only the <body> is templatised.
+# CSS carried from cross_estate_v2.html (built on the free-report design
+# system); the brand :root tokens are injected from the generated design-token
+# include (design/tokens.json is canonical). Only the <body> is templatised.
 ESTATE_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -124,15 +127,9 @@ ESTATE_TEMPLATE = r"""<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+""" + CSS_ROOT + r"""
+/* report-layer dark-surface helpers — deliberately not brand tokens */
 :root{
-  --navy:#0F1923;--navy-2:#16263A;--navy-deep:#0A121C;
-  --ink:#0F172A;--ink-2:#33415A;--ink-3:#64748B;--ink-4:#94A3B8;
-  --paper:#FFFFFF;--tint:#F6F8FB;--tint-2:#EEF3F8;
-  --rule:#E2E8F0;--rule-2:#F0F4F8;
-  --cyan:#00C2FF;--cyan-deep:#0091C7;--cyan-wash:#E8F8FF;
-  --good:#0E9F6E;--good-wash:#E7F7F0;--good-line:#A8E6CC;
-  --warn:#D97706;--warn-wash:#FEF4E6;--warn-line:#F6D9A8;
-  --bad:#E02424;--bad-wash:#FDECEC;--bad-line:#F5C6C6;
   --w:#FFFFFF;--w2:rgba(255,255,255,.82);--w3:rgba(255,255,255,.58);--w4:rgba(255,255,255,.34);
   --rd:rgba(255,255,255,.12);
 }
