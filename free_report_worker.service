@@ -17,7 +17,7 @@ Environment=HOME=/root
 #   Resend-verified sending domain)
 # Renders the 5-page free single-domain report (freereport); no audience/tier env.
 EnvironmentFile=/root/datazag_intelligence/.env
-ExecStart=/root/datazag_intelligence/venv/bin/python free_report_worker.py
+ExecStart=/root/datazag_intelligence/dzintelligence_env/bin/python free_report_worker.py
 Restart=always
 RestartSec=10
 
