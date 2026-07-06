@@ -97,9 +97,27 @@ def detect_platforms(output: dict) -> list[str]:
                     "ai_infrastructure", "security_tooling", "email_marketing"):
             names.extend(ti.get(cat) or [])
     for key in ("mx_provider_name", "ns_provider_name"):
-        v = tech.get(key)
+        v = tech.get(key) or output.get(key)  # dnsproject shape, or celery flat record
         if v:
             names.append(v)
+
+    # The celery live record has no txt_intelligence/technographics blocks —
+    # classify its raw MX / SPF includes with the same mapping the report's
+    # platform page uses, so the impersonation query always covers the confirmed
+    # mailbox platform (e.g. Microsoft 365 from *.mail.protection.outlook.com).
+    try:
+        from mx_platforms import classify_mx
+        for host in (output.get("mx"), output.get("mx_host_final")):
+            provider, _cat = classify_mx(str(host or ""))
+            if provider:
+                names.append(provider)
+        for tok in str(output.get("spf") or "").split():
+            if tok.lower().startswith("include:"):
+                provider, _cat = classify_mx(tok.split(":", 1)[1])
+                if provider:
+                    names.append(provider)
+    except Exception:
+        pass
 
     seen: set[str] = set()
     out: list[str] = []
