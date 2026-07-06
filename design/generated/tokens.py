@@ -67,6 +67,19 @@ GRADE = {
     "F": "#8B1414"
 }
 
+LOGO = {
+    "font": "Manrope, sans-serif",
+    "weight": 800,
+    "tracking": "-0.02em",
+    "tracking-mark": "-0.03em",
+    "data-on-dark": "#EAF1FB",
+    "data-on-light": "#0F1B2D",
+    "zag-from": "#7DDAF0",
+    "zag-to": "#3FA6DE",
+    "zag-light-from": "#3FA6DE",
+    "zag-light-to": "#2B7FB8"
+}
+
 CSS_ROOT = """:root{
   --navy:#0F1923;--navy-2:#16263A;--navy-deep:#0A121C;
   --ink:#0F172A;--ink-2:#33415A;--ink-3:#64748B;--ink-4:#94A3B8;
@@ -77,4 +90,8 @@ CSS_ROOT = """:root{
   --good:#0E9F6E;--good-wash:#E7F7F0;--good-line:#A8E6CC;
   --warn:#D97706;--warn-wash:#FEF4E6;--warn-line:#F6D9A8;
   --bad:#E02424;--bad-wash:#FDECEC;--bad-line:#F5C6C6;
+}"""
+
+CSS_LOGO = """:root{
+  --logo-font:Manrope, sans-serif;--logo-weight:800;--logo-tracking:-0.02em;--logo-tracking-mark:-0.03em;--logo-data-on-dark:#EAF1FB;--logo-data-on-light:#0F1B2D;--logo-zag-from:#7DDAF0;--logo-zag-to:#3FA6DE;--logo-zag-light-from:#3FA6DE;--logo-zag-light-to:#2B7FB8;
 }"""

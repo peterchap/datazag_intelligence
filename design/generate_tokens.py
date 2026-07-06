@@ -64,6 +64,30 @@ def _semantic_flat(tokens: dict) -> dict[str, str]:
     return out
 
 
+def _logo_css(tokens: dict) -> str:
+    """Logo namespace vars — logo-exclusive, never joins the general palette."""
+    lines = "".join(f"--logo-{name}:{value};" for name, value in tokens["logo"].items())
+    return ":root{\n  " + lines + "\n}"
+
+
+def _logo_svg(tokens: dict, variant: str) -> str:
+    """Two-tone wordmark (option 2a) as a deterministic SVG email asset.
+    Email clients strip background-clip:text unreliably; PNGs @2x are baked
+    from these by design/generate_logo_assets.py (Playwright, on the master)."""
+    logo = tokens["logo"]
+    if variant == "dark":
+        data, g_from, g_to = logo["data-on-dark"], logo["zag-from"], logo["zag-to"]
+    else:
+        data, g_from, g_to = logo["data-on-light"], logo["zag-light-from"], logo["zag-light-to"]
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="220" height="48" viewBox="0 0 220 48" role="img" aria-label="Datazag">
+  <defs><linearGradient id="zag" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="{g_from}"/><stop offset="1" stop-color="{g_to}"/>
+  </linearGradient></defs>
+  <text x="0" y="34" font-family="{logo['font']}" font-size="32" font-weight="{logo['weight']}" letter-spacing="-0.64"><tspan fill="{data}">Data</tspan><tspan fill="url(#zag)">zag</tspan></text>
+</svg>
+"""
+
+
 def gen_tokens_css(tokens: dict) -> str:
     semantic = _semantic_flat(tokens)
     sem_lines = "\n".join(f"  --{name}:{value};" for name, value in semantic.items())
@@ -75,11 +99,12 @@ def gen_tokens_css(tokens: dict) -> str:
         + root_open + "\n"
         + root_body_close.removesuffix("\n}")
         + "\n" + sem_lines + "\n}\n"
+        + _logo_css(tokens) + "\n"
     )
 
 
 def gen_tokens_css_j2(tokens: dict) -> str:
-    return f"/* {HEADER} */\n" + _css_root(tokens["color"]) + "\n"
+    return f"/* {HEADER} */\n" + _css_root(tokens["color"]) + "\n" + _logo_css(tokens) + "\n"
 
 
 def gen_tailwind(tokens: dict) -> str:
@@ -95,6 +120,7 @@ def gen_tailwind(tokens: dict) -> str:
             "mono": [part.strip() for part in tokens["font"]["mono"].split(",")],
         },
         "borderRadius": tokens["radius"],
+        "logo": tokens["logo"],
         "semantic": semantic,
     }
     body = json.dumps(fragment, indent=2)
@@ -121,7 +147,9 @@ def gen_tokens_py(tokens: dict) -> str:
         f"PRIORITY = {fmt(semantic['priority'])}\n\n"
         f"TIER = {fmt(semantic['tier'])}\n\n"
         f"GRADE = {fmt(semantic['grade'])}\n\n"
-        f'CSS_ROOT = """{css_root}"""\n'
+        f'LOGO = {fmt(tokens["logo"])}\n\n'
+        f'CSS_ROOT = """{css_root}"""\n\n'
+        f'CSS_LOGO = """{_logo_css(tokens)}"""\n'
     )
 
 
@@ -130,6 +158,8 @@ TARGETS = {
     "tailwind.tokens.js": gen_tailwind,
     "_tokens.css.j2": gen_tokens_css_j2,
     "tokens.py": gen_tokens_py,
+    "logo-dark.svg": lambda t: _logo_svg(t, "dark"),
+    "logo-light.svg": lambda t: _logo_svg(t, "light"),
 }
 
 

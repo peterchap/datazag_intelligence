@@ -43,6 +43,18 @@ module.exports = {
     "lg": "12px",
     "pill": "100px"
   },
+  "logo": {
+    "font": "Manrope, sans-serif",
+    "weight": 800,
+    "tracking": "-0.02em",
+    "tracking-mark": "-0.03em",
+    "data-on-dark": "#EAF1FB",
+    "data-on-light": "#0F1B2D",
+    "zag-from": "#7DDAF0",
+    "zag-to": "#3FA6DE",
+    "zag-light-from": "#3FA6DE",
+    "zag-light-to": "#2B7FB8"
+  },
   "semantic": {
     "severity": {
       "high": "#E02424",
