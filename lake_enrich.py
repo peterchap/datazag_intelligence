@@ -141,6 +141,12 @@ def lake_connect():
 
     data_path = os.environ.get("DUCKLAKE_DATA_PATH", "r2://datazag-lake/data/")
     con = duckdb.connect(":memory:")
+    # Services without HOME (systemd, no User=) break duckdb's INSTALL/secret
+    # paths ("Can't find the home directory at ''") — point it at the real home.
+    if not os.environ.get("HOME"):
+        home = os.path.expanduser("~")
+        if home and home != "~":
+            con.execute(f"SET home_directory='{home}';")
     for ext in ("ducklake", "postgres", "httpfs"):
         con.execute(f"INSTALL {ext};")
         con.execute(f"LOAD {ext};")

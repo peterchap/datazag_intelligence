@@ -6,6 +6,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/root/datazag_intelligence
+# systemd does not set HOME for root services without User= — DuckDB (DuckLake
+# extensions/secrets) resolves paths under it and goes offline without it.
+Environment=HOME=/root
 # DATABASE_URL MUST point at the Customer Portal Neon DB. Also set:
 #   INTELLIGENCE_BASE_URL, INTELLIGENCE_API_KEY  (riskscore medallion endpoint)
 #   PUBLIC_BASE_URL (https://portal.datazag.com — the /r/<token> viewer lives on
