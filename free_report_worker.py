@@ -21,7 +21,8 @@ Env:
     DATABASE_URL / PORTAL_DATABASE_URL   portal Neon DSN (required)
     INTELLIGENCE_BASE_URL, INTELLIGENCE_API_KEY   riskscore medallion endpoint
     PUBLIC_BASE_URL                      e.g. https://portal.datazag.com (for the /r/<token> link)
-    RESEND_API_KEY, EMAIL_FROM           outbound email (optional)
+    RESEND_API_KEY, EMAIL_FROM           outbound email (optional; sender must be on
+                                         the Resend-verified notifications.datazag.com)
     FREE_REPORT_AUDIENCE                 default 'external_threat'
     FREE_REPORT_TIER                     default 'teaser'
     FREE_WORKER_POLL_SECONDS             default 10
@@ -165,7 +166,8 @@ def send_email(to_addr, domain, token):
         return
     link = f"{BASE_URL}/r/{token}"
     payload = {
-        "from": os.environ.get("EMAIL_FROM", "noreply@datazag.com"),
+        # Resend only accepts senders on the verified domain (notifications.datazag.com).
+        "from": os.environ.get("EMAIL_FROM", "Datazag Reports <reports@notifications.datazag.com>"),
         "to": [to_addr],
         "subject": f"Your Datazag threat report for {domain}",
         "html": f"<p>Your free external threat report for <strong>{domain}</strong> is ready.</p>"
