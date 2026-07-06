@@ -181,7 +181,15 @@ def send_email(to_addr, domain, token):
             c2.commit()
         print(f"  📧 emailed {to_addr}")
     except Exception as e:
-        print(f"  (email failed: {e})")
+        # Resend puts the actual reason (unverified domain, restricted key,
+        # test-mode recipient limit) in the response body — surface it.
+        detail = ""
+        if hasattr(e, "read"):
+            try:
+                detail = f" — {e.read().decode('utf-8', 'replace')[:300]}"
+            except Exception:
+                pass
+        print(f"  (email failed: {e}{detail}; from={payload['from']} to={to_addr})")
 
 
 def process(conn, claimed):
