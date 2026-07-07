@@ -72,10 +72,30 @@ Portal env for checkout:
 Checkout is **org-scoped**: both entry pages (`/scope/checkout?scope=<token>`
 for Cross-Estate, `/reports/buy` for Domain Risk) redirect to `/login` first,
 then create a Stripe session and, on `checkout.session.completed`, a **pending
-`report_orders` row**. A master **report-order worker** (follow-up, mirrors the
-health-report worker) renders it from `estatereport`/`freereport`. Cross-estate
-orders freeze `declared`+`strong` counts and the `set_hash` so delivery matches
-purchase.
+`report_orders` row**. Cross-estate orders freeze `declared`+`strong` counts and
+the `set_hash` so delivery matches purchase.
+
+**Delivery worker (on the master).** `report_order_worker.py` claims pending
+`report_orders` and renders each:
+- `domain_risk_report` → `python -m healthreport.run --domain <d>` (the paid
+  single-domain assessment).
+- `cross_estate_report` → collects the scope's declared domains into contracts,
+  builds the estate manifest, renders the v2.2 report to PDF, and recomputes the
+  set hash — a mismatch vs the frozen hash is surfaced in the summary, not
+  delivered silently.
+
+```
+sudo cp report_order_worker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now report_order_worker
+journalctl -u report_order_worker -f
+```
+
+The portal serves the finished PDF from `GET /api/reports/orders/<id>/download`
+(org-scoped, ready-only). **Limitation:** cross-estate delivery currently loads
+only the *declared* domains' contracts; discovered-domain contracts (for full
+pre/post-discovery concentration deltas) are a follow-up — discovery tiers still
+render from cert-SAN evidence.
 
 ## 5. Site CTA flips (DZ-Site)
 
