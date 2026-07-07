@@ -11,7 +11,7 @@ from __future__ import annotations
 import html as _html
 
 from design.generated.tokens import CSS_ROOT
-from scopeteaser.bands import band_range_label
+from scopeteaser.bands import PARTNER_DISCOUNT_URL, band_range_label, band_subscription_label
 from scopeteaser.contract import TeaserViewModel
 
 _TIER_META = (
@@ -52,8 +52,10 @@ h1{font-size:22px;letter-spacing:-.02em;line-height:1.2;margin-bottom:6px}
 .proof .dom{font-family:'JetBrains Mono',monospace;font-size:10.5px;white-space:nowrap}
 .band{border:1px solid var(--rule);border-left:3px solid var(--cyan-deep);border-radius:8px;background:var(--tint);padding:13px 15px;margin-bottom:16px}
 .band .bk{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan-deep)}
-.band .bl{font-size:15px;font-weight:800;letter-spacing:-.01em;margin:4px 0 5px}
+.band .bl{font-size:15px;font-weight:800;letter-spacing:-.01em;margin:4px 0 2px}
+.band .bsub{font-size:11px;font-weight:600;color:var(--cyan-deep);margin-bottom:5px}
 .band .bn{font-size:10.5px;line-height:1.5;color:var(--ink-2)}
+.band .bn a{color:var(--cyan-deep);font-weight:600;text-decoration:none}
 .cta{display:inline-block;background:var(--cyan);color:var(--navy);font-weight:800;font-size:12px;padding:11px 18px;border-radius:8px;text-decoration:none;margin-right:8px}
 .foot{padding:11px 22px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4)}
 """
@@ -81,8 +83,10 @@ def render_teaser_html(vm: TeaserViewModel, result_url: str) -> str:
         band_html = (
             f'<div class="band"><div class="bk">Indicative price band</div>'
             f'<div class="bl">{e(band_range_label(band))}</div>'
+            f'<div class="bsub">{e(band_subscription_label(band))}</div>'
             f'<div class="bn">The final quote follows scope confirmation — possible-tier domains you '
-            f'claim can move the band, and that conversation is the call.</div></div>'
+            f'claim can move the band, and that conversation is the call. '
+            f'<a href="{e(PARTNER_DISCOUNT_URL)}">Partner? Ask about channel pricing.</a></div></div>'
         )
     expires = vm.expires.isoformat() if vm.expires else ""
     return f"""<!DOCTYPE html>

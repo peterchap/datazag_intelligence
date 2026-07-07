@@ -17,21 +17,30 @@ from typing import Optional
 
 BANDS_JSON = Path(__file__).resolve().parent / "price_bands.json"
 
+# Partner-discount route: partners (MSSP/ESP/reseller) get band pricing under a
+# separate agreement. Surfaced beside the band on the teaser + result page.
+PARTNER_DISCOUNT_URL = "https://www.datazag.com/contact?enquiry=partner"
+
 
 @dataclass(frozen=True)
 class PriceBand:
     min_domains: int
-    max_domains: Optional[int]      # None -> open-ended top band
+    max_domains: Optional[int]        # None -> open-ended top band
     label: str
-    from_price_gbp: Optional[int]   # None -> priced on scope confirmation
-    self_serve: bool                # True -> Stripe checkout; else book-a-call
+    from_price_gbp: Optional[int]     # one-off "from" price; None -> priced on confirmation
+    from_price_sub_gbp: Optional[int] # subscription (annual, continuous monitoring) "from"
+                                      # price; None -> "subscription on request"
+    self_serve: bool                  # True -> Stripe checkout; else book-a-call
 
 
+# One-off boundaries + prices are SIGNED OFF (2026-07-07). Subscription "from"
+# prices are pending commercial figures — None renders "subscription on request"
+# rather than inventing a number; drop the values in here and regenerate.
 BANDS: tuple[PriceBand, ...] = (
-    PriceBand(1, 15, "Band A", 3500, True),
-    PriceBand(16, 50, "Band B", 7500, False),
-    PriceBand(51, 150, "Band C", 15000, False),
-    PriceBand(151, None, "Band D", None, False),
+    PriceBand(1, 15, "Band A", 3500, None, True),
+    PriceBand(16, 50, "Band B", 7500, None, False),
+    PriceBand(51, 150, "Band C", 15000, None, False),
+    PriceBand(151, None, "Band D", None, None, False),
 )
 
 
@@ -50,6 +59,13 @@ def band_range_label(band: PriceBand) -> str:
         size = f"up to {band.max_domains} domains"
     price = f"from £{band.from_price_gbp:,}" if band.from_price_gbp else "priced on scope confirmation"
     return f"{band.label} · {size} · {price}"
+
+
+def band_subscription_label(band: PriceBand) -> str:
+    """The subscription (continuous monitoring) line shown under the one-off."""
+    if band.from_price_sub_gbp:
+        return f"or from £{band.from_price_sub_gbp:,}/year with continuous monitoring"
+    return "continuous-monitoring subscription available on request"
 
 
 def export_json() -> str:

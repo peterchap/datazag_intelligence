@@ -57,6 +57,15 @@ def test_bottom_band_is_the_only_self_serve():
     assert "Band A · up to 15 domains · from £3,500" == band_range_label(BANDS[0])
 
 
+def test_subscription_and_partner_link_render():
+    from scopeteaser.bands import PARTNER_DISCOUNT_URL, band_subscription_label
+    # Subscription figures are pending — render "on request", never an invented price.
+    assert all(b.from_price_sub_gbp is None for b in BANDS)
+    assert "on request" in band_subscription_label(BANDS[0])
+    html = render_teaser_html(_teaser(), "https://x")
+    assert "on request" in html and PARTNER_DISCOUNT_URL in html
+
+
 def test_bands_json_matches_table():
     assert json.loads(BANDS_JSON.read_text(encoding="utf-8")) == json.loads(export_json())
 
