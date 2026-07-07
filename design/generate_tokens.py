@@ -88,6 +88,27 @@ def _logo_svg(tokens: dict, variant: str) -> str:
 """
 
 
+def _dz_mark_svg(tokens: dict) -> str:
+    """The "Dz" square app / favicon mark (README §App mark). Tile radial is
+    RE-CUT WITH TOKEN NAVYS per reconciliation 3 (reference #14273f/#0b1120 →
+    navy-2/navy-deep); D uses data-on-dark, z the standard gradient. 64px tile,
+    rx = 0.25×size, ls -0.03em (~-0.9px at 30px)."""
+    logo, color = tokens["logo"], tokens["color"]
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Datazag">
+  <defs>
+    <linearGradient id="dzz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="{logo['zag-from']}"/><stop offset="1" stop-color="{logo['zag-to']}"/>
+    </linearGradient>
+    <radialGradient id="dztile" cx="25%" cy="10%" r="130%">
+      <stop offset="0" stop-color="{color['navy-2']}"/><stop offset="1" stop-color="{color['navy-deep']}"/>
+    </radialGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="16" fill="url(#dztile)" stroke="rgba(255,255,255,0.07)"/>
+  <text x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="{logo['font']}" font-weight="{logo['weight']}" font-size="30" letter-spacing="-0.9"><tspan fill="{logo['data-on-dark']}">D</tspan><tspan fill="url(#dzz)">z</tspan></text>
+</svg>
+"""
+
+
 def gen_tokens_css(tokens: dict) -> str:
     semantic = _semantic_flat(tokens)
     sem_lines = "\n".join(f"  --{name}:{value};" for name, value in semantic.items())
@@ -178,6 +199,7 @@ TARGETS = {
     "tokens.py": gen_tokens_py,
     "logo-dark.svg": lambda t: _logo_svg(t, "dark"),
     "logo-light.svg": lambda t: _logo_svg(t, "light"),
+    "dz-mark.svg": _dz_mark_svg,
 }
 
 
