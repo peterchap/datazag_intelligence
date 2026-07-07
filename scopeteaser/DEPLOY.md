@@ -53,20 +53,45 @@ for attribution. Set `SCOPE_BOOKING_NOTE_PARAM` to match the provider:
 | SavvyCal | `notes` |
 | Google Appointment Schedules | no prefill support — use the fallback or a wrapper |
 
-## 4. Site CTA flip (DZ-Site)
+## 4. WU16 paid-report checkout (Customer_Portal)
+
+Apply the report-orders migration (also adds `scope_requests.set_hash` and seeds
+the two paid SKUs):
+
+```
+node scripts/apply-sql.cjs drizzle/0008_report_orders.sql
+```
+
+Portal env for checkout:
+
+| Var | Purpose |
+|---|---|
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | already set for existing products |
+| `SCOPE_CHECKOUT_URL` | `https://portal.datazag.com/scope/checkout` — the scope teaser's bottom-band "Buy now" target (auth-gated, freezes scope). Until set, the checkout CTA stays hidden. |
+
+Checkout is **org-scoped**: both entry pages (`/scope/checkout?scope=<token>`
+for Cross-Estate, `/reports/buy` for Domain Risk) redirect to `/login` first,
+then create a Stripe session and, on `checkout.session.completed`, a **pending
+`report_orders` row**. A master **report-order worker** (follow-up, mirrors the
+health-report worker) renders it from `estatereport`/`freereport`. Cross-estate
+orders freeze `declared`+`strong` counts and the `set_hash` so delivery matches
+purchase.
+
+## 5. Site CTA flips (DZ-Site)
 
 Set on the marketing deployment once the above is live:
 
 ```
-NEXT_PUBLIC_SCOPE_LIVE=true
-# optional override; default https://portal.datazag.com/scope?src=reports
-NEXT_PUBLIC_SCOPE_URL=https://portal.datazag.com/scope?src=reports
+NEXT_PUBLIC_SCOPE_LIVE=true                 # Cross-Estate CTA → portal /scope
+NEXT_PUBLIC_SCOPE_URL=https://portal.datazag.com/scope?src=reports        # optional override
+NEXT_PUBLIC_REPORTS_CHECKOUT_LIVE=true      # Domain Risk Report CTA → portal /reports/buy
+NEXT_PUBLIC_DRR_BUY_URL=https://portal.datazag.com/reports/buy?src=reports  # optional override
 ```
 
-Flips the /reports Cross-Estate CTA from "Talk to us about your estate" →
-"Scope my estate". Also update the free-report renderer seam if desired
-(`SEAM_CROSS_ESTATE_URL` already targets `/reports?src=free-report#cross-estate`,
-which carries the reader into the scope flow via the page CTA).
+`NEXT_PUBLIC_SCOPE_LIVE` flips the Cross-Estate CTA from "Talk to us about your
+estate" → "Scope my estate"; `NEXT_PUBLIC_REPORTS_CHECKOUT_LIVE` flips the
+Domain Risk Report CTA from "Contact us" → "Buy the Domain Risk Report". The
+free-report renderer seam already targets `/reports?src=free-report#cross-estate`.
 
 ## 5. Price bands
 
