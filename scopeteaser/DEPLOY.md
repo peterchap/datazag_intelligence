@@ -34,11 +34,24 @@ without it, discovery runs cert-SAN-only.
 
 | Var | Purpose | Until set |
 |---|---|---|
-| `SCOPE_BOOKING_URL` | book-a-call calendar (COO's). Scope token appended as `?scope=<token>`. | falls back to `https://www.datazag.com/contact` |
+| `SCOPE_BOOKING_URL` | book-a-call calendar (COO's). The teaser link rides as a prefilled note. | falls back to `https://www.datazag.com/contact?scope=<token>` |
+| `SCOPE_BOOKING_NOTE_PARAM` | the calendar's prefill field name (provider-specific — see table). | `notes` |
 | `SCOPE_CHECKOUT_URL` | WU16 report-SKU checkout for the self-serve bottom band. | **checkout CTA hidden** — every band books a call until this exists |
 
 The bottom-band "Buy now" CTA renders **only** when `SCOPE_CHECKOUT_URL` is set
 AND the band is `self_serve` — no dead checkout link before WU16.
+
+**Booking note prefill.** `/api/scope/go?kind=book_call` records the event, then
+302s to `SCOPE_BOOKING_URL` with `?<SCOPE_BOOKING_NOTE_PARAM>=Datazag estate
+scope: <teaser url>` so the call opens on the artefact, plus `utm_content=<src>`
+for attribution. Set `SCOPE_BOOKING_NOTE_PARAM` to match the provider:
+
+| Provider | Note field param |
+|---|---|
+| Cal.com | `notes` (default) |
+| Calendly | `a1` (first custom question) |
+| SavvyCal | `notes` |
+| Google Appointment Schedules | no prefill support — use the fallback or a wrapper |
 
 ## 4. Site CTA flip (DZ-Site)
 
