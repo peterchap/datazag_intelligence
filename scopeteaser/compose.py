@@ -12,6 +12,7 @@ time so no renderer or serializer downstream can leak them:
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import date, timedelta
 from typing import Any, Iterable, Optional
 
@@ -55,6 +56,19 @@ def _evidence_line(item: Any) -> str:
 
 def _domain(item: Any) -> str:
     return str(getattr(item, "domain", None) or (item.get("domain") if isinstance(item, dict) else item))
+
+
+def estate_set_hash(tiers: dict[str, Iterable[Any]]) -> str:
+    """Stable hash of the graded estate (declared + strong domains).
+
+    Frozen into a cross-estate order at checkout (WU16) so the delivered report
+    matches what was bought — a changed estate between scope and delivery is
+    detectable. Only the hash leaves the pipeline, never the names.
+    """
+    domains = {_domain(d).lower() for d in tiers.get("declared", [])}
+    domains |= {_domain(d).lower() for d in tiers.get("strong", [])}
+    joined = "\n".join(sorted(domains))
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
 
 def build_teaser(

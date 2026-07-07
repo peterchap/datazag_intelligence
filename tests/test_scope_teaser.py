@@ -77,6 +77,19 @@ def test_watermark_and_expiry_render():
     assert "2026-08-05" in html                  # 30-day expiry
 
 
+def test_estate_set_hash_is_stable_and_order_independent():
+    from scopeteaser.compose import estate_set_hash
+
+    a = {"declared": ["b.com", "a.com"], "strong": [_dom("s.com", "strong")]}
+    b = {"declared": ["a.com", "B.COM"], "strong": [_dom("s.com", "strong")]}  # reordered + case
+    assert estate_set_hash(a) == estate_set_hash(b)                 # sorted + lowercased
+    # possible/defensive don't move the graded-estate hash
+    c = {**a, "possible": [_dom("p.com", "possible")]}
+    assert estate_set_hash(c) == estate_set_hash(a)
+    # a genuinely different estate hashes differently
+    assert estate_set_hash({"declared": ["a.com"], "strong": []}) != estate_set_hash(a)
+
+
 def test_discovery_result_adapter_maps_lanes():
     result = SimpleNamespace(
         declared=["a.com", "b.com"],

@@ -48,7 +48,7 @@ except ImportError:  # pragma: no cover
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from scopeteaser.compose import build_teaser, tiers_from_discovery_result   # noqa: E402
+from scopeteaser.compose import build_teaser, estate_set_hash, tiers_from_discovery_result   # noqa: E402
 from scopeteaser.renderer import render_email_html, render_teaser_html     # noqa: E402
 
 DSN = os.environ.get("PORTAL_DATABASE_URL") or os.environ.get("DATABASE_URL")
@@ -108,17 +108,17 @@ def result_url(token: str, src: str | None) -> str:
     return f"{url}?src={src}" if src else url
 
 
-def write_teaser(conn, rid, vm, html):
+def write_teaser(conn, rid, vm, html, set_hash):
     band = asdict(vm.band) if vm.band else None
     with conn.cursor() as cur:
         cur.execute(
             """UPDATE scope_requests SET status='teaser_ready', declared_count=%s, delta=%s,
                    tier_counts=%s::jsonb, proof_domains=%s::jsonb, band=%s::jsonb,
-                   teaser_html=%s, expires_at=%s, completed_at=now(), updated_at=now()
+                   teaser_html=%s, set_hash=%s, expires_at=%s, completed_at=now(), updated_at=now()
                WHERE id=%s""",
             (vm.declared_count, vm.delta, json.dumps(vm.tier_counts),
              json.dumps([asdict(p) for p in vm.proof_domains]),
-             json.dumps(band), html, vm.expires, rid),
+             json.dumps(band), html, set_hash, vm.expires, rid),
         )
     conn.commit()
 
@@ -171,7 +171,7 @@ def process(conn, claimed):
         vm = build_teaser(tiers, declared_count=len(domains), requested_by=email, src=src)
         link = result_url(token, src)
         html = render_teaser_html(vm, link)
-        write_teaser(conn, rid, vm, html)
+        write_teaser(conn, rid, vm, html, estate_set_hash(tiers))
         elapsed = time.monotonic() - started
         if elapsed > SLA_SECONDS:
             print(f"  WARNING: walk exceeded SLA ({elapsed:.0f}s > {SLA_SECONDS}s)", file=sys.stderr)
