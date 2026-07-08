@@ -1,0 +1,20 @@
+[Unit]
+Description=Datazag Report Order Worker (WU16 paid report delivery)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/datazag_intelligence
+# HOME for DuckLake (see the other workers); DATABASE_URL is the portal Neon DSN
+# (claims from report_orders). Renders via healthreport.run (domain_risk_report)
+# and the estatereport pipeline (cross_estate_report) — both need the pipeline's
+# API keys + Chromium (Playwright) on this host.
+Environment=HOME=/root
+EnvironmentFile=/root/datazag_intelligence/.env
+ExecStart=/root/datazag_intelligence/dzintelligence_env/bin/python report_order_worker.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,34 @@
+[
+  {
+    "min_domains": 1,
+    "max_domains": 15,
+    "label": "Band A",
+    "from_price_gbp": 3500,
+    "from_price_sub_gbp": null,
+    "self_serve": true
+  },
+  {
+    "min_domains": 16,
+    "max_domains": 50,
+    "label": "Band B",
+    "from_price_gbp": 7500,
+    "from_price_sub_gbp": null,
+    "self_serve": false
+  },
+  {
+    "min_domains": 51,
+    "max_domains": 150,
+    "label": "Band C",
+    "from_price_gbp": 15000,
+    "from_price_sub_gbp": null,
+    "self_serve": false
+  },
+  {
+    "min_domains": 151,
+    "max_domains": null,
+    "label": "Band D",
+    "from_price_gbp": null,
+    "from_price_sub_gbp": null,
+    "self_serve": false
+  }
+]

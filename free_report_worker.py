@@ -175,7 +175,9 @@ def send_email(to_addr, domain, token):
     }
     req = urllib.request.Request("https://api.resend.com/emails",
                                  data=json.dumps(payload).encode(),
-                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+                                 headers={"Authorization": f"Bearer {key}", 
+                                          "Content-Type": "application/json",
+                                          "User-Agent": "Datazag-Report-Worker/1.0"})
     try:
         urllib.request.urlopen(req, timeout=20)
         with _connect() as c2, c2.cursor() as cur:
