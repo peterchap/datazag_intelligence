@@ -139,9 +139,12 @@ def _send(to_addr: str, subject: str, body_html: str, token: str | None = None):
         "from": os.environ.get("EMAIL_FROM", "Datazag Reports <reports@notifications.datazag.com>"),
         "to": [to_addr], "subject": subject, "html": body_html,
     }
+    # A real User-Agent is required: Cloudflare (in front of api.resend.com)
+    # blocks the default "Python-urllib/*" signature with a 403 (error 1010).
     req = urllib.request.Request("https://api.resend.com/emails",
                                  data=json.dumps(payload).encode(),
-                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                                          "User-Agent": "Datazag-Report-Worker/1.0"})
     try:
         urllib.request.urlopen(req, timeout=20)
         if token:
