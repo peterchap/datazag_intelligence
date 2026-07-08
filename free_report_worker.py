@@ -173,12 +173,10 @@ def send_email(to_addr, domain, token):
         "html": f"<p>Your free external threat report for <strong>{domain}</strong> is ready.</p>"
                 f'<p><a href="{link}">View your report</a> (PDF &amp; Markdown downloads available there).</p>',
     }
-    # A real User-Agent is required: Cloudflare (in front of api.resend.com)
-    # blocks the default "Python-urllib/*" signature with a 403 (error 1010),
-    # which never reaches Resend (no dashboard record).
     req = urllib.request.Request("https://api.resend.com/emails",
                                  data=json.dumps(payload).encode(),
-                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                                 headers={"Authorization": f"Bearer {key}", 
+                                          "Content-Type": "application/json",
                                           "User-Agent": "Datazag-Report-Worker/1.0"})
     try:
         urllib.request.urlopen(req, timeout=20)
