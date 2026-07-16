@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="48" viewBox="0 0 220 48" role="img" aria-label="Datazag">
+  <defs><linearGradient id="zag" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#3FA6DE"/><stop offset="1" stop-color="#2B7FB8"/>
+  </linearGradient></defs>
+  <text x="0" y="34" font-family="Manrope, sans-serif" font-size="32" font-weight="800" letter-spacing="-0.64"><tspan fill="#0F1B2D">Data</tspan><tspan fill="url(#zag)">zag</tspan></text>
+</svg>

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import html as _html
 
-from design.generated.tokens import CSS_ROOT
+from design.generated.tokens import CSS_LOGO, CSS_ROOT
 from scopeteaser.bands import PARTNER_DISCOUNT_URL, band_range_label, band_subscription_label
 from scopeteaser.contract import TeaserViewModel
 
@@ -23,12 +23,16 @@ _TIER_META = (
 
 _CSS = (
     CSS_ROOT
+    + CSS_LOGO
     + r"""
 *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{background:var(--tint);font-family:Inter,system-ui,sans-serif;color:var(--ink);padding:26px}
 .sheet{max-width:640px;margin:0 auto;background:var(--paper);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
 .runner{display:flex;justify-content:space-between;align-items:center;padding:13px 22px;border-bottom:1px solid var(--rule);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
-.runner b{font-size:13px;letter-spacing:-.01em;text-transform:none;color:var(--ink)}.runner b span{color:var(--cyan-deep)}
+.runner b{font-size:13px;letter-spacing:-.01em;text-transform:none}
+.dz-logo{font-family:var(--logo-font);font-weight:800;letter-spacing:var(--logo-tracking)}
+.dz-logo-data{color:var(--logo-data-on-light)}
+.dz-logo-zag{background:linear-gradient(90deg,var(--logo-zag-light-from),var(--logo-zag-light-to));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .body{padding:22px}
 .kick{display:inline-block;padding:5px 12px;border:1px solid var(--rule);border-radius:100px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan-deep);margin-bottom:14px}
 h1{font-size:22px;letter-spacing:-.02em;line-height:1.2;margin-bottom:6px}
@@ -93,10 +97,10 @@ def render_teaser_html(vm: TeaserViewModel, result_url: str) -> str:
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Datazag estate scope — {vm.evidenced_count} domains evidenced</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@800&display=swap" rel="stylesheet">
 <style>{_CSS}</style></head><body>
 <div class="sheet">
-  <div class="runner"><b>DATA<span>ZAG</span></b><div>Estate scope · prepared for {e(vm.requested_by)}</div></div>
+  <div class="runner"><b><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></b><div>Estate scope · prepared for {e(vm.requested_by)}</div></div>
   <div class="body">
     <div class="kick">Cross-Estate Domain Risk Report · scope result</div>
     <h1>You told us {vm.declared_count}. We can evidence {vm.evidenced_count}.</h1>

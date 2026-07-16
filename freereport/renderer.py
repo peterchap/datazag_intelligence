@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
-from design.generated.tokens import CSS_ROOT
+from design.generated.tokens import CSS_LOGO, CSS_ROOT
 from freereport.compose import compose_context
 
 _PRI_LABEL = {"now": "Now", "soon": "Soon", "plan": "Maturity"}
@@ -123,9 +123,9 @@ FREE_REPORT_TEMPLATE = r"""<!DOCTYPE html>
 <title>Datazag Single-Domain Cyber Exposure Report — {{ org }} ({{ domain }})</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@800&display=swap" rel="stylesheet">
 <style>
-""" + CSS_ROOT + r"""
+""" + CSS_ROOT + "\n" + CSS_LOGO + r"""
 /* report-layer dark-surface helpers — deliberately not brand tokens */
 :root{
   --w:#FFFFFF;--w2:rgba(255,255,255,.82);--w3:rgba(255,255,255,.58);--w4:rgba(255,255,255,.34);
@@ -137,15 +137,18 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 .page{width:794px;min-height:1123px;margin:22px auto;background:var(--paper);position:relative;display:flex;flex-direction:column;page-break-after:always;box-shadow:0 8px 22px -8px rgba(15,25,35,.22)}
 .page:last-child{page-break-after:auto}
 .runner{display:flex;justify-content:space-between;align-items:center;padding:14px 44px;border-bottom:1px solid var(--rule);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
-.runner .r-brand{font-weight:800;color:var(--ink);letter-spacing:-.01em;text-transform:none;font-size:13px}
-.runner .r-brand span{color:var(--cyan-deep)}
+.runner .r-brand{font-weight:800;letter-spacing:-.01em;text-transform:none;font-size:13px}
+.dz-logo{font-family:var(--logo-font);font-weight:800;letter-spacing:var(--logo-tracking)}
+.dz-logo-data{color:var(--logo-data-on-light)}
+.dz-logo-zag{background:linear-gradient(90deg,var(--logo-zag-light-from),var(--logo-zag-light-to));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .runner .r-id{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0}
 .foot{margin-top:auto;padding:11px 44px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4)}
 .cover{background:var(--navy);color:var(--w);overflow:hidden}
 .cover::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 5%,rgba(0,194,255,.12),transparent 40%),radial-gradient(circle at 5% 92%,rgba(0,194,255,.06),transparent 42%);pointer-events:none}
 .cover>*{position:relative;z-index:1}
 .cover .runner{border-bottom-color:var(--rd);color:var(--w3)}
-.cover .runner .r-brand{color:var(--w)}.cover .runner .r-brand span{color:var(--cyan)}
+.cover .dz-logo-data{color:var(--logo-data-on-dark)}
+.cover .dz-logo-zag{background:linear-gradient(90deg,var(--logo-zag-from),var(--logo-zag-to));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .cover-main{flex:1;padding:34px 44px 22px;display:flex;flex-direction:column}
 .kick{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:6px 13px;border:1px solid rgba(0,194,255,.3);background:rgba(0,194,255,.08);border-radius:100px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-bottom:18px}
 .kick .d{width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
@@ -304,7 +307,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- ============ COVER / DASHBOARD ============ -->
 <div class="page cover">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">SINGLE-DOMAIN CYBER EXPOSURE REPORT · FREE EDITION</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">SINGLE-DOMAIN CYBER EXPOSURE REPORT · FREE EDITION</div></div>
   <div class="cover-main">
     <div class="kick"><span class="d"></span>Single-Domain Cyber Exposure Report · Free Edition · {{ date }}</div>
     <div class="org">{{ org }}<span class="dom">{{ domain }}</span></div>
@@ -332,7 +335,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- ============ PAGE 2 — THE CYBER ATTACK ECONOMY ============ -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ domain }}</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ domain }}</div></div>
   <div class="body">
     <div class="shead">
       <div><div class="stitle">How the cyber attack economy works.</div><div class="ssub">Platform impersonation is an industry with business models. Understanding how it operates explains why every organisation on {{ top_platform }} sits in its path.</div></div>
@@ -390,7 +393,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- ============ PAGE 3 — ATTACK SURFACE ============ -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ domain }}</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ domain }}</div></div>
   <div class="body">
     <div class="shead">
       <div><div class="stitle">Your attack surface.</div><div class="ssub">The three faces of your estate an attacker reads from outside — all observed without touching your network.</div></div>
@@ -439,7 +442,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- ============ PAGE 4 — WHAT TO DO ============ -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ domain }}</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ domain }}</div></div>
   <div class="body">
     <div class="shead">
       <div><div class="stitle">What to do.</div><div class="ssub">Exact changes, ranked by exploitability first, then effort. Hand straight to your DNS or platform team.</div></div>
@@ -469,7 +472,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- ============ PAGE 5 — WHAT ONE DOMAIN CAN'T SHOW ============ -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ domain }}</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ domain }}</div></div>
   <div class="body">
     <div class="shead">
       <div><div class="stitle">What one domain can't show you.</div><div class="ssub">This report covers {{ domain }}. Two risks only appear when you look across your whole estate.</div></div>

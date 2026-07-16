@@ -26,3 +26,6 @@
   --grade-e:#E02424;
   --grade-f:#8B1414;
 }
+:root{
+  --logo-font:Manrope, sans-serif;--logo-weight:800;--logo-tracking:-0.02em;--logo-tracking-mark:-0.03em;--logo-data-on-dark:#EAF1FB;--logo-data-on-light:#0F1B2D;--logo-zag-from:#7DDAF0;--logo-zag-to:#3FA6DE;--logo-zag-light-from:#3FA6DE;--logo-zag-light-to:#2B7FB8;
+}

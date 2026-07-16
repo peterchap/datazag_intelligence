@@ -18,7 +18,7 @@ import json
 import math
 from typing import Any
 
-from design.generated.tokens import CSS_ROOT
+from design.generated.tokens import CSS_LOGO, CSS_ROOT
 from estatereport.contract import EstateReport
 
 _PRI_LABEL = {"now": "Now", "soon": "Soon", "plan": "Maturity"}
@@ -128,9 +128,9 @@ ESTATE_TEMPLATE = r"""<!DOCTYPE html>
 <title>Datazag Cross-Estate Domain Risk Report — {{ group }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@800&display=swap" rel="stylesheet">
 <style>
-""" + CSS_ROOT + r"""
+""" + CSS_ROOT + "\n" + CSS_LOGO + r"""
 /* report-layer dark-surface helpers — deliberately not brand tokens */
 :root{
   --w:#FFFFFF;--w2:rgba(255,255,255,.82);--w3:rgba(255,255,255,.58);--w4:rgba(255,255,255,.34);
@@ -142,15 +142,18 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 .page{width:794px;min-height:1123px;margin:22px auto;background:var(--paper);position:relative;display:flex;flex-direction:column;page-break-after:always;box-shadow:0 8px 22px -8px rgba(15,25,35,.22)}
 .page:last-child{page-break-after:auto}
 .runner{display:flex;justify-content:space-between;align-items:center;padding:14px 44px;border-bottom:1px solid var(--rule);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
-.runner .r-brand{font-weight:800;color:var(--ink);letter-spacing:-.01em;text-transform:none;font-size:13px}
-.runner .r-brand span{color:var(--cyan-deep)}
+.runner .r-brand{font-weight:800;letter-spacing:-.01em;text-transform:none;font-size:13px}
+.dz-logo{font-family:var(--logo-font);font-weight:800;letter-spacing:var(--logo-tracking)}
+.dz-logo-data{color:var(--logo-data-on-light)}
+.dz-logo-zag{background:linear-gradient(90deg,var(--logo-zag-light-from),var(--logo-zag-light-to));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .runner .r-id{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0}
 .foot{margin-top:auto;padding:11px 44px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4)}
 .cover{background:var(--navy);color:var(--w);overflow:hidden}
 .cover::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 5%,rgba(0,194,255,.12),transparent 40%),radial-gradient(circle at 5% 92%,rgba(0,194,255,.06),transparent 42%);pointer-events:none}
 .cover>*{position:relative;z-index:1}
 .cover .runner{border-bottom-color:var(--rd);color:var(--w3)}
-.cover .runner .r-brand{color:var(--w)}.cover .runner .r-brand span{color:var(--cyan)}
+.cover .dz-logo-data{color:var(--logo-data-on-dark)}
+.cover .dz-logo-zag{background:linear-gradient(90deg,var(--logo-zag-from),var(--logo-zag-to));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .cover-main{flex:1;padding:34px 44px 22px;display:flex;flex-direction:column}
 .kick{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:6px 13px;border:1px solid rgba(0,194,255,.3);background:rgba(0,194,255,.08);border-radius:100px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-bottom:18px}
 .kick .d{width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
@@ -357,7 +360,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- PAGE 1 — COVER -->
 <div class="page cover">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">CROSS-ESTATE DOMAIN RISK REPORT</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">CROSS-ESTATE DOMAIN RISK REPORT</div></div>
   <div class="cover-main">
     <div class="kick"><span class="d"></span>Cross-Estate Domain Risk Report · {{ snapshot }}</div>
     <div class="org">{{ group }}<span class="dom">{{ r.discovery.declared_count }} declared domains</span></div>
@@ -378,7 +381,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- PAGE 2 — DISCOVERY -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ group|lower }} · estate discovery</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ group|lower }} · estate discovery</div></div>
   <div class="body">
     <div class="shead"><div><div class="stitle">The estate you didn't know you had.</div><div class="ssub">Discovery is the headline: how much of the estate carrying your brand extends beyond the list you hold.</div></div>
       <div class="smeta"><div class="sm-k">Estate found</div><div class="sm-v cy">{{ r.discovery.total_found }}</div></div></div>
@@ -409,7 +412,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- PAGE 3 — CONCENTRATION & VARIANCE -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ group|lower }} · systemic risk</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ group|lower }} · systemic risk</div></div>
   <div class="body">
     <div class="shead"><div><div class="stitle">Concentration &amp; posture variance.</div><div class="ssub">Where the estate is single-threaded, and which parts sit below the group standard.</div></div>
       <div class="smeta"><div class="sm-k">Estate grade</div><div class="sm-v {{ 'bad' if r.grade.grade in ['E','F'] else 'warn' if r.grade.grade in ['C','D'] else 'good' }}">{{ r.grade.grade }}</div></div></div>
@@ -448,7 +451,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- PAGE 4 — CORRELATED WEAKNESS & EXPOSURE -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ group|lower }} · systemic risk</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ group|lower }} · systemic risk</div></div>
   <div class="body">
     <div class="shead"><div><div class="stitle">Correlated weakness &amp; active exposure.</div><div class="ssub">What's wrong in the same way across many domains — and what's actively hitting the estate now.</div></div>
       <div class="smeta"><div class="sm-k">Systemic controls</div><div class="sm-v warn">{{ r.correlated|length }}</div></div></div>
@@ -474,7 +477,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- PAGE 5 — CALENDAR & EXCEPTION REGISTER -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ group|lower }} · exceptions</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ group|lower }} · exceptions</div></div>
   <div class="body">
     <div class="shead"><div><div class="stitle">Calendar &amp; exception register.</div><div class="ssub">What lapses when, and the prioritised list of what to act on — most severe first.</div></div>
       <div class="smeta"><div class="sm-k">Exceptions</div><div class="sm-v bad">{{ r.exceptions|length }}</div></div></div>
@@ -495,7 +498,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 
 <!-- PAGE 6 — CONTINUITY -->
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ group|lower }} · what happens next</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ group|lower }} · what happens next</div></div>
   <div class="body">
     <div class="shead"><div><div class="stitle">What happens next.</div><div class="ssub">This report is a point-in-time map. Two channels keep it live.</div></div></div>
     <div class="seam"><div class="seam-h"><div class="seam-n">01</div><div class="seam-t"><div class="seam-title">The live impersonation feed</div><div class="seam-sub">The report is the map; the feed is the tripwire.</div></div></div>
@@ -519,7 +522,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 <!-- APPENDIX A — REMEDIATION WORKSHEET -->
 {% for ap in appendix_pages %}
 <div class="page">
-  <div class="runner"><div class="r-brand">DATA<span>ZAG</span></div><div class="r-id">{{ group|lower }} · remediation worksheet</div></div>
+  <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ group|lower }} · remediation worksheet</div></div>
   <div class="body">
     {% if ap.adm_strip %}
     <div class="shead"><div><div class="stitle">Remediation worksheet.</div><div class="ssub">Grouped by fix pattern, ordered by admin point — one team's work batches into one change window. Hand to your DNS &amp; registrar teams.</div></div>

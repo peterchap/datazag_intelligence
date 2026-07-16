@@ -10,7 +10,10 @@ from __future__ import annotations
 import re
 
 from design import generate_tokens
-from design.generated.tokens import COLORS, CSS_ROOT, GRADE, SEVERITY, TIER
+from design.generated.tokens import COLORS, CSS_ROOT, GRADE, LOGO, SEVERITY, TIER
+
+# The WU21 logo amendment adds the logo-exclusive namespace to every template.
+LOGO_VARS = {f"logo-{k}": str(v) for k, v in LOGO.items()}
 
 _VAR_RE = re.compile(r"--([\w-]+)\s*:\s*([^;}]+)[;}]")
 
@@ -52,14 +55,14 @@ def test_free_report_template_token_parity():
     from freereport.renderer import FREE_REPORT_TEMPLATE
 
     head = FREE_REPORT_TEMPLATE.split("*{margin:0", 1)[0]
-    assert _css_vars(head) == GOLDEN_REPORT_VARS
+    assert _css_vars(head) == {**GOLDEN_REPORT_VARS, **LOGO_VARS}
 
 
 def test_estate_template_token_parity():
     from estatereport.renderer import ESTATE_TEMPLATE
 
     head = ESTATE_TEMPLATE.split("*{margin:0", 1)[0]
-    assert _css_vars(head) == GOLDEN_REPORT_VARS
+    assert _css_vars(head) == {**GOLDEN_REPORT_VARS, **LOGO_VARS}
 
 
 def test_semantic_maps_resolve_to_palette():
