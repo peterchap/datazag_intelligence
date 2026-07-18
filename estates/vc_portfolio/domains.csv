@@ -1,0 +1,52 @@
+# group: Balderton Capital portfolio
+# The "VC portfolio" validation estate — N independent companies sharing no
+# infrastructure and no owner. The question this estate exists to answer: does
+# cross-estate analysis say anything useful about a book of unrelated companies,
+# or does it only work on one owner's estate?
+#
+# Domains scraped from the live outbound links on balderton.com/companies/
+# (not recalled from memory); 49 candidates attempted, 49 resolved, 35 kept.
+# Sector labels derive from Balderton's own FacetWP taxonomy.
+#
+# segment = SECTOR, not company: each company contributes a single domain, so
+# company-as-segment would give 35 segments of n=1 and make the per-segment
+# variance analytics degenerate (a segment median against itself).
+#
+# Caveat: the 35 are a sector-BALANCED selection from the verified 49, so the
+# sector weighting here does not reflect Balderton's true portfolio weighting.
+domain,segment
+revolut.com,fintech
+gocardless.com,fintech
+complyadvantage.com,fintech
+crowdcube.com,fintech
+primer.io,fintech
+scalable.capital,fintech
+gitguardian.com,security
+detectify.com,security
+coro.net,security
+escape.tech,security
+exein.io,security
+healx.io,health
+kaiahealth.com,health
+joinzoe.com,health
+sophiagenetics.com,health
+helloclue.com,health
+sylvera.com,climate
+tibber.com,climate
+sweep.net,climate
+infarm.com,climate
+proximafusion.com,climate
+photoroom.com,ai
+deepset.ai,ai
+kili-technology.com,ai
+wayve.ai,ai
+supernormal.com,ai
+contentful.com,saas
+konghq.com,saas
+aircall.io,saas
+attio.com,saas
+matillion.com,saas
+carwow.co.uk,consumer
+lyst.com,consumer
+memrise.com,consumer
+lifesum.com,consumer

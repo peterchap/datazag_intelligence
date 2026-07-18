@@ -58,10 +58,10 @@ async def run(
             thresholds = EstateThresholds.model_validate(json.load(fh))
 
     estate = build_estate_from_manifest(manifest, thresholds=thresholds)
-    print(f"  Group: {estate.group} · {estate.domain_count} domains "
-          f"({estate.assessed_count} assessed) · grade {estate.estate_grade} "
+    print(f"  Group: {estate.group} | {estate.domain_count} domains "
+          f"({estate.assessed_count} assessed) | grade {estate.estate_grade} "
           f"({estate.estate_score}/100)")
-    print(f"  Exceptions: {len(estate.exceptions)} · outlier segments: "
+    print(f"  Exceptions: {len(estate.exceptions)} | outlier segments: "
           f"{', '.join(estate.variance.outlier_segments) or 'none'}")
 
     brand = None
@@ -96,7 +96,7 @@ async def run(
                 args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
             )
             for html_path, pdf_path in html_paths:
-                print(f"  → {pdf_path.name}")
+                print(f"  -> {pdf_path.name}")
                 page = await browser.new_page()
                 await page.goto(f"file:///{html_path.absolute().as_posix()}", wait_until="networkidle")
                 await page.pdf(path=str(pdf_path), format="A4", print_background=True,

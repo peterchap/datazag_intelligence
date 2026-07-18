@@ -37,10 +37,10 @@ def _slug(name: str) -> str:
 async def run(manifest: str, formats: list[str], output_dir: Path = None,
               skip_pdf: bool = False) -> dict:
     report = build_estate_report_from_manifest(manifest)
-    print(f"  Group: {report.group} · grade {report.grade.grade} "
-          f"({report.grade.score:.0f}/100) · {report.grade.domain_count} graded")
-    print(f"  Exceptions: {len(report.exceptions)} · remediation patterns: "
-          f"{len(report.remediation)} · appendix pages: {report.appendix_pages}")
+    print(f"  Group: {report.group} | grade {report.grade.grade} "
+          f"({report.grade.score:.0f}/100) | {report.grade.domain_count} graded")
+    print(f"  Exceptions: {len(report.exceptions)} | remediation patterns: "
+          f"{len(report.remediation)} | appendix pages: {report.appendix_pages}")
 
     renderer = EstateReportRenderer(report)
     out_dir = (output_dir or DEFAULT_OUTPUT_DIR) / "estate" / _slug(report.group)
@@ -54,7 +54,7 @@ async def run(manifest: str, formats: list[str], output_dir: Path = None,
     if "html" in formats:
         html_path = out_dir / "estate_report.html"
         html_path.write_text(renderer.to_html(), encoding="utf-8")
-    print(f"  Output → {out_dir}/estate_report.*")
+    print(f"  Output -> {out_dir}/estate_report.*")
 
     if html_path and not skip_pdf:
         from playwright.async_api import async_playwright
@@ -68,7 +68,7 @@ async def run(manifest: str, formats: list[str], output_dir: Path = None,
                            print_background=True, prefer_css_page_size=True,
                            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"})
             await browser.close()
-        print(f"  → {out_dir / 'estate_report.pdf'}")
+        print(f"  -> {out_dir / 'estate_report.pdf'}")
 
     return {"group": report.group, "grade": report.grade.grade,
             "exceptions": len(report.exceptions), "appendix_pages": report.appendix_pages}

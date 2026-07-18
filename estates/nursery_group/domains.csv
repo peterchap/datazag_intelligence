@@ -1,0 +1,59 @@
+# group: Kids Planet Day Nurseries
+# The "M&A target" validation estate — an acquisitive UK nursery roll-up with 94
+# documented acquisitions (2015-2025) on its own "Our Story" page, plus ~40 more
+# in 2025. This is the diligence shape: a parent brand plus a long tail of small
+# acquired brands, each with its own legacy domain in varying states of neglect.
+#
+# 25 domains kept from 84 attempted. Every row DNS-verified AND HTTP-checked to
+# confirm it belongs to Kids Planet rather than merely matching a name.
+#
+# Ownership evidence: 88.208.252.9 is Kids Planet's redirect host — ten acquired
+# domains sit on it and 301 to kidsplanetdaynurseries.co.uk, which is hard
+# confirmation rather than name-matching. The 77.72.x block is their main hosting.
+#
+# NAME COLLISIONS EXCLUDED (these resolve, but are unrelated nurseries of the
+# same name in other towns): rompersnursery.co.uk, teddybearsdaynursery.co.uk,
+# tictocdaynursery.co.uk, snugglesdaynursery.co.uk, hollygrangemontessori.co.uk,
+# nutkinsdaynursery.co.uk, noahsarkdaynursery.co.uk, happybunnies.co.uk,
+# happydaysnurseries.com (Partou-owned, not Kids Planet). Generic nursery names
+# are a severe collision hazard in this sector — stem-matching alone would have
+# produced a materially wrong estate.
+#
+# ALSO EXCLUDED: earlydaysnursery.co.uk and littletreasuresacademy.co.uk resolve
+# but show no Kids Planet ownership evidence (no redirect, no brand reference).
+#
+# NOT RESOLVING, THEREFORE ABSENT: fledglingsnurseries.co.uk (Fledglings Ltd,
+# acquired Jan 2024) is NXDOMAIN with no NS records, though its pages are still
+# search-indexed. ~45 further acquired brands have no resolving domain at all.
+# Their absence is the point: a manifest-driven report cannot see them, which is
+# the argument for discovery leading the diligence cut.
+#
+# CAVEAT: the two .com core rows are IONOS-registered and parked. The exact name
+# match makes defensive registration the strong reading, but RDAP redacts the
+# registrant, so ownership is inferred rather than proven.
+domain,segment
+kidsplanetdaynurseries.co.uk,core
+kidsplanetdaynurseries.com,core
+kidsplanetnurseries.com,core
+kidsallowed.co.uk,acquired
+kinderhaven.co.uk,acquired
+zebedeesnursery.co.uk,acquired
+castlehousedaynursery.co.uk,acquired
+carringtondaynursery.co.uk,acquired
+shinechildcare.co.uk,acquired
+angelsbyday.co.uk,acquired
+meresidefarmnursery.co.uk,acquired
+thelearningjourneynursery.co.uk,acquired
+littleexplorersbarrow.co.uk,acquired
+newlandsnurseryschool.co.uk,acquired
+lindenhousedaynursery.co.uk,acquired
+tigerschildcare.com,acquired
+tiptoes.co.uk,acquired
+thehunnypot.co.uk,acquired
+poppyandjacks.co.uk,legacy
+wavertondaynurseries.co.uk,legacy
+tiptoesdaynursery.co.uk,legacy
+lawleyvillagedaynursery.co.uk,legacy
+gigglesandwiggles.co.uk,legacy
+highbanknursery.co.uk,legacy
+earlybirdsdaynursery.co.uk,legacy

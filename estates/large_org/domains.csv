@@ -1,0 +1,56 @@
+# group: BT Group plc
+# The "large organisation" validation estate — the crossestate design case:
+# one parent, many trading brands, product domains, ccTLD variants and an
+# acquired/legacy tail. 40 domains kept from 81 candidates; each verified to
+# resolve AND to show BT ownership evidence (BT nameservers ns0-2.bt.net /
+# dydns*.bt.com, Plusnet force9.net, btgroupcloud MX tenancy).
+#
+# Discarded as NOT BT despite plausible names: btgroup.com, btshop.com,
+# btlocal.com, bt.de, bt.pt, infonet.com, bt.com.au (Australian BT Financial
+# Group), tntsports.co.uk (now a Warner Bros. Discovery JV).
+#
+# Note: ~9 of these (btplc.com, btconnect.com, bt.es, bt.fr, bt.be, mybt.com,
+# openreach.net, btglobalservices.com, btcloud.com) return NOERROR with live
+# NS/MX delegation but no apex A record — live zones with no website. Worth
+# watching how the report grades those.
+domain,segment
+bt.com,corp
+btplc.com,corp
+bt.co.uk,corp
+btyoungscientist.com,corp
+ee.co.uk,retail
+plus.net,retail
+plusnet.co.uk,retail
+plusnet.com,retail
+btbusiness.co.uk,retail
+bt.net,product
+openreach.com,product
+openreach.co.uk,product
+openreach.net,product
+btwholesale.com,product
+btconnect.com,product
+btinternet.com,product
+btwifi.com,product
+btwifi.co.uk,product
+btsport.com,product
+btsport.co.uk,product
+btfleet.com,product
+mybt.com,product
+btcloudvoice.com,product
+btcloud.com,product
+btbroadband.com,product
+btsupplychain.com,product
+btglobalservices.com,product
+btconferencing.com,product
+btopenworld.com,acquired
+dabs.com,acquired
+radianz.com,acquired
+esat.net,acquired
+esatclear.ie,acquired
+btireland.com,intl
+btireland.ie,intl
+bt.ie,intl
+bt.es,intl
+bt.fr,intl
+bt.nl,intl
+bt.be,intl

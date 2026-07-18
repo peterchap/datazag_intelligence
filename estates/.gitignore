@@ -1,0 +1,6 @@
+# Keep the domain lists + the driver (they define the test estates); ignore
+# everything collected. The contracts are real third-party domain intelligence
+# and are large, regenerable, and not ours to commit.
+*/contracts/
+*/manifest.json
+*/collect_report.json
