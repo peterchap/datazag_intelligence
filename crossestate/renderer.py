@@ -98,10 +98,22 @@ class CrossEstateRenderer:
     def _md_concentration(self) -> None:
         self._A("## Concentration & accumulation", "",
                 "*Where the estate is single-threaded — \"if X falls, Y% of the estate is affected.\"*", "")
-        self._A("| Dimension | Top provider | Share | Flagged |", "|---|---|---|---|")
+        self._A("| Dimension | Top provider | Share | Observable on | Flagged |",
+                "|---|---|---|---|---|")
         for d in self.estate.concentration:
+            if d.withheld:
+                self._A(f"| {d.label} | — | *withheld* | {d.denom} "
+                        f"({self._pct(d.coverage_pct)}) | — |")
+                continue
             self._A(f"| {d.label} | {d.top_provider or '—'} | {self._pct(d.top_pct)} "
-                    f"({d.denom} known) | {'**yes**' if d.flagged else 'no'} |")
+                    f"of {d.denom} | {d.denom} ({self._pct(d.coverage_pct)}) | "
+                    f"{'**yes**' if d.flagged else 'no'} |")
+        self._A("")
+        # The denominator is part of the finding, not a footnote: a share is only a
+        # statement about the estate to the extent the dimension could see the estate.
+        for d in self.estate.concentration:
+            if d.note:
+                self._A(f"- **{d.label}** — {d.note}")
         self._A("")
 
     # -- correlated weakness --
@@ -342,11 +354,14 @@ CROSS_ESTATE_TEMPLATE = r"""<!DOCTYPE html>
 {% elif section == 'concentration' %}
   <h2>Concentration &amp; accumulation</h2>
   <div class="sub">Where the estate is single-threaded — "if X falls, Y% of the estate is affected."</div>
-  <table><tr><th>Dimension</th><th>Top provider</th><th>Share</th><th>Flagged</th></tr>
-  {% for d in e.concentration %}<tr><td>{{ d.label }}</td><td>{{ d.top_provider or '—' }}</td>
-    <td>{{ pct(d.top_pct) }} ({{ d.denom }} known)</td>
-    <td>{% if d.flagged %}<span class="flag">yes</span>{% else %}no{% endif %}</td></tr>{% endfor %}
+  <table><tr><th>Dimension</th><th>Top provider</th><th>Share</th><th>Observable on</th><th>Flagged</th></tr>
+  {% for d in e.concentration %}<tr><td>{{ d.label }}</td>
+    <td>{% if d.withheld %}—{% else %}{{ d.top_provider or '—' }}{% endif %}</td>
+    <td>{% if d.withheld %}<em>withheld</em>{% else %}{{ pct(d.top_pct) }} of {{ d.denom }}{% endif %}</td>
+    <td>{{ d.denom }} ({{ pct(d.coverage_pct) }})</td>
+    <td>{% if d.withheld %}—{% elif d.flagged %}<span class="flag">yes</span>{% else %}no{% endif %}</td></tr>{% endfor %}
   </table>
+  {% for d in e.concentration %}{% if d.note %}<p class="sub"><strong>{{ d.label }}</strong> — {{ d.note }}</p>{% endif %}{% endfor %}
 {% elif section == 'correlated' %}
   <h2>Correlated weakness</h2>
   <div class="sub">What's wrong in the same way across many domains — systemic ≠ isolated.</div>

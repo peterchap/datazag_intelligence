@@ -43,6 +43,13 @@ class EstateThresholds(_Base):
     # §2.2 — a single provider covering more than this share of the estate is a
     # concentration flag ("if X falls, Y% of estate affected").
     concentration_flag_pct: float = 0.30
+    # §2.2 — the minimum share of the ASSESSED estate a dimension must be observable on
+    # before its concentration share is rendered at all. Below it the dimension is marked
+    # `withheld` and the share is suppressed: a 30% flag computed on a 12% denominator is
+    # the most confidently wrong number this report could publish, and it would be wrong in
+    # the direction that understates risk. Chosen at 0.40 — see
+    # `crossestate/technographic.py` and tests/test_estate_technographic.py.
+    dimension_min_coverage_pct: float = 0.40
     # §2.3 — a weakness present on more than this share (estate or within a
     # segment) is "systemic", not isolated.
     systemic_weakness_pct: float = 0.50
@@ -69,13 +76,22 @@ class ProviderShare(_Base):
 
 
 class ConcentrationDim(_Base):
-    dimension: str                   # mailbox | ns | registrar | asn | hosting | ca_issuer
+    dimension: str                   # mailbox | ns | registrar | asn | hosting | ca_issuer | technographic
     label: str = ""
     shares: list[ProviderShare] = Field(default_factory=list)
     top_provider: Optional[str] = None
     top_pct: float = 0.0             # == "if the top provider falls, this share of the estate is affected"
     denom: int = 0                   # domains carrying a known value for this dimension
     flagged: bool = False            # top_pct >= thresholds.concentration_flag_pct
+    # denom / assessed — how much of the estate this dimension could actually see.
+    # A 46% share computed on 12% of the estate is a real number about an unrepresentative
+    # subset, so the share is never shown without it.
+    coverage_pct: float = 0.0
+    # True when coverage fell below the dimension's minimum and the SHARE IS WITHHELD
+    # rather than rendered thin. `shares`/`top_pct`/`flagged` are then empty/zero/False and
+    # mean "not computed", never "nothing found" — `note` says which.
+    withheld: bool = False
+    note: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +151,17 @@ class TargetedPlatform(_Base):
     count_30d: int = 0
     targeted_domains: int = 0        # estate domains seeing this platform impersonated
     sample_domains: list[str] = Field(default_factory=list)
+    # ── Technographic ⟂ impersonation join (RANKING ONLY) ────────────────────
+    # True when the estate's own observed stack contains this platform, i.e. a phish
+    # against it lands on staff who really do hold an account there.
+    # 🚨 This EXPLAINS and RANKS exposure. It must never gate, suppress or downgrade an
+    # alert: a DocuSign phish lands on staff at companies that do not use DocuSign, and a
+    # non-match would inherit every coverage gap in `crossestate/technographic.py` as a
+    # silent false negative. `count_7d`/`count_30d`/`targeted_domains` and the estate
+    # totals are computed BEFORE this join and are never adjusted by it.
+    in_estate_stack: bool = False
+    stack_domains: list[str] = Field(default_factory=list)   # estate domains observed using it
+    stack_identity_risk: str = ""                            # high | med | none (of the match)
 
 
 class ExposureRollup(_Base):
@@ -147,6 +174,15 @@ class ExposureRollup(_Base):
     # Lower-confidence typosquat candidates — carried PARALLEL, never summed into
     # the totals (mirrors the single-report headline discipline).
     lookalike_total_30d: int = 0
+    # 30d impersonation volume against platforms the estate is OBSERVED to use. Carried
+    # PARALLEL to `total_30d`, never subtracted from it — the remainder is not "safe",
+    # it is unmatched, which includes every vendor this layer cannot see.
+    stack_matched_30d: int = 0
+    # M365 and Google Workspace are ABSENT from the certstream `platform_hits`
+    # dictionary that sources `ref.platform_impersonation`. Their exposure here is
+    # UNMEASURED, not low; a report must not read a zero as a small number.
+    unmeasured_platforms: list[str] = Field(
+        default_factory=lambda: ["Microsoft 365", "Google Workspace"])
 
 
 # ---------------------------------------------------------------------------
