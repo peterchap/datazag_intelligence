@@ -15,6 +15,7 @@ it at render time (JSON keeps it).
 from __future__ import annotations
 
 from crossestate.contract import EstateException, EstateViewModel
+from crossestate.technographic import identity_critical, signals_for
 
 _SEV_ORDER = {"critical": 0, "high": 1, "elevated": 2, "medium": 3, "low": 4, "info": 5}
 _RED_GRADES = {"E", "F"}
@@ -24,12 +25,98 @@ def _pct(x: float) -> str:
     return f"{round(x * 100)}%"
 
 
+def _technographic_exceptions(estate: EstateViewModel) -> list[EstateException]:
+    """The portfolio-legible sentence this layer exists to produce:
+
+        "62% of the book routes mail through one gateway, and a single compromise
+         there correlates across the portfolio."
+
+    Two rules. The first fires on the top vendor of any kind; the second fires only on the
+    `identity_risk = high` tier (IdP / secure email gateway / payment / e-sign / SPF-DMARC
+    delegation), because a shared *identity* dependency is a correlated-compromise finding
+    rather than an availability one.
+
+    ⚠️ Both are RANKING statements about observed dependencies. Neither implies anything
+    about domains where no vendor was observed — see `ConcentrationDim.note`.
+    """
+    dim = next((d for d in estate.concentration if d.dimension == "technographic"), None)
+    if dim is None or dim.withheld or not dim.flagged or not dim.top_provider:
+        return []
+
+    per_domain: dict[str, set[str]] = {}
+    identity_hi: dict[str, set[str]] = {}
+    for seg in estate.segments:
+        for d in seg.domains:
+            spf = getattr(getattr(d.vm, "hygiene", None), "spf_record", None)
+            sigs = signals_for(d.domain, spf)
+            if sigs:
+                per_domain[d.domain] = {s.provider for s in sigs}
+            hi = identity_critical(sigs)
+            if hi:
+                identity_hi[d.domain] = {s.provider for s in hi}
+
+    out: list[EstateException] = []
+    top = dim.top_provider
+    members = sorted(dom for dom, provs in per_domain.items() if top in provs)
+    sev = "high" if dim.top_pct >= 0.60 else "elevated"
+    out.append(EstateException(
+        finding="technographic_concentration",
+        severity=sev,
+        title=f"Shared vendor dependency: {top} serves {_pct(dim.top_pct)} of the "
+              f"estate's observable third-party stack",
+        evidence=f"{top} observed on {len(members)} of {dim.denom} domains whose apex SPF "
+                 f"record names an attributable third-party vendor "
+                 f"({_pct(dim.coverage_pct)} of the assessed estate is observable on this "
+                 f"dimension).",
+        detail=f"A compromise or outage at {top} reaches {_pct(dim.top_pct)} of the "
+               f"observable estate at once — the exposures correlate rather than diversify. "
+               f"{dim.note}",
+        remediation=f"Treat {top} as a single point of failure in continuity planning; "
+                    f"confirm the contractual and technical blast radius before assuming "
+                    f"these domains fail independently.",
+        category="concentration",
+        scope="domain",
+        members=members,
+    ))
+
+    # The identity-critical arm, where the correlation is a compromise path rather than
+    # an availability one.
+    hi_counts: dict[str, list[str]] = {}
+    for dom, provs in identity_hi.items():
+        for p in provs:
+            hi_counts.setdefault(p, []).append(dom)
+    if hi_counts:
+        p, doms = max(hi_counts.items(), key=lambda kv: (len(kv[1]), kv[0]))
+        share = len(doms) / dim.denom if dim.denom else 0.0
+        if share >= estate.thresholds.concentration_flag_pct and p != top:
+            out.append(EstateException(
+                finding="technographic_identity_concentration",
+                severity="high",
+                title=f"Shared identity-critical vendor: {p} on {_pct(share)} of the "
+                      f"observable estate",
+                evidence=f"{p} observed on {len(doms)} of {dim.denom} domains with an "
+                         f"attributable stack.",
+                detail="An identity-critical vendor (IdP, secure email gateway, payment, "
+                       "e-sign or SPF/DMARC delegation) shared across the estate makes a "
+                       "single compromise a correlated credential exposure, not an "
+                       "isolated one.",
+                remediation=f"Review tenant isolation and incident-notification terms with "
+                            f"{p}; assume correlated exposure across these domains.",
+                category="concentration",
+                scope="domain",
+                members=sorted(doms),
+            ))
+    return out
+
+
 def derive_estate_exceptions(estate: EstateViewModel) -> list[EstateException]:
     out: list[EstateException] = []
     th = estate.thresholds
 
     # ── Concentration / single-point-of-failure (§2.2) ───────────────────
     for dim in estate.concentration:
+        if dim.dimension == "technographic":
+            continue  # emitted below, with the affected DOMAINS as `members`
         if dim.flagged and dim.top_provider:
             sev = "high" if dim.top_pct >= 0.60 else "elevated"
             out.append(EstateException(
@@ -47,6 +134,13 @@ def derive_estate_exceptions(estate: EstateViewModel) -> list[EstateException]:
                 scope="estate",
                 members=[dim.top_provider],
             ))
+
+    # ── Technographic vendor concentration (§2.2, SPF-observed) ──────────
+    # Emitted separately from the loop above because `members` must be the affected
+    # DOMAINS, not the provider name: that is what makes the finding inherit materiality
+    # ("affects N% of portfolio value") once the diligence cut's `limit` weighting lands
+    # (docs/DILIGENCE_CUT_SPEC.md — `scope="domain"` sums `limit` over `members`).
+    out.extend(_technographic_exceptions(estate))
 
     # ── Correlated / systemic weakness (§2.3) ────────────────────────────
     for w in estate.correlated_weakness:

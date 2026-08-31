@@ -1,0 +1,6214 @@
+{
+ "_generated_by": "dnsproject/scripts/export_tech_fingerprints.py",
+ "_do_not_edit": "Edit lookups/tech_fingerprints_seed.csv and re-run the exporter.",
+ "built_from": [
+  "lookups/tech_fingerprints_seed.csv",
+  "intelligence/fingerprints.py",
+  "intelligence/cname_fingerprints.json"
+ ],
+ "seed_mtime_utc": "2026-08-24T12:11:33+00:00",
+ "source_rows": 689,
+ "fingerprints": [
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "amazonaws.com",
+   "provider": "AWS",
+   "category": "cloud",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "azureedge.net",
+   "provider": "Azure CDN",
+   "category": "cdn",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "bounceme.net",
+   "provider": "No-IP",
+   "category": "dynamic_dns",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "cloudapp.net",
+   "provider": "Azure",
+   "category": "cloud",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "cloudfront.net",
+   "provider": "AWS CloudFront",
+   "category": "cdn",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "force.com",
+   "provider": "Salesforce",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "github.io",
+   "provider": "GitHub Pages",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "helpscoutdocs.com",
+   "provider": "Help Scout",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "herokuapp.com",
+   "provider": "Heroku",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "hopto.org",
+   "provider": "No-IP",
+   "category": "dynamic_dns",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "hubspot.com",
+   "provider": "HubSpot",
+   "category": "marketing",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "hubspot.net",
+   "provider": "HubSpot",
+   "category": "marketing",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "intercom.io",
+   "provider": "Intercom",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "mailgun.org",
+   "provider": "Mailgun",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "marketo.com",
+   "provider": "Marketo",
+   "category": "marketing",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "mcsv.net",
+   "provider": "Mailchimp",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "my.salesforce.com",
+   "provider": "Salesforce",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "myshopify.com",
+   "provider": "Shopify",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "netlify.app",
+   "provider": "Netlify",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "pardot.com",
+   "provider": "Salesforce Pardot",
+   "category": "marketing",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "sendgrid.net",
+   "provider": "SendGrid",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "sgserver.net",
+   "provider": "SendGrid",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "shopify.com",
+   "provider": "Shopify",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "statuspage.io",
+   "provider": "Atlassian Statuspage",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "trafficmanager.net",
+   "provider": "Azure",
+   "category": "cloud",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "unbouncepages.com",
+   "provider": "Unbounce",
+   "category": "marketing",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "vercel.app",
+   "provider": "Vercel",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "wpengine.com",
+   "provider": "WP Engine",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "zapier.com",
+   "provider": "Zapier",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "CNAME",
+   "match_type": "suffix",
+   "pattern": "zendesk.com",
+   "provider": "Zendesk",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "cname_fingerprints.json"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "1blu.de",
+   "provider": "1blu",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "1password.com",
+   "provider": "1Password",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "1stdomains.co.nz",
+   "provider": "1st Domains",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "263xmail.com",
+   "provider": "263 Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "regex",
+   "pattern": "^spfdm-[a-z0-9-]+\\.aliyun\\.com$",
+   "provider": "Alibaba DirectMail",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf-eu.ionos.com",
+   "provider": "IONOS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf-us.ionos.com",
+   "provider": "IONOS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.fastmail.com",
+   "provider": "Fastmail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.google.com",
+   "provider": "Google Workspace",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.hostedemail.com",
+   "provider": "Open-Xchange Hosted Email",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.mx.cloudflare.net",
+   "provider": "Cloudflare Email",
+   "category": "email",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.protonmail.ch",
+   "provider": "Proton Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.qualtrics.com",
+   "provider": "Qualtrics",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.salesforce.com",
+   "provider": "Salesforce",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "_spf.yandex.net",
+   "provider": "Yandex Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "a1.net",
+   "provider": "A1",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "a2hosting.com",
+   "provider": "A2 Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "aams6.jp",
+   "provider": "AAMS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "abnormalsecurity.com",
+   "provider": "Abnormal Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "acoustic.co",
+   "provider": "Acoustic",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "active24.com",
+   "provider": "Active24",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "adobesign.com",
+   "provider": "Adobe Acrobat Sign",
+   "category": "esign",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "adp.com",
+   "provider": "ADP",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "adyen.com",
+   "provider": "Adyen",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "afas.online",
+   "provider": "AFAS",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "agari.com",
+   "provider": "Fortra Agari",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "agenturserver.de",
+   "provider": "Mittwald",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "agnat.pl",
+   "provider": "Agnat",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "alastyr.com",
+   "provider": "Alastyr",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "alpha-prm.jp",
+   "provider": "Alpha Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "alwaysdata.com",
+   "provider": "alwaysdata",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "amazon.com",
+   "provider": "Amazon",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "amazonses.com",
+   "provider": "Amazon SES",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "anti-spam-premium.com",
+   "provider": "Anti-Spam Premium",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "antispamcloud.com",
+   "provider": "SpamExperts",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "antispameurope.com",
+   "provider": "Hornetsecurity",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "appriver.com",
+   "provider": "AppRiver",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "arandomserver.com",
+   "provider": "A Random Server",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "area1.cloudflare.net",
+   "provider": "Cloudflare Area 1",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "aruba.it",
+   "provider": "Aruba",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "arubabusiness.it",
+   "provider": "Aruba",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "asana.com",
+   "provider": "Asana",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "aserv.co.za",
+   "provider": "Aserv",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "atlassian.net",
+   "provider": "Atlassian",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "auth0.com",
+   "provider": "Auth0",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "authsmtp.com",
+   "provider": "AuthSMTP",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "autotask.net",
+   "provider": "Datto Autotask",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "aweber.com",
+   "provider": "AWeber",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "axspace.com",
+   "provider": "AXSpace",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bamboohr.com",
+   "provider": "BambooHR",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bandzoogle.com",
+   "provider": "Bandzoogle",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "barracudanetworks.com",
+   "provider": "Barracuda Email Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "beget.com",
+   "provider": "Beget",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "beget.ru",
+   "provider": "Beget",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bhosted.nl",
+   "provider": "bHosted",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bigcommerce.com",
+   "provider": "BigCommerce",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bill.com",
+   "provider": "BILL",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bizmw.com",
+   "provider": "NTT Com Bizmail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "blacknight.ie",
+   "provider": "Blacknight",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "blueboard.cz",
+   "provider": "Blueboard",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bluehost.com",
+   "provider": "Bluehost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "box.com",
+   "provider": "Box",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "braintreegateway.com",
+   "provider": "Braintree",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "bravehost.com",
+   "provider": "BraveHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "braze.com",
+   "provider": "Braze",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "brevo.com",
+   "provider": "Brevo",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "businessidentity.llc",
+   "provider": "businessidentity.llc",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "buzondecorreo.com",
+   "provider": "Buzon de Correo",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "byte.nl",
+   "provider": "Byte",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cafe24.com",
+   "provider": "Cafe24",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "carrierzone.com",
+   "provider": "CarrierZone",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cbsolt.net",
+   "provider": "CBS Olt",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cbsv.jp",
+   "provider": "CBSV",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "checkpoint.com",
+   "provider": "Check Point Avanan",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "chinaemail.cn",
+   "provider": "China Email",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cleanmx.pt",
+   "provider": "CleanMX",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cloud-protect.net",
+   "provider": "Fortinet FortiMail Cloud",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cloudfilter.net",
+   "provider": "Newfold CloudFilter",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cloudwebhosting.com",
+   "provider": "Cloud Web Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cmail1.com",
+   "provider": "Campaign Monitor",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "colhost.com",
+   "provider": "ColHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "concursolutions.com",
+   "provider": "SAP Concur",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "conoha.ne.jp",
+   "provider": "ConoHa",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "controlpanel.si",
+   "provider": "ControlPanel.si",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cordial.io",
+   "provider": "Cordial",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cornerstoneondemand.com",
+   "provider": "Cornerstone",
+   "category": "hr",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "coupahost.com",
+   "provider": "Coupa",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cpanelhost.cl",
+   "provider": "cPanelHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cpmails.com",
+   "provider": "CPmails",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "createsend.com",
+   "provider": "Campaign Monitor",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cretaforce.gr",
+   "provider": "CretaForce",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "crsend.com",
+   "provider": "CRsend",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "curanet.dk",
+   "provider": "Curanet",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "customer.io",
+   "provider": "Customer.io",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cyberark.com",
+   "provider": "CyberArk",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cyberfolks.pl",
+   "provider": "cyber_Folks",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "cyon.net",
+   "provider": "cyon",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dandomain.dk",
+   "provider": "DanDomain",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "datadoghq.com",
+   "provider": "Datadog",
+   "category": "observability",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "daum.net",
+   "provider": "Kakao Daum",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dcpserver.de",
+   "provider": "DCP Server",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dcsaas.net",
+   "provider": "DCSaaS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dhosting.pl",
+   "provider": "dhosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dm.aliyun.com",
+   "provider": "Alibaba DirectMail",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dmarcian.com",
+   "provider": "dmarcian",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dmarcly.com",
+   "provider": "DMARCLY",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dnsexit.com",
+   "provider": "DNSExit",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dnsserver.eu",
+   "provider": "DNSserver.eu",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "docebosaas.com",
+   "provider": "Docebo",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "docusign.com",
+   "provider": "DocuSign",
+   "category": "esign",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "docusign.net",
+   "provider": "DocuSign",
+   "category": "esign",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "domeneshop.no",
+   "provider": "Domeneshop",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dominioabsoluto.net",
+   "provider": "Dominio Absoluto",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dondominio.com",
+   "provider": "DonDominio",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dotdigital.com",
+   "provider": "Dotdigital",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "doteasy.com",
+   "provider": "Doteasy",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dreamhost.com",
+   "provider": "DreamHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dropbox.com",
+   "provider": "Dropbox",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ds.network",
+   "provider": "DS Network",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "duosecurity.com",
+   "provider": "Cisco Duo",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dynadot.com",
+   "provider": "Dynadot",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "dynamics.com",
+   "provider": "Microsoft Dynamics 365",
+   "category": "crm",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "easydmarc.com",
+   "provider": "EasyDMARC",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "easyname.com",
+   "provider": "easyname",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "easywp.com",
+   "provider": "Namecheap EasyWP",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "echosign.com",
+   "provider": "Adobe Acrobat Sign",
+   "category": "esign",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "edgepilot.com",
+   "provider": "EdgePilot",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "egress.com",
+   "provider": "Egress",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "elasticemail.com",
+   "provider": "Elastic Email",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "elkdata.ee",
+   "provider": "Elkdata",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "eloqua.com",
+   "provider": "Oracle Eloqua",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "email-hosting.net.au",
+   "provider": "Email Hosting AU",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emailfilter.io",
+   "provider": "EmailFilter.io",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emailserver.vn",
+   "provider": "EmailServer.vn",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emailservice.io",
+   "provider": "EmailService.io",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emailsignatures365.com",
+   "provider": "Exclaimer",
+   "category": "email",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emailsrvr.com",
+   "provider": "Rackspace Email",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emarsys.net",
+   "provider": "SAP Emarsys",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emirates.net.ae",
+   "provider": "Etisalat",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "emsd1.com",
+   "provider": "emsd1.com",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "enter-system.com",
+   "provider": "Enter System",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ergonet.it",
+   "provider": "Ergonet",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "etius.jp",
+   "provider": "Etius",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "exactonline.nl",
+   "provider": "Exact Online",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "exacttarget.com",
+   "provider": "Salesforce Marketing Cloud",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "exclaimer.net",
+   "provider": "Exclaimer",
+   "category": "email",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "exonet.nl",
+   "provider": "Exonet",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "expensify.com",
+   "provider": "Expensify",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "faidns.com",
+   "provider": "FAIdns",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "fastmail.gr",
+   "provider": "Fastmail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "febas.net",
+   "provider": "Febas",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "feishu.cn",
+   "provider": "Feishu / Lark",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "filteredmx.net",
+   "provider": "FilteredMX",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "firebasemail.com",
+   "provider": "Firebase (Google)",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "fireeyecloud.com",
+   "provider": "Trellix Email Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "flockmail.com",
+   "provider": "Flock Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "flowmailer.net",
+   "provider": "Flowmailer",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "forcepoint.net",
+   "provider": "Forcepoint Email Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "forpsi.com",
+   "provider": "FORPSI",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "forwardemail.net",
+   "provider": "Forward Email",
+   "category": "email",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "freenet.de",
+   "provider": "freenet",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "freshdesk.com",
+   "provider": "Freshworks Freshdesk",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "frontapp.com",
+   "provider": "Front",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "fsi.ne.jp",
+   "provider": "FSI",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "g1i.one",
+   "provider": "g1i.one",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gandi.net",
+   "provider": "Gandi",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "getresponse.com",
+   "provider": "GetResponse",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gigaserver.cz",
+   "provider": "GigaServer",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "glesys.se",
+   "provider": "GleSYS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "global-mail.cn",
+   "provider": "Global Mail CN",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "gmail.com",
+   "provider": "Google Workspace",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gmoserver.jp",
+   "provider": "GMO",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gmx.net",
+   "provider": "GMX",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gocardless.com",
+   "provider": "GoCardless",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "godns.net",
+   "provider": "GoDNS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "goneo.de",
+   "provider": "goneo",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "google.com",
+   "provider": "Google Workspace",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "googlemail.com",
+   "provider": "Google Workspace",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "goope.jp",
+   "provider": "Goope",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gorgias.io",
+   "provider": "Gorgias",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gransy.com",
+   "provider": "Gransy",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "greatnet.de",
+   "provider": "Greatnet",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "greengeeks.net",
+   "provider": "GreenGeeks",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "greenhouse.io",
+   "provider": "Greenhouse",
+   "category": "hr",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "guardedhost.com",
+   "provider": "GuardedHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "gusto.com",
+   "provider": "Gusto",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "guzelhosting.com",
+   "provider": "Guzel Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hellosign.com",
+   "provider": "Dropbox Sign",
+   "category": "esign",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "helpscoutemail.com",
+   "provider": "Help Scout",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "heteml.jp",
+   "provider": "heteml",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hibob.com",
+   "provider": "HiBob",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hier-im-netz.de",
+   "provider": "Hier im Netz",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hinet.net",
+   "provider": "HiNet",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hiworks.co.kr",
+   "provider": "Hiworks",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hornetsecurity.com",
+   "provider": "Hornetsecurity",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "host-h.net",
+   "provider": "host-h.net",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "host-ww.net",
+   "provider": "Host-WW",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "host.it",
+   "provider": "Host.it",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostcreators.sk",
+   "provider": "HostCreators",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostedmail.net.au",
+   "provider": "Hosted Mail AU",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostedoffice.ag",
+   "provider": "Hosted Office",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hoster.by",
+   "provider": "Hoster.by",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hoster.kz",
+   "provider": "Hoster.kz",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostfactory.ch",
+   "provider": "Hostfactory",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostido.pl",
+   "provider": "Hostido",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hosting-cloud.net",
+   "provider": "Hosting Cloud",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hosting.com.tr",
+   "provider": "Hosting.com.tr",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hosting.de",
+   "provider": "Hosting.de",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hosting.reg.ru",
+   "provider": "REG.RU",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hosting2go.nl",
+   "provider": "Hosting2GO",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostinger.com",
+   "provider": "Hostinger",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostingplatform.net.au",
+   "provider": "VentraIP",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostingww.com",
+   "provider": "HostingWW",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostland.ru",
+   "provider": "HostLand",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostmar.com",
+   "provider": "Hostmar",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostmonster.com",
+   "provider": "HostMonster",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostnet.nl",
+   "provider": "Hostnet",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostns.io",
+   "provider": "HostNS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostpapa.com",
+   "provider": "HostPapa",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostpoint.ch",
+   "provider": "Hostpoint",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hosts.co.uk",
+   "provider": "Hosts.co.uk",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostwhitelabel.com",
+   "provider": "Host White Label",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hostyourservices.net",
+   "provider": "Host Your Services",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "hotmail.com",
+   "provider": "Outlook.com",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hushmail.com",
+   "provider": "Hushmail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "hydra.sophos.com",
+   "provider": "Sophos Email Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "i-host.pl",
+   "provider": "i-Host",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "icloud.com",
+   "provider": "Apple iCloud Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "icoremail.net",
+   "provider": "Coremail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ihs.com.tr",
+   "provider": "IHS Telekom",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "improvmx.com",
+   "provider": "ImprovMX",
+   "category": "email",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "infomaniak.ch",
+   "provider": "Infomaniak",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "infusionmail.com",
+   "provider": "Keap",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "inleed.se",
+   "provider": "Inleed",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "intacct.com",
+   "provider": "Sage Intacct",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "intercom.io",
+   "provider": "Intercom",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "intermedia.net",
+   "provider": "Intermedia",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "iphmx.com",
+   "provider": "Cisco Secure Email",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ipzmarketing.com",
+   "provider": "IPZmarketing",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ironscales.com",
+   "provider": "IRONSCALES",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ispgateway.de",
+   "provider": "Host Europe ISPgateway",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "iterable.com",
+   "provider": "Iterable",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "jabatus.fr",
+   "provider": "Jabatus",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "jagoanhosting.com",
+   "provider": "Jagoan Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "jino.ru",
+   "provider": "Jino",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "jira.com",
+   "provider": "Atlassian Jira",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "jouwweb.nl",
+   "provider": "JouwWeb",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "jumpcloud.com",
+   "provider": "JumpCloud",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "justhost.com",
+   "provider": "JustHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "k.io",
+   "provider": "k.io",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "kagoya.net",
+   "provider": "Kagoya",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "kayako.com",
+   "provider": "Kayako",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "kinghost.net",
+   "provider": "KingHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "kinstamailservice.com",
+   "provider": "Kinsta",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "klaviyomail.com",
+   "provider": "Klaviyo",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "knowbe4.com",
+   "provider": "KnowBe4",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "kreativmedia.ch",
+   "provider": "Kreativ Media",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "kundenserver.de",
+   "provider": "IONOS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "l4email.com",
+   "provider": "L4Email",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "lcn.com",
+   "provider": "LCN",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "leadconnectorhq.com",
+   "provider": "HighLevel",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "lever.co",
+   "provider": "Lever",
+   "category": "hr",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "lh.pl",
+   "provider": "LH.pl",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "libraesva.com",
+   "provider": "Libraesva",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "linkeo.com",
+   "provider": "Linkeo",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "linuxpl.com",
+   "provider": "LinuxPL",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "livemail.co.uk",
+   "provider": "Livemail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "locaweb.com.br",
+   "provider": "Locaweb",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "lolipop.jp",
+   "provider": "Lolipop",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "loopia.se",
+   "provider": "Loopia",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "lucushost.org",
+   "provider": "LucusHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mail-neoserv.si",
+   "provider": "NEOSERV",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mail.hostserv.eu",
+   "provider": "Hostserv",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mail.qq.com",
+   "provider": "Tencent QQ Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mail.ru",
+   "provider": "Mail.ru",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailanyone.net",
+   "provider": "MailAnyone",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailauth.io",
+   "provider": "MailAuth",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailbaby.net",
+   "provider": "MailBaby",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "mailbox.org",
+   "provider": "mailbox.org",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailbox.pt",
+   "provider": "Mailbox.pt",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailcluster.com.au",
+   "provider": "Mailcluster",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailcontrol.com",
+   "provider": "Forcepoint Email Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailendo.com",
+   "provider": "Mailendo",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailersend.net",
+   "provider": "MailerSend",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailguard.com.au",
+   "provider": "MailGuard",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailgun.org",
+   "provider": "Mailgun",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailhop.org",
+   "provider": "DuoCircle",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailhostbox.com",
+   "provider": "MailHostbox",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailii.org",
+   "provider": "Mailii",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailinblack.com",
+   "provider": "Mailinblack",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailingboss.net",
+   "provider": "MailingBoss",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailjet.com",
+   "provider": "Mailjet",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailplug.com",
+   "provider": "Mailplug",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailprotect.be",
+   "provider": "Combell Mailprotect",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailsentinel.net",
+   "provider": "MailSentinel",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailspamprotection.com",
+   "provider": "MailSpamProtection",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailspike.net",
+   "provider": "Mailspike",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mailtrap.live",
+   "provider": "Mailtrap",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "manitu.net",
+   "provider": "manitu",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "marketingcloudapps.com",
+   "provider": "Salesforce Marketing Cloud",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mcsv.net",
+   "provider": "Mailchimp",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "md02.com",
+   "provider": "md02.com",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "megagroup.ru",
+   "provider": "MegaGroup",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "megamailservers.eu",
+   "provider": "megamailservers.eu",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "messagelabs.com",
+   "provider": "Broadcom/Symantec Email Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "messagingengine.com",
+   "provider": "Fastmail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "migadu.com",
+   "provider": "Migadu",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mijn.host",
+   "provider": "mijn.host",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mijndomeinhosting.nl",
+   "provider": "MijnDomein",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mimecast.co.za",
+   "provider": "Mimecast",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mimecast.com",
+   "provider": "Mimecast",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mixhost.jp",
+   "provider": "mixhost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mktomail.com",
+   "provider": "Adobe Marketo",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mlsend.com",
+   "provider": "MailerLite",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mojsite.com",
+   "provider": "MojSite",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mschosting.com",
+   "provider": "MSC Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mschosting.online",
+   "provider": "MSC Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mtaroutes.com",
+   "provider": "MTARoutes",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "musvc.com",
+   "provider": "MailUp",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "muumuu-mail.com",
+   "provider": "muumuu-mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mweb.co.za",
+   "provider": "MWEB",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mx.ovh.com",
+   "provider": "OVH",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mxhichina.com",
+   "provider": "Alibaba Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mxlogin.com",
+   "provider": "MXlogin",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mxroute.com",
+   "provider": "MXroute",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mxserver.ro",
+   "provider": "MXserver",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "myclickfunnels.com",
+   "provider": "ClickFunnels",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "myconnectwise.net",
+   "provider": "ConnectWise",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "myfasthosting.com",
+   "provider": "MyFastHosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mymagenta.business",
+   "provider": "Magenta Business",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "mysecurecloudhost.com",
+   "provider": "MySecureCloudHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "myshoptet.com",
+   "provider": "Shoptet",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "myworkday.com",
+   "provider": "Workday",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "name-services.com",
+   "provider": "Tucows OpenSRS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "namebrightmail.com",
+   "provider": "NameBright",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "namehero.net",
+   "provider": "NameHero",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "namespro.ca",
+   "provider": "Namespro",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "natrohost.com",
+   "provider": "Natro",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "neo.space",
+   "provider": "Neo",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "netangels.ru",
+   "provider": "NetAngels",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "nethely.hu",
+   "provider": "Nethely",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "netowl.jp",
+   "provider": "NetOwl",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "netsuite.com",
+   "provider": "Oracle NetSuite",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "newrelic.com",
+   "provider": "New Relic",
+   "category": "observability",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "nicmail.ru",
+   "provider": "RU-CENTER Nicmail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "nl2go.com",
+   "provider": "Newsletter2Go",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "notion.so",
+   "provider": "Notion",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ntesmail.com",
+   "provider": "NetEase Enterprise Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "oderland.com",
+   "provider": "Oderland",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "odoo.com",
+   "provider": "Odoo",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ogicom.pl",
+   "provider": "Ogicom",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "okta.com",
+   "provider": "Okta",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "oktacdn.com",
+   "provider": "Okta",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "onamae.ne.jp",
+   "provider": "GMO Onamae",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ondmarc.com",
+   "provider": "Red Sift OnDMARC",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "one.com",
+   "provider": "one.com",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "onelogin.com",
+   "provider": "OneLogin",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "onlarksuite.com",
+   "provider": "Lark Suite",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "opalstack.com",
+   "provider": "Opalstack",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "org-dns.com",
+   "provider": "Org-DNS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "outlook.com",
+   "provider": "Outlook.com",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "oxcs.net",
+   "provider": "Open-Xchange Cloud",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pagerduty.com",
+   "provider": "PagerDuty",
+   "category": "observability",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pair.com",
+   "provider": "Pair Networks",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pairlist.com",
+   "provider": "Pair Networks",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pandadoc.com",
+   "provider": "PandaDoc",
+   "category": "esign",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pardot.com",
+   "provider": "Salesforce Pardot",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "paubox.com",
+   "provider": "Paubox",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "paypal.com",
+   "provider": "PayPal",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pcextreme.nl",
+   "provider": "PCextreme",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "perception-point.io",
+   "provider": "Perception Point",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "perfora.net",
+   "provider": "IONOS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "personio.de",
+   "provider": "Personio",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pingidentity.com",
+   "provider": "Ping Identity",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "plusvps.com",
+   "provider": "PlusVPS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "porkbun.com",
+   "provider": "Porkbun",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "powerdmarc.com",
+   "provider": "PowerDMARC",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ppe-hosted.com",
+   "provider": "Proofpoint Essentials",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "pphosted.com",
+   "provider": "Proofpoint",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "premiumantispam.nl",
+   "provider": "Premium Antispam",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "profesionalhosting.com",
+   "provider": "Profesional Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "proisp.no",
+   "provider": "PRO ISP",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "protection.office365.us",
+   "provider": "Microsoft 365 GCC High",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "protection.outlook.de",
+   "provider": "Microsoft 365 Germany",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "proxi.tools",
+   "provider": "Proxi",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ps.kz",
+   "provider": "PS.KZ",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "purelymail.com",
+   "provider": "Purelymail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "qcloudmail.com",
+   "provider": "Tencent Cloud Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "qiye.163.com",
+   "provider": "NetEase Enterprise Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "qiye.aliyun.com",
+   "provider": "Alibaba Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "qualtrics-mail.com",
+   "provider": "Qualtrics",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "r4l.com",
+   "provider": "r4l.com",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "rackhost.hu",
+   "provider": "Rackhost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "raiolanetworks.com",
+   "provider": "Raiola Networks",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "rdstation.com.br",
+   "provider": "RD Station",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "rediffmailpro.com",
+   "provider": "Rediffmail Pro",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "reg365.net",
+   "provider": "Reg365",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "registeredsite.com",
+   "provider": "registeredsite.com",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "relay.mailchannels.net",
+   "provider": "MailChannels",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "reliablemail.org",
+   "provider": "ReliableMail",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "resend.com",
+   "provider": "Resend",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "responsys.net",
+   "provider": "Oracle Responsys",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "retarus.com",
+   "provider": "Retarus",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "retarus.de",
+   "provider": "Retarus",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "romarg.net",
+   "provider": "Romarg",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "routing.net",
+   "provider": "Routing.net",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sailpoint.com",
+   "provider": "SailPoint",
+   "category": "idp",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "secure-mailgate.com",
+   "provider": "Hornetsecurity",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "secure.ne.jp",
+   "provider": "Xserver secure.ne.jp",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "securehost.de",
+   "provider": "SecureHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "securemail.name",
+   "provider": "SecureMail",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "secureserver.net",
+   "provider": "GoDaddy",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "seeweb.it",
+   "provider": "Seeweb",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sender.xserver.jp",
+   "provider": "Xserver",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sendersrv.com",
+   "provider": "SenderSrv",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sendgrid.net",
+   "provider": "SendGrid",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sendinblue.com",
+   "provider": "Brevo",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sendpulse.com",
+   "provider": "SendPulse",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sentry.io",
+   "provider": "Sentry",
+   "category": "observability",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "servconfig.com",
+   "provider": "ServConfig",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "server-he.de",
+   "provider": "server-he.de",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "serverdata.net",
+   "provider": "Intermedia",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "serveriai.lt",
+   "provider": "Serveriai",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "serverlet.com",
+   "provider": "Serverlet",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "servername.online",
+   "provider": "Servername.online",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "serverneubox.com.mx",
+   "provider": "Neubox",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "servicehoster.ch",
+   "provider": "ServiceHoster",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "servicenow.com",
+   "provider": "ServiceNow",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "serviciodecorreo.es",
+   "provider": "Servicio de Correo",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "seznam.cz",
+   "provider": "Seznam",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "shared-server.net",
+   "provider": "shared-server.net",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "shop-pro.jp",
+   "provider": "Colorme Shop",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "shopify.com",
+   "provider": "Shopify",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "signnow.com",
+   "provider": "signNow",
+   "category": "esign",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "simplelogin.co",
+   "provider": "SimpleLogin",
+   "category": "email",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "simply.com",
+   "provider": "Simply.com",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "site4now.net",
+   "provider": "SmarterASP.NET",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "siteprotect.com",
+   "provider": "SiteProtect",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "skymail.net.br",
+   "provider": "SkyMail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "skysnag.com",
+   "provider": "Skysnag",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "slack.com",
+   "provider": "Slack",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "smarsh.com",
+   "provider": "Smarsh",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "smartemailing.cz",
+   "provider": "SmartEmailing",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "smartsheet.com",
+   "provider": "Smartsheet",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "smtp.com",
+   "provider": "SMTP.com",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "smtp2go.com",
+   "provider": "SMTP2GO",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sohosted.com",
+   "provider": "Sohosted",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "soverin.net",
+   "provider": "Soverin",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spacemail.com",
+   "provider": "Spaceship Spacemail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spaceship.host",
+   "provider": "Spaceship",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spaceship.net",
+   "provider": "Spaceship",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spaceweb.ru",
+   "provider": "SpaceWeb",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spambusters.email",
+   "provider": "Spambusters",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spamprotection.no",
+   "provider": "Spamprotection.no",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spamservice.nl",
+   "provider": "Spamservice.nl",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spamshield.io",
+   "provider": "SpamShield",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sparkpostmail.com",
+   "provider": "SparkPost",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.163.com",
+   "provider": "NetEase Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.263.net",
+   "provider": "263 Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.constantcontact.com",
+   "provider": "Constant Contact",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.efwd.registrar-servers.com",
+   "provider": "Namecheap Email Forwarding",
+   "category": "email",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.hubspotemail.net",
+   "provider": "HubSpot",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.kasserver.com",
+   "provider": "All-Inkl",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.mandrillapp.com",
+   "provider": "Mailchimp Transactional",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.mtasv.net",
+   "provider": "Postmark",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.privateemail.com",
+   "provider": "Namecheap Private Email",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.protection.outlook.com",
+   "provider": "Microsoft 365",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.tld.pl",
+   "provider": "TLD.pl",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spf.web-hosting.com",
+   "provider": "Namecheap Hosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "spfmanager.com",
+   "provider": "SPF Manager",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "squarespace-mail.com",
+   "provider": "Squarespace",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "squareup.com",
+   "provider": "Square",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "srv.cat",
+   "provider": "srv.cat",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "stackmail.com",
+   "provider": "Tucows Stackmail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "strato.com",
+   "provider": "STRATO",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "stripe.com",
+   "provider": "Stripe",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "stspg-customer.com",
+   "provider": "Atlassian Statuspage",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "successfactors.com",
+   "provider": "SAP SuccessFactors",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "sui-inter.net",
+   "provider": "Sui-inter",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "supercp.com",
+   "provider": "SuperCP",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "superhosting.bg",
+   "provider": "SuperHosting.BG",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "supremebox.com",
+   "provider": "SupremeBox",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "surveymonkey.com",
+   "provider": "SurveyMonkey",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "syrahost.com",
+   "provider": "Syrahost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "thundermail.uk",
+   "provider": "Thundermail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tierra.net",
+   "provider": "Tierra.net",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tigertech.net",
+   "provider": "TigerTech",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "timeweb.ru",
+   "provider": "Timeweb",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tipalti.com",
+   "provider": "Tipalti",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "titan.email",
+   "provider": "Titan Email",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tld-mx.com",
+   "provider": "TLD-MX",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tmes.trendmicro.com",
+   "provider": "Trend Micro Email Security",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tophost.ch",
+   "provider": "TopHost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "totaalholding.nl",
+   "provider": "Totaal Holding",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "touch2success.com",
+   "provider": "Touch2Success",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "transip.email",
+   "provider": "TransIP",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "transmail.net",
+   "provider": "Zoho ZeptoMail",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tray.com.br",
+   "provider": "Tray",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "truehostcloud.com",
+   "provider": "Truehost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "trustpilotservice.com",
+   "provider": "Trustpilot",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "trwww.com",
+   "provider": "TRwww",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "turbo-smtp.com",
+   "provider": "turboSMTP",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "turhost.com",
+   "provider": "Turhost",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "turkticaret.net",
+   "provider": "TurkTicaret",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "tutanota.de",
+   "provider": "Tuta",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "udag.de",
+   "provider": "united-domains",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "ukraine.com.ua",
+   "provider": "Ukraine.com.ua",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "umbler.com",
+   "provider": "Umbler",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "uni5.net",
+   "provider": "Uni5",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "unisender.com",
+   "provider": "UniSender",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "unisender.ru",
+   "provider": "UniSender",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "uzmanposta.com",
+   "provider": "Uzmanposta",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "vadesecure.com",
+   "provider": "Vade Secure",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "vali.email",
+   "provider": "Valimail",
+   "category": "dmarc",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "valueserver.jp",
+   "provider": "ValueServer",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "variomedia.de",
+   "provider": "Variomedia",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "veridyen.com",
+   "provider": "Veridyen",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "vevida.com",
+   "provider": "Vevida",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "vhosting-it.com",
+   "provider": "VHosting",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "w4ymail.at",
+   "provider": "World4You",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "wanadoo.fr",
+   "provider": "Orange",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "web-dns1.com",
+   "provider": "Web-DNS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "web.de",
+   "provider": "WEB.DE",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webador.com",
+   "provider": "Webador",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webapps.net",
+   "provider": "webapps.net",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webd.pl",
+   "provider": "webd.pl",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webempresa.eu",
+   "provider": "Webempresa",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webglobe.cz",
+   "provider": "WebGlobe",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webglobe.sk",
+   "provider": "WebGlobe",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webhostbox.net",
+   "provider": "WebHostBox",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webhoster.de",
+   "provider": "Webhoster.de",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webhosting.systems",
+   "provider": "Webhosting.systems",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webhostingireland.ie",
+   "provider": "Web Hosting Ireland",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webhostingserver.nl",
+   "provider": "Webhostingserver",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webhouse.sk",
+   "provider": "Webhouse",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webhuset.no",
+   "provider": "Webhuset",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webland.ch",
+   "provider": "Webland",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webmo.fr",
+   "provider": "Webmo",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webnode.com",
+   "provider": "Webnode",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webreus.email",
+   "provider": "Webreus",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "exact",
+   "pattern": "website.ws",
+   "provider": "Website.ws",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "websitehostserver.net",
+   "provider": "Website Host Server",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "websitewelcome.com",
+   "provider": "HostGator",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "webspacecontrol.com",
+   "provider": "Webspace Control",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "websupport.cz",
+   "provider": "Websupport",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "websupport.se",
+   "provider": "Websupport",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "websupport.sk",
+   "provider": "Websupport",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "wedos.net",
+   "provider": "WEDOS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "whc.ca",
+   "provider": "Web Hosting Canada",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "whservidor.com",
+   "provider": "WHServidor",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "wildapricot.org",
+   "provider": "WildApricot",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "workday.com",
+   "provider": "Workday",
+   "category": "hr",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "worksmobile.com",
+   "provider": "LINE WORKS",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "wpcloud.com",
+   "provider": "WordPress.com / WP Cloud",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "yandex.ru",
+   "provider": "Yandex Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "yourfilter.nl",
+   "provider": "YourFilter",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "yunyou.top",
+   "provider": "yunyou.top",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zamailgate.com",
+   "provider": "ZAMailgate",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zcsend.in",
+   "provider": "Zoho Campaigns",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zcsend.net",
+   "provider": "Zoho Campaigns",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zenbox.pl",
+   "provider": "Zenbox",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zendesk.com",
+   "provider": "Zendesk",
+   "category": "helpdesk",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zeptomail.net",
+   "provider": "Zoho ZeptoMail",
+   "category": "esp",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zixmail.net",
+   "provider": "OpenText Zix",
+   "category": "seg",
+   "identity_risk": "high",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zmail300.cn",
+   "provider": "ZMail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zoho.com",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zoho.com.au",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zoho.com.cn",
+   "provider": "Zoho",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zoho.eu",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zoho.in",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohobooks.com",
+   "provider": "Zoho Books",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohocloud.ca",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohoinvoice.com",
+   "provider": "Zoho Invoice",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohomail.com",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohomail.com.au",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohomail.com.cn",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohomail.eu",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zohomail.in",
+   "provider": "Zoho Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zone.eu",
+   "provider": "Zone.eu",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zoner.com",
+   "provider": "Zoner",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zoner.fi",
+   "provider": "Zoner",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "SPF_INCLUDE",
+   "match_type": "suffix",
+   "pattern": "zxcs.nl",
+   "provider": "ZXCS",
+   "category": "hosting",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "TLS_SAN",
+   "match_type": "suffix",
+   "pattern": "ghost.io",
+   "provider": "Ghost",
+   "category": "marketing",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "TLS_SAN",
+   "match_type": "suffix",
+   "pattern": "myshopify.com",
+   "provider": "Shopify",
+   "category": "ecommerce",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "TLS_SAN",
+   "match_type": "suffix",
+   "pattern": "statuspage.io",
+   "provider": "Atlassian Statuspage",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "TLS_SAN",
+   "match_type": "suffix",
+   "pattern": "zendesk.com",
+   "provider": "Zendesk",
+   "category": "saas",
+   "identity_risk": "none",
+   "source": "seed_csv"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "1password-site-verification=",
+   "provider": "1Password",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "\\.cloudfront\\.net$",
+   "provider": "AWS CloudFront reference",
+   "category": "infra",
+   "identity_risk": "none",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^MS=[A-F0-9]{40}$",
+   "provider": "Microsoft 365 (alt token)",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^MS=ms",
+   "provider": "Microsoft 365",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^SFMC-",
+   "provider": "Salesforce Marketing Cloud",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^SFMC--",
+   "provider": "Salesforce Marketing Cloud",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^amazonses:",
+   "provider": "Amazon SES",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^asv=",
+   "provider": "Atlassian (Jira/Confluence)",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^dnt-tracking=",
+   "provider": "DNT-Tracking",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^docusign:",
+   "provider": "DocuSign",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^google-site-verification=",
+   "provider": "Google Workspace / Search Console",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^tmes=",
+   "provider": "Trend Micro Email Security",
+   "category": "security",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^v=DMARC1",
+   "provider": "DMARC Policy",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^v=MCPv1;",
+   "provider": "MCP Server (Anthropic)",
+   "category": "ai_infra",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "^v=spf1",
+   "provider": "SPF Policy",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "access-domain-verification=",
+   "provider": "Cloudflare Access",
+   "category": "security",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "adobe-idp-site-verification=",
+   "provider": "Adobe IDP",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "airtable-verification=",
+   "provider": "Airtable",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "anodot-domain-verification=",
+   "provider": "Anodot",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "anthropic-domain-verification",
+   "provider": "Anthropic / Claude API",
+   "category": "ai_infra",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "apperio-domain-verification=",
+   "provider": "Apperio",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "apple-domain-verification=",
+   "provider": "Apple",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "atlassian-domain-verification=",
+   "provider": "Atlassian Cloud",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "atlassian-sending-domain-verification=",
+   "provider": "Atlassian Mail",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "bitwarden-domain-verification=",
+   "provider": "Bitwarden",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "brave-ledger-verification=",
+   "provider": "Brave Publisher",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "bugcrowd-verification=",
+   "provider": "Bugcrowd",
+   "category": "security",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "canva-site-verification=",
+   "provider": "Canva",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "cisco-ci-domain-verification=",
+   "provider": "Cisco CI / Webex",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "cursor-domain-verification",
+   "provider": "Cursor AI",
+   "category": "ai_infra",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "dashlane-domain-verification=",
+   "provider": "Dashlane",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "docusign=",
+   "provider": "DocuSign",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "drift-domain-verification=",
+   "provider": "Drift",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "dropbox-domain-verification=",
+   "provider": "Dropbox",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "facebook-domain-verification=",
+   "provider": "Facebook / Meta",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "formstack-domain-verification=",
+   "provider": "Formstack",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "fortimailcloud\\.com",
+   "provider": "Fortinet FortiMail Cloud",
+   "category": "security",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "github-copilot-",
+   "provider": "GitHub Copilot",
+   "category": "ai_infra",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "globalsign-domain-verification=",
+   "provider": "GlobalSign CA",
+   "category": "security",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "have-i-been-pwned-verification=",
+   "provider": "HaveIBeenPwned",
+   "category": "security",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "hubspot-developer-verification=",
+   "provider": "HubSpot",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "intercom-verification-code=",
+   "provider": "Intercom",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "intersight=",
+   "provider": "Cisco Intersight",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "jamf-site-verification=",
+   "provider": "Jamf MDM",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "klaviyo-site-verification=",
+   "provider": "Klaviyo",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "knowbe4-site-verification=",
+   "provider": "KnowBe4",
+   "category": "security",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "krisp-domain-verification=",
+   "provider": "Krisp",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "lastpass-verification-code=",
+   "provider": "LastPass",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "linkedin-site-verification=",
+   "provider": "LinkedIn",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "lucidlink-verification=",
+   "provider": "LucidLink",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "mailchimp-verification=",
+   "provider": "Mailchimp",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "marketo-domain-verification=",
+   "provider": "Marketo",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "mcsv\\.net",
+   "provider": "Mailchimp",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "miro-verification=",
+   "provider": "Miro",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "mongodb-site-verification=",
+   "provider": "MongoDB Atlas",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "notion-domain-verification=",
+   "provider": "Notion",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "onetrust-domain-verification=",
+   "provider": "OneTrust",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "openai-domain-verification=",
+   "provider": "OpenAI API",
+   "category": "ai_infra",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "pardot\\d+=",
+   "provider": "Salesforce Pardot",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "pendo-domain-verification=",
+   "provider": "Pendo",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "pinterest-site-verification=",
+   "provider": "Pinterest",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "postman-domain-verification=",
+   "provider": "Postman",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "salesforce-verification=",
+   "provider": "Salesforce",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "segment-site-verification=",
+   "provider": "Segment",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "servers\\.mcsv\\.net",
+   "provider": "Mailchimp",
+   "category": "email_marketing",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "spf\\.exclaimer\\.net",
+   "provider": "Exclaimer Email Signatures",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "spf\\.ssmx\\.net",
+   "provider": "SSMX Mail Security",
+   "category": "email",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "status-page-domain-verification=",
+   "provider": "Atlassian Statuspage",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "stripe-verification=",
+   "provider": "Stripe",
+   "category": "payment",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "twilio-domain-verification=",
+   "provider": "Twilio",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "v=verifydomain",
+   "provider": "Microsoft 365 (legacy verify)",
+   "category": "identity",
+   "identity_risk": "high",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "zendesk-verification=",
+   "provider": "Zendesk",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  },
+  {
+   "signal_type": "TXT",
+   "match_type": "regex",
+   "pattern": "zoom-domain-verification=",
+   "provider": "Zoom",
+   "category": "saas",
+   "identity_risk": "med",
+   "source": "fingerprints.py"
+  }
+ ]
+}

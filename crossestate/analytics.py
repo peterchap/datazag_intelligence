@@ -32,6 +32,7 @@ from crossestate.contract import (
     WeaknessPrevalence,
 )
 from crossestate.contract import DomainRef
+from crossestate.technographic import identity_critical, signals_for
 from healthreport.grade import score_to_grade
 
 _GRADE_INDEX = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4, "F": 5}
@@ -56,7 +57,14 @@ _CONC_DIMS = (
     ("asn", "Hosting network (ASN)"),
     ("hosting", "Hosting provider"),
     ("ca_issuer", "Certificate authority"),
+    ("technographic", "Third-party vendor (SPF-observed)"),
 )
+
+# Dimensions where one domain can legitimately carry SEVERAL values. `denom` counts the
+# DOMAIN once; each value counts once. Shares therefore sum to more than 1.0, which is
+# correct: "if Proofpoint falls, 47% of the estate is affected" is a statement about
+# domains, not a partition of them.
+_MULTI_VALUE_DIMS = frozenset({"ca_issuer", "technographic"})
 
 
 def _dim_value(dimension: str, ref: DomainRef) -> Optional[str]:
@@ -95,26 +103,51 @@ def _ca_issuers(ref: DomainRef) -> set[str]:
     return out
 
 
+def _dim_values(key: str, ref: DomainRef) -> set[str]:
+    """The value(s) a domain carries on a dimension. An EMPTY set means UNOBSERVED and the
+    domain is excluded from that dimension's denominator — never scored as "uses nothing".
+    (`DILIGENCE_CUT_SPEC`: never impute a missing value.)"""
+    if key == "ca_issuer":
+        return _ca_issuers(ref)
+    if key == "technographic":
+        vm = ref.vm
+        spf = getattr(vm.hygiene, "spf_record", None)
+        return {s.provider for s in signals_for(ref.domain, spf) if s.provider}
+    val = _dim_value(key, ref)
+    return {val} if val else set()
+
+
 def compute_concentration(refs: list[DomainRef], thresholds: EstateThresholds) -> list[ConcentrationDim]:
     assessed = _assessed(refs)
+    n_assessed = len(assessed)
     dims: list[ConcentrationDim] = []
     for key, label in _CONC_DIMS:
         counts: dict[str, int] = {}
         denom = 0
         for r in assessed:
-            if key == "ca_issuer":
-                issuers = _ca_issuers(r)
-                if not issuers:
-                    continue
-                denom += 1
-                for iss in issuers:
-                    counts[iss] = counts.get(iss, 0) + 1
-            else:
-                val = _dim_value(key, r)
-                if not val:
-                    continue
-                denom += 1
-                counts[val] = counts.get(val, 0) + 1
+            vals = _dim_values(key, r)
+            if not vals:
+                continue
+            denom += 1
+            for v in vals:
+                counts[v] = counts.get(v, 0) + 1
+
+        coverage = (denom / n_assessed) if n_assessed else 0.0
+        note = _coverage_note(key, denom, n_assessed)
+
+        # Withhold rather than render thin. A share computed on a small, self-selected
+        # denominator is a real number about an unrepresentative subset, and in an
+        # underwriting file it reads as a statement about the estate.
+        if denom == 0 or coverage < thresholds.dimension_min_coverage_pct:
+            dims.append(ConcentrationDim(
+                dimension=key, label=label, shares=[], top_provider=None, top_pct=0.0,
+                denom=denom, flagged=False, coverage_pct=coverage, withheld=True,
+                note=(f"Withheld: observable on {denom} of {n_assessed} assessed domains "
+                      f"({coverage * 100:.0f}%), below the "
+                      f"{thresholds.dimension_min_coverage_pct * 100:.0f}% minimum coverage "
+                      f"for this dimension. Not a finding of absence. " + note).strip(),
+            ))
+            continue
 
         shares = [
             ProviderShare(
@@ -131,8 +164,29 @@ def compute_concentration(refs: list[DomainRef], thresholds: EstateThresholds) -
             top_pct=(top.pct if top else 0.0),
             denom=denom,
             flagged=bool(top and top.flagged),
+            coverage_pct=coverage,
+            note=note,
         ))
     return dims
+
+
+def _coverage_note(key: str, denom: int, n_assessed: int) -> str:
+    """What the denominator excludes, in the report's own words. Written for every
+    dimension so a reader never has to assume that `n_assessed - denom` means "none"."""
+    missing = n_assessed - denom
+    if key != "technographic":
+        return (f"{missing} assessed domain(s) carry no known value for this dimension and "
+                f"are excluded from the denominator." if missing else "")
+    base = ("Observed from the apex SPF record only. It does not cover subdomain-only "
+            "sending (marketing and transactional ESPs commonly sit on a subdomain or a "
+            "separate brand domain), cousin domains, or any vendor a company does not "
+            "publish in DNS. Snapshot — no trajectory.")
+    if missing:
+        base = (f"{missing} assessed domain(s) publish no attributable third-party SPF "
+                f"referral (no SPF record, an all-`ip4:` record, or a self-hosted "
+                f"`_spf.<own-domain>` delegation) and are excluded from the denominator "
+                f"rather than counted as using no vendors. ") + base
+    return base
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +340,48 @@ def compute_variance(refs: list[DomainRef], thresholds: EstateThresholds) -> Var
 # §2.5 Active exposure rollup (EXACT impersonation only)
 # ---------------------------------------------------------------------------
 
+def _norm_platform(name: str) -> str:
+    return "".join(ch for ch in (name or "").lower() if ch.isalnum())
+
+
+def _annotate_estate_stack(platforms: list[TargetedPlatform],
+                           assessed: list[DomainRef]) -> int:
+    """Mark the targeted platforms the estate is OBSERVED to use, and return the 30d
+    volume falling on them.
+
+    This is the generalisation of the join `build_platform_impersonation.py` already
+    demos with one fact (the MX-derived mailbox provider): the org side becomes the whole
+    observed stack — IdP, secure email gateway, e-sign, payment, helpdesk.
+
+    🚨 Annotation only. Nothing here changes a count, drops a platform, or reorders the
+    list; the caller has already fixed both. An unmatched platform is UNMATCHED, not
+    harmless — `crossestate/technographic.py` can only see what a domain publishes at its
+    apex, so a non-match is at least as likely to be a coverage gap as a real absence.
+    """
+    stack: dict[str, tuple[set[str], str]] = {}
+    for r in assessed:
+        spf = getattr(getattr(r.vm, "hygiene", None), "spf_record", None)
+        for s in signals_for(r.domain, spf):
+            key = _norm_platform(s.provider)
+            doms, ir = stack.get(key, (set(), "none"))
+            doms.add(r.domain)
+            # keep the strongest tier seen for the provider name
+            rank = {"high": 2, "med": 1, "none": 0}
+            stack[key] = (doms, s.identity_risk if rank.get(s.identity_risk, 0) > rank.get(ir, 0) else ir)
+
+    matched_30d = 0
+    for p in platforms:
+        hit = stack.get(_norm_platform(p.platform))
+        if not hit:
+            continue
+        doms, ir = hit
+        p.in_estate_stack = True
+        p.stack_domains = sorted(doms)
+        p.stack_identity_risk = ir
+        matched_30d += int(p.count_30d or 0)
+    return matched_30d
+
+
 def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> ExposureRollup:
     assessed = _assessed(refs)
     plat_7d: dict[str, int] = {}
@@ -323,6 +419,11 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
     ]
     total_30d = sum(plat_30d.values())
     total_7d = sum(plat_7d.values())
+
+    # ── Technographic ⟂ impersonation join, applied AFTER the totals and the ordering
+    # are fixed. It annotates; it removes nothing and reorders nothing. See the
+    # prohibition on TargetedPlatform.in_estate_stack.
+    stack_matched_30d = _annotate_estate_stack(platforms, assessed)
     top_share = (platforms[0].count_30d / total_30d) if (platforms and total_30d) else 0.0
     samples: list[str] = []
     for p in platforms:
@@ -336,6 +437,7 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
         sample_domains=samples[:20],
         targeting_concentration=round(top_share, 3),
         lookalike_total_30d=lookalike_30d,
+        stack_matched_30d=stack_matched_30d,
     )
 
 

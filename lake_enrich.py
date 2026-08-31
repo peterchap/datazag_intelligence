@@ -488,6 +488,7 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
         Annotation, Registration, DnsHygiene, AbuseContacts, PlatformImpersonation,
         DnsRecordSet,
     )
+    from crossestate.technographic import signals_for
 
     def _vm(label, fn, default):
         """Build one view-model section defensively. A failure (lake gap, bad row,
@@ -518,6 +519,17 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
         ann_in["isp_country"] = infra.get("isp_country")
         ann_in["prefix"] = infra.get("prefix")
         ann_in.setdefault("asn_risk_level", infra.get("asn_risk_level"))
+        # `platform_signals` was declared on the contract, consumed by
+        # healthreport/renderer.py and freereport/compose.py, and PRODUCED BY NOTHING —
+        # `_labels_fallback` reproduces v_annotated per-domain but never reproduced
+        # v_technographic, so the field was empty on every contract ever built (verified
+        # 2026-08-24: 0 signals across all 18 domains of a collected estate). Same matcher
+        # as the cross-estate layer, against the live SPF record already on `rec`.
+        ann_in["platform_signals"] = [
+            {"signal_type": s.signal_type, "provider": s.provider, "category": s.category,
+             "match_type": "suffix", "confidence": 1.0, "evidence": s.evidence}
+            for s in signals_for(rec.get("domain", ""), rec.get("spf"))
+        ]
         return Annotation(domain=rec.get("domain", ""), **ann_in)
     annotation = _vm("annotation", _build_annotation, Annotation(domain=rec.get("domain", "")))
 

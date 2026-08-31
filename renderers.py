@@ -595,11 +595,35 @@ class BaseRenderer:
             except Exception:
                 context = {}
         domain_details = context.get("domain_details") or context
-        ff_score  = float(domain_details.get("fast_flux_risk", 0.0) or 0.0)
-        dga_score = float(domain_details.get("dga_risk", 0.0) or 0.0)
-        ff_label  = "Elevated" if ff_score > 0.5 else "Low"
-        dga_label = "Elevated" if dga_score > 0.5 else "Low"
-        domain_risk_score = float(domain_intel.get("domain_risk_score", 0.0) or 0.0)
+
+        # ⚠️ ABSENT IS NOT ZERO. These were `.get(key, 0.0) or 0.0`, which turned a domain we
+        # had never scored into 0.00 — and _risk_badge paints anything <= 0.25 GREEN, so the
+        # report asserted a domain was safe on the strength of having no data about it.
+        #
+        # Not hypothetical: `gold_risk_domain` is gated on a 45-day recency window (riskscore
+        # lake_corpus.RECENCY_DAYS), and between 2026-08-19 and 08-25 the scored set fell
+        # 383M -> 117M as one large refresh cohort aged out together, so up to 69% of domains
+        # were ABSENT rather than clean. Another such cliff is due ~2026-10-08. See the hub's
+        # work/corpus-recency-cliff.md.
+        #
+        # The lake side already legislates this — centralake 02_build_publish AC-4, "a missing
+        # signal must never read as a safe signal", carried in `data_completeness` — and the
+        # report path had no equivalent. None now means NOT MEASURED and renders "Not
+        # assessed"; 0.0 keeps meaning measured-and-zero, a different and legitimate claim.
+        def _score(src: dict, key: str):
+            v = src.get(key)
+            if v is None or v == "":
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
+        ff_score  = _score(domain_details, "fast_flux_risk")
+        dga_score = _score(domain_details, "dga_risk")
+        domain_risk_score = _score(domain_intel, "domain_risk_score")
+        ff_label  = "Elevated" if (ff_score is not None and ff_score > 0.5) else "Low"
+        dga_label = "Elevated" if (dga_score is not None and dga_score > 0.5) else "Low"
 
         def _risk_badge(val: float, label: str) -> str:
             col = "#A32D2D" if val > 0.5 else "#854F0B" if val > 0.25 else "#3B6D11"
@@ -609,6 +633,30 @@ class BaseRenderer:
                 f'font-weight:600;padding:2px 6px;border-radius:4px;'
                 f'border:1px solid {col}33">{label}</span>'
             )
+
+        def _unknown_badge() -> str:
+            """Deliberately NEUTRAL slate — it must not read as a low score. The whole point
+            is that this is the absence of a measurement, not a good one."""
+            return (
+                '<span style="background:#F1F5F9;color:#64748B;font-size:11px;'
+                'font-weight:600;padding:2px 6px;border-radius:4px;'
+                'border:1px solid #CBD5E1">Not assessed</span>'
+            )
+
+        ff_badge = (_risk_badge(ff_score, f"{ff_label} ({ff_score:.2f})")
+                    if ff_score is not None else _unknown_badge())
+        dga_badge = (_risk_badge(dga_score, f"{dga_label} ({dga_score:.2f})")
+                     if dga_score is not None else _unknown_badge())
+        # /3 because domain_risk_score is on a 0-3 scale while _risk_badge thresholds are 0-1.
+        dom_badge = (_risk_badge(domain_risk_score / 3, f"{domain_risk_score:.2f}")
+                     if domain_risk_score is not None else _unknown_badge())
+        # Gate on PRESENCE, not truthiness. The old `if (ff or dga or domain_risk)` also hid
+        # the block when all three were legitimately 0.0 — so "measured, and all clean" was
+        # indistinguishable from "we have nothing". Both halves of that conflation are fixed:
+        # measured-zero now renders, absent renders as Not assessed, and only a domain with no
+        # signal at all omits the section.
+        show_domain_intel = any(v is not None
+                                for v in (ff_score, dga_score, domain_risk_score))
 
         return f"""
         <h2>Infrastructure &amp; routing intelligence</h2>
@@ -776,19 +824,19 @@ class BaseRenderer:
             <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
             <div>
                 <span style="font-size:11px;color:#64748B;margin-right:6px">Fast-flux risk</span>
-                {_risk_badge(ff_score, f"{ff_label} ({ff_score:.2f})")}
+                {ff_badge}
             </div>
             <div>
                 <span style="font-size:11px;color:#64748B;margin-right:6px">DGA entropy</span>
-                {_risk_badge(dga_score, f"{dga_label} ({dga_score:.2f})")}
+                {dga_badge}
             </div>
             <div>
                 <span style="font-size:11px;color:#64748B;margin-right:6px">Domain risk score</span>
-                {_risk_badge(domain_risk_score / 3, f"{domain_risk_score:.2f}")}
+                {dom_badge}
             </div>
             </div>
         </div>
-        ''' if (ff_score or dga_score or domain_risk_score) else ""}
+        ''' if show_domain_intel else ""}
 
         <!-- Row 4: Blocklist feeds + IP type pills -->
         {f'''
