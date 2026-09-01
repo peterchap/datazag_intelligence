@@ -28,9 +28,31 @@ def _fmt(v: float) -> str:
 # Threat-pillar rules (infrastructure / hosting neighbourhood)
 # ---------------------------------------------------------------------------
 
+class _NotMeasuredIsZero:
+    """Read a RiskAssessment with unmeasured sub-scores coerced to 0.0.
+
+    RiskAssessment sub-scores are `float | None`, where None means NOT MEASURED (see the note
+    on the model). Rule evaluation deliberately treats that as 0.0: **absence is not
+    evidence**, so a missing signal must never RAISE a finding. That is the mirror of the
+    display rule, where a missing signal must never read as SAFE — the renderer shows "Not
+    assessed" rather than a green 0.00.
+
+    Both rules are correct because they answer different questions, and this wrapper exists so
+    the coercion is stated once, here, instead of `or 0.0` sprinkled through twenty
+    comparisons where it would read like defensive noise and eventually be "tidied" away.
+    """
+
+    def __init__(self, ra):
+        self._ra = ra
+
+    def __getattr__(self, name):
+        v = getattr(self._ra, name)
+        return 0.0 if v is None else v
+
+
 def _threat_findings(di: DomainIntelligence) -> list[dict]:
     out: list[dict] = []
-    r = di.risk_assessment
+    r = _NotMeasuredIsZero(di.risk_assessment)
 
     if r.fast_flux_risk > 0.6:
         out.append({

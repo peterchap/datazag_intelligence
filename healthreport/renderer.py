@@ -3310,8 +3310,15 @@ class HealthReportRenderer:
     # ----- Section: Infrastructure & routing intelligence ------------------
 
     @staticmethod
-    def _risk_class01(v: float) -> str:
-        """Severity class for a 0–1 risk score."""
+    def _risk_class01(v: float | None) -> str:
+        """Severity class for a 0–1 risk score, or `neutral` when it was never measured.
+
+        None must NOT fall through to "good": that is the same absent-reads-as-safe defect as
+        rendering 0.00, just expressed as a colour instead of a number. `.neutral` already
+        exists in this stylesheet for exactly this state.
+        """
+        if v is None:
+            return "neutral"
         return "bad" if v > 0.5 else "warn" if v > 0.25 else "good"
 
     def _build_infra_routing(self) -> dict[str, Any]:
@@ -3352,8 +3359,12 @@ class HealthReportRenderer:
                     "examples": ", ".join(pf.examples[:3]) if pf.examples else "",
                 })
 
-        def f2(x: float) -> str:
-            return f"{x:.2f}"
+        def f2(x: float | None) -> str:
+            """Format a sub-score, or this file's em-dash missing-marker when it was never
+            measured. RiskAssessment/ThreatSurface sub-scores are `float | None`, where None
+            means NOT MEASURED — it must not render as 0.00, which reads as measured-and-clean.
+            See the note on RiskAssessment in intelligence_contract."""
+            return "—" if x is None else f"{x:.2f}"
 
         return {
             "asn":            f"AS{asn_num}" if asn_num else "—",

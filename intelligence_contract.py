@@ -132,14 +132,30 @@ class HistoricalVelocity(_Base):
 
 
 class RiskAssessment(_Base):
-    infra_score: float = 0.0
-    ip_direct_threat_score: float = 0.0
+    # ⚠️ None means NOT MEASURED; 0.0 means measured-and-zero. Different claims, rendered
+    # differently ("Not assessed" vs a green 0.00).
+    #
+    # These were `float = 0.0`, which collapsed the two the moment the payload arrived. Not
+    # academic: `gold_risk_domain` is gated on a 45-day recency window, and between
+    # 2026-08-19 and 08-25 the scored set fell 383M -> 117M as one refresh cohort aged out —
+    # so up to 69% of domains had no score, and reports asserted 0.00 for them, in green.
+    # See the hub's work/corpus-recency-cliff.md.
+    #
+    # Accepting None is deliberately BACKWARD COMPATIBLE: a producer still sending 0.0 keeps
+    # working unchanged. That is what lets the riskscore-side COALESCE removal land second.
+    #
+    # ⚠️ COMPUTATION vs DISPLAY. Anything that SCORES from these coerces unknown to 0.0
+    # explicitly and says so — absence is not evidence, so it must never raise a score. Only
+    # the DISPLAY layer distinguishes. Do not "simplify" that coercion back into the field
+    # default; that is precisely the bug being removed.
+    infra_score: float | None = None
+    ip_direct_threat_score: float | None = None
     reason_codes: list[str] = Field(default_factory=list)
-    fast_flux_risk: float = 0.0
-    dga_risk: float = 0.0
-    concentration_risk: float = 0.0
-    certstream_risk: float = 0.0
-    dangling_cname_risk: float = 0.0
+    fast_flux_risk: float | None = None
+    dga_risk: float | None = None
+    concentration_risk: float | None = None
+    certstream_risk: float | None = None
+    dangling_cname_risk: float | None = None
 
     @field_validator("reason_codes", mode="before")
     @classmethod
@@ -152,14 +168,33 @@ class RiskAssessment(_Base):
     )
     @classmethod
     def _clamp(cls, v):
-        return _clamp01(v)
+        # None passes through untouched — _clamp01 would turn it into 0.0 (`float(v or 0.0)`)
+        # and silently undo the whole point of the field being optional.
+        return None if v is None else _clamp01(v)
+
+    def measured(self) -> dict:
+        """The sub-scores we actually have, by name. Empty means nothing was measured."""
+        return {k: v for k, v in (
+            ("infra_score", self.infra_score),
+            ("ip_direct_threat_score", self.ip_direct_threat_score),
+            ("fast_flux_risk", self.fast_flux_risk),
+            ("dga_risk", self.dga_risk),
+            ("concentration_risk", self.concentration_risk),
+            ("certstream_risk", self.certstream_risk),
+            ("dangling_cname_risk", self.dangling_cname_risk),
+        ) if v is not None}
 
     def worst_subscore(self) -> float:
-        return max(
-            self.infra_score, self.ip_direct_threat_score, self.fast_flux_risk,
-            self.dga_risk, self.concentration_risk, self.certstream_risk,
-            self.dangling_cname_risk,
-        )
+        """Worst MEASURED sub-score. Unmeasured signals are skipped, not counted as 0.0.
+
+        Returns 0.0 when nothing was measured — a deliberate COMPUTATION choice: absence is
+        not evidence, so it must not raise a threat score. That is the opposite of the
+        DISPLAY rule, where absence must never read as safety. Both are correct; they are
+        answering different questions, which is why this returns a float and the renderer
+        renders "Not assessed".
+        """
+        vals = self.measured().values()
+        return max(vals) if vals else 0.0
 
 
 class DomainIntelligence(_Base):
@@ -406,13 +441,16 @@ class ThreatSurface(BaseModel):
     """Compromise / hosting-neighbourhood exposure (higher score = worse)."""
     score: int = 0                       # 0..100
     grade: TrustGrade
-    infra_score: float = 0.0
-    ip_direct_threat_score: float = 0.0
-    fast_flux_risk: float = 0.0
-    dga_risk: float = 0.0
-    concentration_risk: float = 0.0
-    certstream_risk: float = 0.0
-    dangling_cname_risk: float = 0.0
+    # None = NOT MEASURED, carried through from RiskAssessment so the DISPLAY layer can still
+    # tell absence from zero. `score`/`grade` above are computed and stay non-optional: those
+    # are the "absence is not evidence" side, where unknown is deliberately coerced to 0.0.
+    infra_score: float | None = None
+    ip_direct_threat_score: float | None = None
+    fast_flux_risk: float | None = None
+    dga_risk: float | None = None
+    concentration_risk: float | None = None
+    certstream_risk: float | None = None
+    dangling_cname_risk: float | None = None
     is_dangling_cname: bool = False
     cname_target: Optional[str] = None
     certstream_hits: int = 0
