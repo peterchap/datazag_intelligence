@@ -491,6 +491,18 @@ class BaseRenderer:
         infra = self.o.get("infrastructure_concentration") or {}
         geo   = self.o.get("geolocation") or self.o.get("geolocation_jurisdiction") or {}
 
+        # None = NOT MEASURED, 0.0 = measured-and-zero. See the AC-4 note further down: a
+        # missing signal must never read as a safe one. Defined up here because BOTH the IP
+        # reputation block below and the domain-intelligence block later need it.
+        def _score(src: dict, key: str):
+            v = src.get(key)
+            if v is None or v == "":
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
         # Remove has_bgp_data guard to always render the table for NXDOMAINs
 
         # ── Read from correct output dict keys ────────────────────────────────
@@ -512,10 +524,16 @@ class BaseRenderer:
         churn_label  = "High" if churn_rate > 0.3 else "Low"
 
         # IP reputation
-        asn_core         = ip.get("asn_core_risk", 0.0)
-        ip_threat        = ip.get("ip_direct_threat_score", 0.0)
-        prefix_infra     = ip.get("prefix_infra_score", 0.0)
-        neighbourhood    = ip.get("neighbourhood_density_risk", 0.0)
+        # ⚠️ Same absent-is-not-zero rule as the domain block. `ip` is
+        # `self.o.get("ip_reputation") or {}`, so a domain whose IP enrichment produced
+        # nothing — an NXDOMAIN, a failed lookup — used to yield 0.0 for all four of these
+        # and render four GREEN 0.00 badges. That is worse here than in the domain block,
+        # because the `has_bgp_data` guard above was deliberately removed so this table
+        # ALWAYS renders: there is no longer anything suppressing the empty case.
+        asn_core         = _score(ip, "asn_core_risk")
+        ip_threat        = _score(ip, "ip_direct_threat_score")
+        prefix_infra     = _score(ip, "prefix_infra_score")
+        neighbourhood    = _score(ip, "neighbourhood_density_risk")
         spamhaus         = ip.get("spamhaus_zen", False)
         urlhaus          = ip.get("urlhaus_listed", False)
         feodo            = ip.get("feodo_listed", False)
@@ -610,15 +628,6 @@ class BaseRenderer:
         # signal must never read as a safe signal", carried in `data_completeness` — and the
         # report path had no equivalent. None now means NOT MEASURED and renders "Not
         # assessed"; 0.0 keeps meaning measured-and-zero, a different and legitimate claim.
-        def _score(src: dict, key: str):
-            v = src.get(key)
-            if v is None or v == "":
-                return None
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                return None
-
         ff_score  = _score(domain_details, "fast_flux_risk")
         dga_score = _score(domain_details, "dga_risk")
         domain_risk_score = _score(domain_intel, "domain_risk_score")
@@ -642,6 +651,16 @@ class BaseRenderer:
                 'font-weight:600;padding:2px 6px;border-radius:4px;'
                 'border:1px solid #CBD5E1">Not assessed</span>'
             )
+
+        def _score_badge(val, scale: float = 1.0) -> str:
+            """Badge for a 0-1 risk value, or 'Not assessed' when it was never measured."""
+            return (_risk_badge(val / scale, f"{val:.2f}")
+                    if val is not None else _unknown_badge())
+
+        asn_core_badge      = _score_badge(asn_core)
+        ip_threat_badge     = _score_badge(ip_threat)
+        prefix_infra_badge  = _score_badge(prefix_infra)
+        neighbourhood_badge = _score_badge(neighbourhood)
 
         ff_badge = (_risk_badge(ff_score, f"{ff_label} ({ff_score:.2f})")
                     if ff_score is not None else _unknown_badge())
@@ -769,28 +788,28 @@ class BaseRenderer:
                 <td style="padding:6px 0;font-size:12px;color:#475569;
                             border-bottom:1px solid #F8FAFC">ASN core risk</td>
                 <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
-                    {_risk_badge(asn_core, f"{asn_core:.2f}")}
+                    {asn_core_badge}
                 </td>
                 </tr>
                 <tr>
                 <td style="padding:6px 0;font-size:12px;color:#475569;
                             border-bottom:1px solid #F8FAFC">IP threat score</td>
                 <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
-                    {_risk_badge(ip_threat, f"{ip_threat:.2f}")}
+                    {ip_threat_badge}
                 </td>
                 </tr>
                 <tr>
                 <td style="padding:6px 0;font-size:12px;color:#475569;
                             border-bottom:1px solid #F8FAFC">Prefix infra score</td>
                 <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
-                    {_risk_badge(prefix_infra, f"{prefix_infra:.2f}")}
+                    {prefix_infra_badge}
                 </td>
                 </tr>
                 <tr>
                 <td style="padding:6px 0;font-size:12px;color:#475569;
                             border-bottom:1px solid #F8FAFC">Neighbourhood density</td>
                 <td style="padding:6px 0;text-align:right;border-bottom:1px solid #F8FAFC">
-                    {_risk_badge(neighbourhood, f"{neighbourhood:.2f}")}
+                    {neighbourhood_badge}
                 </td>
                 </tr>
                 <tr>
