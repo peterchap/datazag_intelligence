@@ -96,6 +96,27 @@ def test_exposure_sums_exact_only_and_keeps_lookalikes_separate():
     assert e.targeting_concentration == 1.0
 
 
+def test_exposure_records_domains_whose_lookup_failed():
+    """A domain whose rollup lookup never ran contributes UNKNOWN, not zero. The
+    estate total silently excludes it, so the rollup has to say which domains those
+    were — otherwise a partial count reads as a complete one."""
+    refs = [
+        make_ref("a.com", "s", imps=[imp("microsoft365", 1, 3, ["m1.com"])]),
+        make_ref("down.com", "s", imps=[], lookup_ok=False),
+    ]
+    e = compute_exposure(refs, TH)
+    assert e.total_30d == 3                            # only the checked domain
+    assert e.unchecked_domains == ["down.com"]
+    assert e.fully_checked is False
+
+
+def test_exposure_fully_checked_when_every_lookup_ran():
+    refs = [make_ref("a.com", "s", imps=[]), make_ref("b.com", "s", imps=[])]
+    e = compute_exposure(refs, TH)
+    assert e.total_30d == 0
+    assert e.unchecked_domains == [] and e.fully_checked is True
+
+
 def test_calendar_orders_overdue_first_and_counts_windows():
     refs = [
         make_ref("exp.com", "s", expires="2026-06-20"),   # overdue (before NOW)

@@ -24,6 +24,8 @@ import os
 import re
 import sys
 
+from secret_redaction import redacted_error
+
 from intelligence_contract import (
     BrandExposure, DomainIntelligence, ExternalThreat, PlatformImpersonation,
 )
@@ -150,7 +152,8 @@ class LocalIntelligenceClient:
         try:
             return await asyncio.to_thread(self._query_impersonations, detected, brand)
         except Exception as e:  # impersonations are supplementary — never fatal
-            print(f"[local_intelligence] impersonation lookup failed: {e}")
+            # redacted: this error carries the DuckLake DSN verbatim.
+            print(f"[local_intelligence] impersonation lookup failed: {redacted_error(e)}")
             # lookup_ok=False: nothing was checked. Without it the renderer cannot tell
             # this from a clean result and prints "no active impersonation".
             return ExternalThreat(detected_platforms=detected, lookup_ok=False)

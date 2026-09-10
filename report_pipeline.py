@@ -30,6 +30,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from intelligence_client import IntelligenceClient, IntelligenceUnavailable
+from secret_redaction import redacted_error
 from intelligence_contract import (
     BrandFunnel,
     DomainIntelligence,
@@ -399,11 +400,11 @@ async def build_view_model(
             # enrich() degrades per-section now, but guard anyway: a wholesale lake
             # failure must NOT cost us to_view_models, which still parses the
             # lake-free hygiene (DMARC/SPF/DNSSEC) straight from the live rec.
-            print(f"  lake enrichment degraded (empty bundle): {e}")
+            print(f"  lake enrichment degraded (empty bundle): {redacted_error(e)}")
         bundle = await _ensure_rdap(domain, bundle)
         enr = lake_enrich.to_view_models(live_output or {}, bundle)
     except Exception as e:
-        print(f"  enrichment view-models unavailable: {e}")
+        print(f"  enrichment view-models unavailable: {redacted_error(e)}")
     hyg = enr.get("hygiene")
     if hyg is not None:
         # One-line audit of what THIS run's live scan observed — makes stale-DNS

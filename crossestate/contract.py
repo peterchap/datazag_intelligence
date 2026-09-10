@@ -183,6 +183,16 @@ class ExposureRollup(_Base):
     # UNMEASURED, not low; a report must not read a zero as a small number.
     unmeasured_platforms: list[str] = Field(
         default_factory=lambda: ["Microsoft 365", "Google Workspace"])
+    # Domains whose impersonation lookup could not RUN (ExternalThreat.lookup_ok
+    # False — rollup unreachable). Their contribution to every count above is
+    # UNKNOWN, not zero, so a total of 0 across an estate with unchecked domains is
+    # not an all-clear and must not render as one. Same rule as unmeasured_platforms
+    # directly above, and as the report-side lookup_ok it aggregates.
+    unchecked_domains: list[str] = Field(default_factory=list)
+
+    @property
+    def fully_checked(self) -> bool:
+        return not self.unchecked_domains
 
 
 # ---------------------------------------------------------------------------

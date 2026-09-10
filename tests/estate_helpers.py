@@ -35,7 +35,8 @@ ESTATE_MANIFEST = os.path.join(FIXTURES, "estate", "manifest.json")
 def make_vm(domain, score=30, *, dmarc="reject", spf_strict=True, dnssec=True,
             caa=True, ns=None, registrar=None, asn=0, isp=None, mailbox=None,
             hosting=None, expires=None, status="clientTransferProhibited",
-            imps=None, lookalikes=None, subs=None, cert=None, has_intel=True) -> ReportViewModel:
+            imps=None, lookalikes=None, subs=None, cert=None, has_intel=True,
+            lookup_ok=True) -> ReportViewModel:
     g = score_to_grade(score if has_intel else None)
     return ReportViewModel(
         domain=domain, has_intelligence=has_intel, composite_score=score, grade=g,
@@ -52,7 +53,8 @@ def make_vm(domain, score=30, *, dmarc="reject", spf_strict=True, dnssec=True,
         annotation=Annotation(domain=domain, ns_provider=ns, mailbox_provider=mailbox,
                               hosting_provider=hosting, asn=asn or None),
         external_threat=ExternalThreat(impersonations=imps or [],
-                                       lookalike_candidates=lookalikes or []),
+                                       lookalike_candidates=lookalikes or [],
+                                       lookup_ok=lookup_ok),
         subdomains=subs or [], cert_analysis=cert or {},
     )
 
