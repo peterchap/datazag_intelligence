@@ -77,10 +77,10 @@ def test_flagship_full_renders():
     assert SENSITIVE_OWN_BRAND in html
     assert "41" in html                       # microsoft365 count_30d
     assert "Platforms targeted" in html
-    # 12 pages since the four-page external arc became one page; numbering intact
-    assert "Page 1 of 12" in html
-    assert "Page 12 of 12" in html
-    assert html.count('class="page') == 12
+    # 13 pages: the four-page external arc became one, plus the attack-economy page
+    assert "Page 1 of 13" in html
+    assert "Page 13 of 13" in html
+    assert html.count('class="page') == 13
     # medallion findings drive the priorities/infra side
     assert "Trust Grade" in html or "trust grade" in html.lower()
 
@@ -222,7 +222,7 @@ def test_external_threat_is_a_single_page_with_the_data_and_actions():
     brand exposure) is one page. Three of those pages argued the general case and
     carried no domain-specific action, so they read the same for most domains."""
     html = HealthReportRenderer(_sample_vm()).to_html()
-    assert html.count("Section 02 · External threat") == 1
+    assert html.count("Section 03 · External threat") == 1
     # the removed pages' headline copy is gone
     for gone in ("Why attackers prefer trusted platforms",
                  "Your stack, ordered by attacker preference",
@@ -249,12 +249,42 @@ def test_section_numbering_has_no_gaps():
     assert nums == list(range(1, len(nums) + 1)), f"gap in section numbers: {nums}"
 
 
-def test_no_references_to_removed_sections():
+def test_every_section_reference_resolves():
+    """Renumbering is easy to get wrong and invisible in a word count. Rather than
+    ban particular numbers, derive the sections that exist and check every
+    cross-reference in the copy against them."""
     html = HealthReportRenderer(_sample_vm()).to_html()
     body = re.sub(r"<style.*?</style>", "", html, flags=re.S)   # CSS comments aren't copy
+    exists = {int(n) for n in re.findall(r'class="section-num">Section (\d\d)<', body)}
+    assert exists, "no numbered sections found"
+    referenced = {int(n) for n in re.findall(r"[Ss]ections?\s+(\d\d)\b", re.sub(r"<[^>]+>", " ", body))}
+    dangling = referenced - exists
+    assert not dangling, f"copy points at sections that do not exist: {sorted(dangling)} (have {sorted(exists)})"
+    # and the page that was deleted must not be referred to by name
     assert "brand-exposure section" not in body
-    for stale in ("section 09", "Section 09", "Section 08"):
-        assert stale not in body, f"points at a section that no longer exists: {stale!r}"
+
+
+def test_attack_economy_page_is_present_and_honest():
+    """The free report's strongest context page, ported. Industry figures must stay
+    labelled as industry figures — this page is the one place the report cites
+    numbers it did not measure."""
+    html = HealthReportRenderer(_sample_vm()).to_html()
+    assert "How the cyber attack economy works." in html
+    assert "spray and pray" in html
+    assert "$10.5 trillion" in html
+    assert "Industry context, not a Datazag measurement" in html, \
+        "the cited figure must not read as a Datazag observation"
+    # it names the reader's own top platform rather than a generic example
+    assert "everyone who uses Microsoft 365" in html
+
+
+def test_free_tier_gets_context_without_platform_global_counts():
+    """The free tier suppresses platform-global impersonation counts
+    (brand_page_data_contract.md). It gets this context page, which cites only
+    industry figures, and NOT the external page, which reports those counts."""
+    html = HealthReportRenderer(_sample_vm(), audience="health").to_html()
+    assert "How the cyber attack economy works." in html
+    assert "Section 03 · External threat" not in html
 
 
 def test_teaser_masks_lookalike_domains():

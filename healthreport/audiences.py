@@ -12,14 +12,15 @@ Section keys map 1:1 to pages in HEALTH_REPORT_TEMPLATE, in canonical order:
     cover               Page 1  — dual-pillar cover + overall grade
     toc                 Page 2  — table of contents (filtered to enabled sections)
     glance              Page 3  — at a glance: grade band, scorecards, priorities
-    external_summary    Page 4  — external threat: stack, impersonation, brand
-    controls            Page 5  — defensive controls audit (trust surface detail)
-    infra_routing       Page 6  — IP / prefix / ASN quality (routing + reputation)
-    hidden_infra        Page 7  — registration + subdomain estate
-    timeline            Page 8  — change signals
-    roadmap             Page 9  — remediation roadmap (fortnight/quarter/year)
-    remediation_plan    Page 10 — IT remediation tear-off (detailed per-fix steps)
-    glossary            Page 11 — glossary
+    attack_economy      Page 4  — how the cyber attack economy works (context)
+    external_summary    Page 5  — external threat: stack, impersonation, brand
+    controls            Page 6  — defensive controls audit (trust surface detail)
+    infra_routing       Page 7  — IP / prefix / ASN quality (routing + reputation)
+    hidden_infra        Page 8  — registration + subdomain estate
+    timeline            Page 9  — change signals
+    roadmap             Page 10 — remediation roadmap (fortnight/quarter/year)
+    remediation_plan    Page 11 — IT remediation tear-off (detailed per-fix steps)
+    glossary            Page 12 — glossary
 
 The external surface was four pages (why / vendor_footprint / platform_exposure /
 brand_exposure). Three of them argued the general case for platform impersonation
@@ -33,7 +34,7 @@ from dataclasses import dataclass
 
 
 SECTION_ORDER: tuple[str, ...] = (
-    "cover", "toc", "glance", "external_summary", "controls", "dns_records",
+    "cover", "toc", "glance", "attack_economy", "external_summary", "controls", "dns_records",
     "infra_routing", "hidden_infra", "timeline", "roadmap", "remediation_plan",
     "glossary",
 )
@@ -71,7 +72,7 @@ AUDIENCES: dict[str, AudienceConfig] = {
         title="Cyber Risk Report",
         description="Underwriting / premium-loading view for insurers and "
                     "due-diligence providers.",
-        sections=("cover", "toc", "glance", "external_summary", "controls",
+        sections=("cover", "toc", "glance", "attack_economy", "external_summary", "controls",
                   "dns_records", "infra_routing", "timeline", "glossary"),
         narrative_keys=("key_finding", "executive_summary", "insurer_signals",
                         "threat_narrative"),
@@ -82,7 +83,7 @@ AUDIENCES: dict[str, AudienceConfig] = {
         title="Advisory Report",
         description="Merged consultant/sales view: technical findings plus "
                     "commercial talking points for prospect conversations.",
-        sections=("cover", "toc", "glance", "external_summary", "controls",
+        sections=("cover", "toc", "glance", "attack_economy", "external_summary", "controls",
                   "dns_records", "infra_routing", "hidden_infra", "roadmap",
                   "remediation_plan", "glossary"),
         narrative_keys=("key_finding", "executive_summary", "threat_narrative",
@@ -112,7 +113,8 @@ AUDIENCES: dict[str, AudienceConfig] = {
         # (brand_page_data_contract.md), which the external page reports directly.
         # Its brand story is brand_funnel. The old "why" context page went with the
         # four-page external arc.
-        sections=("cover", "glance", "brand_funnel", "controls", "glossary"),
+        sections=("cover", "glance", "attack_economy", "brand_funnel", "controls",
+                  "glossary"),
         narrative_keys=("key_finding", "executive_summary", "threat_narrative"),
     ),
     # Standalone External Threat / platform-impersonation deep-dive — kept
