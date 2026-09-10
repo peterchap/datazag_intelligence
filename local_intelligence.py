@@ -140,8 +140,10 @@ class LocalIntelligenceClient:
         impersonating-domain counts per platform. EXACT matches drive
         `impersonations`; fuzzy typosquat candidates (FP-heavy, lower confidence) come
         back separately as `lookalike_candidates`. Mirrors intelligence_service.
-        query_rollup so the local + HTTP clients agree. Degrades to an empty
-        ExternalThreat (detected_platforms preserved) so the report still renders."""
+        query_rollup so the local + HTTP clients agree. A failed lookup degrades to an
+        empty ExternalThreat (detected_platforms preserved) so the report still renders,
+        but marks it lookup_ok=False — empty-because-unreachable must not render as an
+        all-clear."""
         detected = list(platforms or [])
         if not detected and not brand:
             return ExternalThreat(detected_platforms=detected)
@@ -149,7 +151,9 @@ class LocalIntelligenceClient:
             return await asyncio.to_thread(self._query_impersonations, detected, brand)
         except Exception as e:  # impersonations are supplementary — never fatal
             print(f"[local_intelligence] impersonation lookup failed: {e}")
-            return ExternalThreat(detected_platforms=detected)
+            # lookup_ok=False: nothing was checked. Without it the renderer cannot tell
+            # this from a clean result and prints "no active impersonation".
+            return ExternalThreat(detected_platforms=detected, lookup_ok=False)
 
     def _query_impersonations(self, platforms: list[str], brand: str | None = None) -> ExternalThreat:
         from lake_enrich import lake_connect  # shared DuckLake connector (carries R2 creds)

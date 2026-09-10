@@ -368,13 +368,15 @@ async def build_view_model(
     )
 
     platforms = detect_platforms(live_output) if live_output else []
-    # Impersonations are supplementary; the client already swallows transport
-    # errors and returns an empty ExternalThreat.
+    # Impersonations are supplementary; the client swallows transport errors and
+    # returns an empty ExternalThreat flagged lookup_ok=False, which the renderer
+    # reads so a failed lookup never prints as "no active impersonation".
     ext: ExternalThreat = await client.fetch_platform_impersonations(platforms, brand=domain)
     if not ext.detected_platforms:
         ext.detected_platforms = platforms
     print(f"  impersonations: platforms={platforms or '—'} → exact={len(ext.impersonations)} "
-          f"lookalike={len(ext.lookalike_candidates)} 7d={ext.total_7d} 30d={ext.total_30d}")
+          f"lookalike={len(ext.lookalike_candidates)} 7d={ext.total_7d} 30d={ext.total_30d}"
+          f"{'' if ext.lookup_ok else '  ⚠️ NOT CHECKED (lookup failed — zeros above are unknown, not clean)'}")
 
     # Active-scan brand funnel for the free health report — computed by the
     # dnsproject scan (pattern-gen + corpus resolution, where that data lives) and
@@ -422,6 +424,7 @@ async def build_view_model(
         impersonations=ext.impersonations,
         own_brand=ext.own_brand,
         findings=findings,
+        lookup_ok=ext.lookup_ok,
         lookalike_candidates=ext.lookalike_candidates,
         own_brand_lookalikes=ext.own_brand_lookalikes,
         brand_funnel=brand_funnel,
