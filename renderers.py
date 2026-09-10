@@ -534,13 +534,10 @@ class BaseRenderer:
         ip_threat        = _score(ip, "ip_direct_threat_score")
         prefix_infra     = _score(ip, "prefix_infra_score")
         neighbourhood    = _score(ip, "neighbourhood_density_risk")
-        spamhaus         = ip.get("spamhaus_zen", False)
-        urlhaus          = ip.get("urlhaus_listed", False)
-        feodo            = ip.get("feodo_listed", False)
-        feodo_malware    = ip.get("feodo_malware", "")
-        sslbl            = ip.get("sslbl_listed", False)
-        threatfox        = ip.get("threatfox_listed", False)
-        threatfox_mal    = ip.get("threatfox_malware", "")
+        # Third-party blocklist flags (Feodo / URLhaus / SSLBL / ThreatFox / Spamhaus)
+        # are not read here: Datazag does not license those feeds, so they cannot
+        # appear in a customer report. certstream_hits below is Datazag's own CT
+        # observation and stays.
         certstream_hits  = ip.get("certstream_hits", 0)
         is_bulletproof   = ip.get("is_bulletproof", False)
         is_residential   = ip.get("is_residential", False)
@@ -563,21 +560,8 @@ class BaseRenderer:
         isp = self.tech.get("isp_name", "") or ""
         asn = self.tech.get("asn", "") or ""
 
-        # ── Blocklist feed pills ──────────────────────────────────────────────
+        # ── Datazag-observed pills (no licensed blocklists) ──────────────────
         feed_pills = ""
-        for listed, label, detail in [
-            (feodo,    "Feodo",     feodo_malware or "C2 infrastructure"),
-            (sslbl,    "SSLBL",     "Malicious SSL certificate"),
-            (urlhaus,  "URLhaus",   "Malware distribution"),
-            (threatfox, "ThreatFox", threatfox_mal or "IOC match"),
-            (spamhaus, "Spamhaus DROP", "DROP listed"),
-        ]:
-            if listed:
-                feed_pills += (
-                    f'<span title="{detail}" style="background:#FCEBEB;color:#A32D2D;'
-                    f'padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;'
-                    f'display:inline-block;margin:2px 3px">{label}</span>'
-                )
 
         if brands_hit:
             feed_pills += (
@@ -1501,9 +1485,8 @@ class BaseRenderer:
         bgp_colour  = "#A32D2D" if moas else rpki_colour
 
         # Blocklist
-        spamhaus = bl.get("spamhaus_zen") or bl.get("spamhaus_xbl")
-        urlhaus  = bl.get("urlhaus_listed") or bl.get("urlhaus")
-        any_listed = bl.get("any_listed") or spamhaus or urlhaus or (bl.get("firehol_level", 0) > 0)
+        # Licensed blocklist flags are not consulted; only Datazag's own signal.
+        any_listed = bool(bl.get("any_listed"))
         feed_matches = bl.get("feed_matches", [])
         listing_count = bl.get("listing_count", len(feed_matches))
 
@@ -2880,7 +2863,7 @@ class SalesRenderer(BaseRenderer):
             p.get("malicious_count", 0) > 0
             for p in corr.get("pivot_findings", [])
         )
-        any_listed = bl.get("any_listed") or bl.get("spamhaus_zen") or bl.get("urlhaus_listed")
+        any_listed = bool(bl.get("any_listed"))   # no licensed blocklist flags
         moas = bgp.get("moas_detected", False)
 
         corpus_teaser = f"""

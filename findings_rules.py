@@ -153,26 +153,10 @@ def _threat_findings(di: DomainIntelligence) -> list[dict]:
         })
 
     # Active threat-feed listings — categorical, severe.
-    _FEED_COPY = {
-        "feodo": ("Feodo C2 tracker", "command-and-control infrastructure"),
-        "urlhaus": ("URLhaus", "malware distribution"),
-        "sslbl": ("SSL Blacklist", "malicious TLS certificate"),
-        "threatfox": ("ThreatFox", "indicator-of-compromise match"),
-        "spamhaus": ("Spamhaus DROP", "do-not-route/peer listed prefix"),
-    }
-    for feed in di.threat_feeds.listed_feeds():
-        label, why = _FEED_COPY[feed]
-        out.append({
-            "finding": f"threat_feed_{feed}",
-            "severity": "critical",
-            "title": f"Listed on {label}",
-            "evidence": f"{label}: listed",
-            "detail": f"This domain's serving infrastructure is listed on {label} "
-                      f"({why}). Active feed listings are a direct compromise indicator.",
-            "remediation": "Treat the host as compromised: isolate, investigate, and "
-                           "migrate to clean infrastructure; request delisting once remediated.",
-            "category": "threat_intelligence",
-        })
+    # Threat-feed findings (Feodo / URLhaus / SSLBL / ThreatFox / Spamhaus) were
+    # removed with the feeds: Datazag does not license them, so they cannot drive a
+    # finding in a customer report. Infrastructure findings now come from Datazag's
+    # own observation — RPKI, MOAS, certificate issuance, co-tenancy, DGA/fast-flux.
 
     if di.certstream.hits > 0:
         out.append({
@@ -373,17 +357,6 @@ def _impersonation_findings(impersonations: list[PlatformImpersonation]) -> list
 _INFRA = "infrastructure_intelligence"
 _ROUTE = "routing_security"
 REASON_CODE_COPY: dict[str, dict] = {
-    "SPAMHAUS_ASN_DROP": {"severity": "critical", "category": _INFRA,
-                          "title": "Hosting ASN on Spamhaus DROP",
-                          "detail": "The hosting AS is on the Spamhaus DROP list (do not "
-                                    "route or peer)."},
-    "SPAMHAUS_PREFIX_OVERLAP": {"severity": "critical", "category": _INFRA,
-                                "title": "Announcing prefix overlaps Spamhaus DROP",
-                                "detail": "The announcing prefix overlaps a Spamhaus DROP "
-                                          "range — known hostile address space."},
-    "FEODO_INFRA_OVERLAP": {"severity": "high", "category": _INFRA,
-                            "title": "Infrastructure overlaps Feodo C2",
-                            "detail": "Hosting overlaps Feodo command-and-control ranges."},
     "CERTSTREAM_ANOMALY": {"severity": "high", "category": _INFRA,
                            "title": "CertStream issuance anomaly on network",
                            "detail": "Anomalous malicious-certificate issuance was observed "
@@ -426,7 +399,17 @@ REASON_CODE_COPY: dict[str, dict] = {
 
 # Positive / neutral reason codes — these are NOT defects, so they must not be
 # emitted as negative findings (the trust rules already credit MANRS membership).
-REASON_CODE_SKIP: set[str] = {"MANRS_MEMBER"}
+# Codes we never surface. MANRS_MEMBER is a positive signal, not a finding. The
+# rest are derived from feeds Datazag does not license (Spamhaus DROP, Feodo): the
+# corpus may still carry them, but they cannot reach a customer report, and skipping
+# them here means they cannot arrive under the generic "infrastructure signal"
+# title either.
+_UNLICENSED_REASON_CODES = {
+    "SPAMHAUS_ASN_DROP", "SPAMHAUS_PREFIX_OVERLAP", "SPAMHAUS_DROP",
+    "FEODO_INFRA_OVERLAP", "URLHAUS_INFRA_OVERLAP", "SSLBL_INFRA_OVERLAP",
+    "THREATFOX_INFRA_OVERLAP", "ABUSE_CH_OVERLAP",
+}
+REASON_CODE_SKIP: set[str] = {"MANRS_MEMBER"} | _UNLICENSED_REASON_CODES
 
 
 def _humanise(code: str) -> str:
@@ -445,7 +428,10 @@ def _reason_code_findings(di: DomainIntelligence, already: set[str]) -> list[dic
         out.append({
             "finding": key,
             "severity": copy["severity"] if copy else "medium",
-            "title": copy["title"] if copy else _humanise(code),
+            # An unmapped code must not become the finding's TITLE: a raw internal
+            # token reads as placeholder text in a customer-facing report. The signal
+            # is kept — the code itself is carried in the evidence line below.
+            "title": copy["title"] if copy else "Infrastructure signal flagged by the Datazag corpus",
             "evidence": f"Datazag corpus reason code: {code}",
             "detail": copy["detail"] if copy else
                       f"The Datazag corpus flagged this domain's infrastructure with reason "

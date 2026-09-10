@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -76,9 +77,11 @@ def test_flagship_full_renders():
     assert SENSITIVE_OWN_BRAND in html
     assert "41" in html                       # microsoft365 count_30d
     assert "Platforms targeted" in html
-    # all 15 pages (incl. DNS records, infra/routing, IT remediation), numbering intact
-    assert "Page 1 of 15" in html
-    assert "Page 15 of 15" in html
+    # 12 pages: the four-page external arc became one, and the attack-economy page
+    # is now a paragraph here (it stays a full page on the free tier)
+    assert "Page 1 of 12" in html
+    assert "Page 12 of 12" in html
+    assert html.count('class="page') == 12
     # medallion findings drive the priorities/infra side
     assert "Trust Grade" in html or "trust grade" in html.lower()
 
@@ -211,6 +214,207 @@ def test_failed_lookup_priority_makes_no_claim():
     assert "not checked" in plat["title"].lower()
 
 
+# ---------------------------------------------------------------------------
+# External threat: one page, and it carries actions
+# ---------------------------------------------------------------------------
+
+def test_external_threat_is_a_single_page_with_the_data_and_actions():
+    """The four-page external arc (why / vendor footprint / platform exposure /
+    brand exposure) is one page. Three of those pages argued the general case and
+    carried no domain-specific action, so they read the same for most domains."""
+    html = HealthReportRenderer(_sample_vm()).to_html()
+    # numbered from the enabled set, so this follows the renderer rather than a
+    # constant that goes stale the next time a page moves
+    n = HealthReportRenderer(_sample_vm())._section_numbers()["external_summary"]
+    assert html.count(f"Section {n} · External threat") == 1
+    # the removed pages' headline copy is gone
+    for gone in ("Why attackers prefer trusted platforms",
+                 "Your stack, ordered by attacker preference",
+                 "Active campaigns against your platforms",
+                 "Attacks aimed at your customers"):
+        assert gone not in html, f"four-page arc survives: {gone!r}"
+    # but every piece of DATA those pages carried is still on the one page
+    for kept in ("micros0ft-365-login.com",     # exact-match lure sample
+                 "rnicrosoft365.com",           # fuzzy candidate sample
+                 "riskyexample-support.com",    # own-brand lookalike
+                 "41", "Platforms targeted", "Microsoft 365", "Okta", "Mailchimp"):
+        assert kept in html, f"data lost in the merge: {kept!r}"
+    # and it now tells the reader what to do, which the four pages never did
+    assert "What to do" in html
+    assert "Brief staff who use Microsoft 365" in html
+
+
+def test_section_numbering_has_no_gaps():
+    """Renumbering after the merge: a reader must not see 01 jump to 06."""
+    import re
+    html = HealthReportRenderer(_sample_vm()).to_html()
+    nums = [int(n) for n in re.findall(r'class="section-num">Section (\d\d)<', html)]
+    assert nums == sorted(nums), f"sections out of order: {nums}"
+    assert nums == list(range(1, len(nums) + 1)), f"gap in section numbers: {nums}"
+
+
+def test_every_section_reference_resolves():
+    """Renumbering is easy to get wrong and invisible in a word count. Rather than
+    ban particular numbers, derive the sections that exist and check every
+    cross-reference in the copy against them."""
+    html = HealthReportRenderer(_sample_vm()).to_html()
+    body = re.sub(r"<style.*?</style>", "", html, flags=re.S)   # CSS comments aren't copy
+    exists = {int(n) for n in re.findall(r'class="section-num">Section (\d\d)<', body)}
+    assert exists, "no numbered sections found"
+    referenced = {int(n) for n in re.findall(r"[Ss]ections?\s+(\d\d)\b", re.sub(r"<[^>]+>", " ", body))}
+    dangling = referenced - exists
+    assert not dangling, f"copy points at sections that do not exist: {sorted(dangling)} (have {sorted(exists)})"
+    # and the page that was deleted must not be referred to by name
+    assert "brand-exposure section" not in body
+
+
+# ---------------------------------------------------------------------------
+# Cover headline
+# ---------------------------------------------------------------------------
+
+def _clean_medallion() -> dict:
+    """The sample domain is on a C2 feed, which now (correctly) leads the cover. To
+    exercise the other branches the infrastructure has to be clean."""
+    d = _load("medallion_sample.json")
+    d["threat_feeds"] = {}
+    d["routing"] = {**d.get("routing", {}), "rpki_state": "valid", "moas_detected": False}
+    d["risk_assessment"] = {**d.get("risk_assessment", {}), "reason_codes": []}
+    d["domain_dns_facts"] = {**d.get("domain_dns_facts", {}), "is_dangling_cname": False}
+    d["certstream"] = {"hits": 0}
+    d["concentration"] = {"pivot_findings": []}
+    return d
+
+
+def _hook(imps=None, own=None, lookup_ok=True, platforms=("microsoft365",), audience="flagship",
+          medallion=None):
+    di = DomainIntelligence.model_validate(medallion or _clean_medallion())
+    vm = build_view_models(di, detected_platforms=list(platforms), impersonations=imps or [],
+                           own_brand=own or BrandExposure(), findings=derive_findings(di, imps or []),
+                           lookup_ok=lookup_ok)
+    return HealthReportRenderer(vm, audience=audience)._cover_hook()
+
+
+def test_cover_leads_with_the_most_serious_finding_not_the_most_marketable():
+    """A domain whose routing is hijackable has a bigger problem than lookalike
+    domains. Leading with the impersonation count would bury it.
+
+    (This used to lead on a Feodo C2 listing. That signal is gone with the licensed
+    feeds; the lead now comes from Datazag's own routing observation.)"""
+    imps = [PlatformImpersonation(platform="microsoft365", count_7d=14, count_30d=41)]
+    h = _hook(imps=imps, medallion=_load("medallion_sample.json"))
+    assert "Immediate investigation" in h["title"]
+    assert "RPKI" in h["title"] or "RPKI" in h["deck"]
+    # the impersonation is still reported, as secondary
+    assert "41" in h["deck"] or "lookalike" in h["deck"]
+
+
+def test_cover_lead_does_not_lowercase_an_acronym():
+    d = _load("medallion_sample.json")
+    d["threat_feeds"] = {}                      # leave RPKI invalid as the top finding
+    h = _hook(medallion=d)
+    assert "rPKI" not in h["title"], "acronym mangled by the lowercasing rule"
+
+
+def test_cover_headline_leads_with_this_domains_numbers():
+    """A cover that could sit on any report is a weak cover. It leads with a count."""
+    imps = [PlatformImpersonation(platform="microsoft365", count_7d=14, count_30d=41)]
+    h = _hook(imps=imps)
+    assert "41" in h["title"] or "41" in h["deck"]
+    assert "Microsoft 365" in h["deck"]          # display name, not the raw key
+    assert "microsoft365" not in h["deck"]
+
+
+def test_cover_headline_claims_nothing_when_the_lookup_failed():
+    """The cover is the most-read line in the report; a failed lookup must not
+    become a quiet all-clear there either."""
+    h = _hook(imps=[], lookup_ok=False, platforms=("microsoft365", "okta"))
+    assert "could not run" in h["deck"]
+    for claim in ("None are being imitated", "no active", "No active"):
+        assert claim not in h["deck"] and claim not in h["title"]
+
+
+def test_cover_headline_all_clear_only_when_checked():
+    h = _hook(imps=[], lookup_ok=True, platforms=("microsoft365", "okta"))
+    assert "None are being imitated today" in h["deck"]
+
+
+def test_cover_headline_free_tier_never_cites_a_platform_global_count():
+    """The '157' must not reach the free cover, even as a headline number."""
+    imps = [PlatformImpersonation(platform="Google Workspace", count_7d=20, count_30d=157)]
+    h = _hook(imps=imps, audience="health")
+    assert "157" not in h["title"] and "157" not in h["deck"]
+
+
+# ---------------------------------------------------------------------------
+# Executive summary
+# ---------------------------------------------------------------------------
+
+def _obs():
+    import observatory, os
+    os.environ["OBSERVATORY_DATE"] = "20260908"
+    return observatory.load(os.path.join(_FIX, "observatory") + "/")
+
+
+def test_executive_summary_answers_so_what_in_business_language():
+    """The old opening named a grade band ("exposure is at critical exposure").
+    This one leads with what was found and what to do about it."""
+    es = HealthReportRenderer(_sample_vm(), observatory=_obs())._executive_summary()
+    assert es["verdict"] in ("needs immediate attention", "needs attention",
+                             "is broadly sound on what we can see")
+    assert es["headline"].startswith("We found ")
+    # the three classes are kept apart, each with its own answer
+    assert es["immediate"] and es["fixable"] and es["monitor"]
+    # and the ongoing one does not claim the reader was singled out
+    html = HealthReportRenderer(_sample_vm(), observatory=_obs()).to_html()
+    assert "Not aimed at you specifically" in html
+
+
+def test_executive_summary_benchmark_carries_its_denominator():
+    """A corpus share quoted without its population is a wrong number."""
+    es = HealthReportRenderer(_sample_vm(), observatory=_obs())._executive_summary()
+    assert es["benchmark"] and "Datazag tracks" in es["benchmark"]
+    assert "resolving domains" in es["benchmark"]
+
+
+def test_executive_summary_omits_the_benchmark_when_unreachable():
+    import observatory
+    es = HealthReportRenderer(_sample_vm(),
+                              observatory=observatory.Observatory.unavailable())._executive_summary()
+    assert es["benchmark"] is None
+    html = HealthReportRenderer(_sample_vm(),
+                                observatory=observatory.Observatory.unavailable()).to_html()
+    assert "Datazag tracks" not in html      # no invented corpus figure
+
+
+def test_attack_economy_is_a_page_on_the_free_tier_and_a_paragraph_on_the_paid_one():
+    """It argues the general case, which earns a page in a lead magnet and a
+    paragraph in a report a customer paid for. Industry figures must stay labelled
+    as industry figures wherever it runs — this is the one place the report cites
+    numbers it did not measure."""
+    paid = HealthReportRenderer(_sample_vm()).to_html()
+    assert "How the cyber attack economy works." not in paid
+    assert "Why you are exposed even if nobody targeted you" in paid
+    assert "Nobody decided on you." in paid
+
+    html = HealthReportRenderer(_sample_vm(), audience="health").to_html()
+    assert "How the cyber attack economy works." in html
+    assert "spray and pray" in html
+    assert "$10.5 trillion" in html
+    assert "Industry context, not a Datazag measurement" in html, \
+        "the cited figure must not read as a Datazag observation"
+    # it names the reader's own top platform rather than a generic example
+    assert "everyone who uses Microsoft 365" in html
+
+
+def test_free_tier_gets_context_without_platform_global_counts():
+    """The free tier suppresses platform-global impersonation counts
+    (brand_page_data_contract.md). It gets this context page, which cites only
+    industry figures, and NOT the external page, which reports those counts."""
+    html = HealthReportRenderer(_sample_vm(), audience="health").to_html()
+    assert "How the cyber attack economy works." in html
+    assert "Section 03 · External threat" not in html
+
+
 def test_teaser_masks_lookalike_domains():
     html = HealthReportRenderer(_sample_vm(), tier="teaser").to_html()
     assert "rnicrosoft365.com" not in html
@@ -243,8 +447,11 @@ def test_it_remediation_tearoff():
     # body and immediately before the glossary section)
     rem = html.index("Remediation plan — hand this to your team.")
     roadmap = html.index("The implementation changes that close the gaps.")
-    glossary = html.index("Glossary &amp; methodology") if "Glossary &amp; methodology" in html else html.rindex("Glossary")
-    assert roadmap < rem < glossary
+    # Landmark on each PAGE's own h1: the contents lists these titles too, so a
+    # plain index() can match the table of contents instead of the section.
+    glossary = html.index("Plain-English definitions.")
+    assert roadmap < rem < glossary, (
+        f"pages out of order: roadmap@{roadmap} remediation@{rem} glossary@{glossary}")
     assert "## IT remediation plan" in r.to_markdown()
 
     # audience scoping: in flagship/advisory/remediation, not insurer/external_threat
@@ -638,7 +845,7 @@ def test_legacy_dict_enriches_render():
     assert "DMARC at p=none" in html
     # legacy findings merged in alongside medallion findings
     assert any(f["finding"] == "legacy_only" for f in r.findings)
-    assert any(f["finding"] == "threat_feed_feodo" for f in r.findings)
+    assert not any(f["finding"].startswith("threat_feed_") for f in r.findings)
     # CNAME vendor detection from legacy subdomains
     assert "Zoho" in html
 
@@ -671,7 +878,7 @@ def test_markdown_is_full_report():
     assert "micros0ft-365-login.com" in md
     assert "vpn.riskyexample.com" in md           # subdomain table populated
     assert "threat_feed_feodo" not in md          # findings shown by title, not key
-    assert "Listed on Feodo C2 tracker" in md
+    assert "Feodo" not in md                      # licensed feed, never named in a report
 
 
 def test_dict_external_threat_totals():

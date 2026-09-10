@@ -154,7 +154,7 @@ def test_build_view_model_live_post():
     assert vm.external_threat.total_30d == 41 + 25 + 4
     assert vm.external_threat.lookalike_total_30d == 11
     assert vm.findings
-    assert any(f["finding"] == "threat_feed_feodo" for f in vm.findings)
+    assert not any(f["finding"].startswith("threat_feed_") for f in vm.findings)   # unlicensed
 
 
 def test_build_view_model_reads_brand_funnel_from_scan_output():

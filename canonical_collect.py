@@ -101,25 +101,47 @@ def _split(value: Any) -> list[str]:
 
 
 def build_live_dns_report(rec: dict) -> dict:
-    """Map the celery collection → the slim `live_dns_report` the riskscore
-    endpoint merges (matches report_pipeline.synth_live_dns_report's shape, but
-    sourced from the richer celery record)."""
-    spf = (rec.get("spf") or "").lower()
+    """Map a live scan → the slim `live_dns_report` the riskscore endpoint merges.
+
+    Accepts EITHER shape this codebase passes around, because there is one payload
+    and there were two builders for it:
+
+      * the celery record — `dmarc` / `spf` as raw TXT strings (the live path);
+      * the compiled scan output — `email_auth.dmarc_policy` / `spf_raw` (what
+        report_pipeline.synth_live_dns_report read, and what --dns_file holds).
+
+    Reading only the first shape meant the second silently produced
+    "dmarc_enforced: false" for a domain publishing p=reject — absence read as a
+    negative claim, and fed to the scoring endpoint as one. The builders are now
+    one function; synth_live_dns_report delegates here.
+    """
+    ea = rec.get("email_auth") or {}
+    spf = (rec.get("spf") or ea.get("spf_raw") or "").lower()
     dmarc = (rec.get("dmarc") or "").lower()
-    dmarc_policy = ""
-    for part in dmarc.split(";"):
-        part = part.strip()
-        if part.startswith("p="):
-            dmarc_policy = part[2:].strip()
-            break
-    a_records = _split(rec.get("a"))
-    lowest_ttl = rec.get("a_ttl") or rec.get("lowest_ttl") or 0
+    dmarc_policy = (ea.get("dmarc_policy") or "").strip().lower()
+    if not dmarc_policy:
+        for part in dmarc.split(";"):
+            part = part.strip()
+            if part.startswith("p="):
+                dmarc_policy = part[2:].strip()
+                break
+    tech = rec.get("technographics") or {}
+    dns_rec = rec.get("dns_records") or {}
+    a_records = _split(rec.get("a")) or list(dns_rec.get("a") or [])
+    labels = rec.get("labels") or {}
+    lowest_ttl = (rec.get("a_ttl") or rec.get("lowest_ttl") or labels.get("lowest_ttl")
+                  or (rec.get("dns_profile", {}).get("security_heuristics", {}) or {}).get("lowest_ttl")
+                  or 0)
 
     return {
         "email_security": {
-            "inferred_mbp": rec.get("mx_provider_name") or rec.get("mx_mbp_category") or "unknown",
+            "inferred_mbp": (rec.get("mx_provider_name") or rec.get("mx_mbp_category")
+                             or tech.get("mx_provider_name") or tech.get("mx_mbp_category")
+                             or "unknown"),
             "dmarc_enforced": dmarc_policy in ("reject", "quarantine"),
-            "spf_strict": "-all" in spf,
+            "spf_strict": ("-all" in spf
+                           or (ea.get("spf_strictness") or ea.get("spf") or "").lower()
+                           in ("strict", "-all", "hardfail")),
         },
         "dns_profile": {
             "records": {"A": {"raw": a_records}},
@@ -129,11 +151,18 @@ def build_live_dns_report(rec: dict) -> dict:
 
 
 def fallback_asn_ip(rec: dict) -> tuple[Optional[int], Optional[str]]:
-    """Best-effort ASN + primary IP for out-of-corpus scoring."""
-    asn_raw = rec.get("asn")
+    """Best-effort ASN + primary IP for out-of-corpus scoring.
+
+    Reads either scan shape, for the reason build_live_dns_report above does: the
+    celery record carries `asn`/`a` at the top level, the compiled output nests
+    them under technographics/dns_records. Reading one shape meant the other
+    scored with no fallback ASN at all — the domain is then out-of-corpus with
+    nothing to fall back TO, silently."""
+    tech = rec.get("technographics") or {}
+    asn_raw = rec.get("asn") or tech.get("asn")
     try:
         asn = int(asn_raw) if asn_raw not in (None, "", "—") else None
     except (TypeError, ValueError):
         asn = None
-    a = _split(rec.get("a"))
+    a = _split(rec.get("a")) or list((rec.get("dns_records") or {}).get("a") or [])
     return asn, (a[0] if a else None)

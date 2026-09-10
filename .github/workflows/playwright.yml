@@ -5,6 +5,26 @@ on:
   pull_request:
     branches: [ main, master ]
 jobs:
+  # The Python suite. It was not running here at all: this workflow installed npm
+  # and Playwright only, so every green check meant the browser tests passed while
+  # 200+ contract, renderer, editorial and compliance tests ran nowhere but a
+  # developer's machine. The licensed-feed guard in particular is worth nothing if
+  # CI never executes it.
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pydantic jinja2 aiohttp duckdb pyarrow
+    - name: Run the Python test suite
+      run: python -m pytest tests/ -q
+
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
