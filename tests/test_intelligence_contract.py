@@ -79,10 +79,11 @@ def test_parse_nxdomain():
     assert not di.has_intelligence
 
 
-def test_null_scalars_degrade_to_defaults():
-    """Producer NULLs (a dropped COALESCE, an unjoined column) must not fail the
-    whole payload — this is the spotlergroup.com crash: mx_risk_score /
-    dga_entropy / ip_churn_score arrived as None and pydantic rejected them."""
+def test_null_scores_stay_unmeasured():
+    """riskscore emits NULL for an unmeasured score (its COALESCEs were removed on
+    2026-09-01). The three that crashed the spotlergroup.com run are scores, so they
+    must survive as None — re-defaulting them to 0.0 here would just re-implement the
+    COALESCE in Python. Counts and flags beside them still take their defaults."""
     di = DomainIntelligence.model_validate({
         "schema_version": "1.0", "domain": "x.test",
         "email_security": {"mx_type": "google", "mx_risk_score": None},
@@ -92,15 +93,31 @@ def test_null_scalars_degrade_to_defaults():
         "certstream": {"hits": None},
         "facts": {"asn": None, "prefix": None},
     })
-    assert di.email_security.mx_risk_score == 0.0
-    assert di.email_security.mx_type == "google"      # non-null siblings survive
-    assert di.domain_dns_facts.dga_entropy == 0.0
+    # scores: not measured
+    assert di.email_security.mx_risk_score is None
+    assert di.domain_dns_facts.dga_entropy is None
+    assert di.historical_velocity.ip_churn_score is None
+    # counts / flags / strings: concrete defaults, no ValidationError
     assert di.domain_dns_facts.lowest_ttl == 0
-    assert di.domain_dns_facts.cname_target is None   # declared Optional -> stays None
-    assert di.historical_velocity.ip_churn_score == 0.0
     assert di.historical_velocity.ip_changes_30d == 0
     assert di.certstream.hits == 0
     assert di.facts.asn == 0
+    assert di.email_security.mx_type == "google"      # non-null siblings survive
+    assert di.domain_dns_facts.cname_target is None   # declared Optional -> stays None
+    # and it reaches the view model unflattened
+    vm = build_view_models(di)
+    assert vm.trust.mx_risk_score is None
+
+
+def test_unmeasured_churn_fires_no_finding():
+    """Absence is not evidence: an unmeasured churn score must not raise a finding
+    (and must not blow up the > 0.6 comparison)."""
+    di = DomainIntelligence.model_validate({
+        "schema_version": "1.0", "domain": "x.test",
+        "historical_velocity": {"ip_churn_score": None, "ip_changes_30d": 40},
+    })
+    keys = {f["finding"] for f in derive_findings(di, [])}
+    assert "high_ip_churn" not in keys
 
 
 def test_null_risk_subscores_stay_unmeasured():

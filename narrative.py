@@ -48,6 +48,17 @@ def _vm_from_output(output: dict) -> Optional[ReportViewModel]:
     return None
 
 
+def _score(v: Optional[float]) -> str:
+    """Format a nullable medallion score for the prompt.
+
+    None means NOT MEASURED (see the NULLABLE SCORES note in intelligence_contract).
+    It must never reach the model as "0.00": the model would read a green zero as
+    evidence of safety and write that into the customer's narrative. Formatting it
+    at all also used to raise — f"{None:.2f}" is a TypeError.
+    """
+    return "not measured" if v is None else f"{v:.2f}"
+
+
 def _medallion_block(vm: Optional[ReportViewModel]) -> str:
     """The Datazag corpus-intelligence section of the prompt, from the typed
     medallion contract. All scores are 0.00-1.00 (higher = worse)."""
@@ -72,14 +83,16 @@ def _medallion_block(vm: Optional[ReportViewModel]) -> str:
 
     return f"""=== DATAZAG GLOBAL INFRASTRUCTURE INTELLIGENCE (medallion corpus) ===
 All scores 0.00-1.00, higher = worse. Composite: {vm.composite_score}/100 (grade {vm.grade.letter}).
+"not measured" means Datazag holds no measurement for that signal. It is NOT a low
+score: never describe it as clean, safe, or zero — say it was not assessed, or omit it.
 Risk assessment:
-  Infrastructure (ASN/prefix) risk: {th.infra_score:.2f}
-  IP direct threat score: {th.ip_direct_threat_score:.2f}
-  Fast-flux risk: {th.fast_flux_risk:.2f}
-  DGA risk: {th.dga_risk:.2f}
-  Concentration risk: {th.concentration_risk:.2f}
-  CertStream risk: {th.certstream_risk:.2f}
-  Dangling-CNAME risk: {th.dangling_cname_risk:.2f}{f" (target: {th.cname_target})" if th.is_dangling_cname and th.cname_target else ""}
+  Infrastructure (ASN/prefix) risk: {_score(th.infra_score)}
+  IP direct threat score: {_score(th.ip_direct_threat_score)}
+  Fast-flux risk: {_score(th.fast_flux_risk)}
+  DGA risk: {_score(th.dga_risk)}
+  Concentration risk: {_score(th.concentration_risk)}
+  CertStream risk: {_score(th.certstream_risk)}
+  Dangling-CNAME risk: {_score(th.dangling_cname_risk)}{f" (target: {th.cname_target})" if th.is_dangling_cname and th.cname_target else ""}
 Corpus reason codes:
 {reason_lines}
 Active threat-feed listings: {feed_line}
@@ -87,13 +100,13 @@ CertStream hits on serving infrastructure: {th.certstream_hits}
 Routing integrity: RPKI {t.rpki_state}; MOAS {"DETECTED" if t.moas_detected else "none"}; \
 prefix churn {t.prefixes_churn_total}; MANRS member: {"yes" if t.is_manrs_member else "no"}\
 {"; MANRS CULPRIT" if t.is_manrs_culprit else ""}
-Email security (corpus): mx_type={t.mx_type}, mx_risk={t.mx_risk_score:.2f}, \
+Email security (corpus): mx_type={t.mx_type}, mx_risk={_score(t.mx_risk_score)}, \
 DMARC {"AT RISK (not enforced)" if t.dmarc_risk else "enforced"}, \
 SPF {"AT RISK (not strict)" if t.spf_risk else "strict"}, \
 modern controls {"present" if t.modern_security_present else "incomplete"}
 Historical velocity (30 days): {hv.ip_changes_30d} IP changes, \
 {hv.asn_diversity_30d} distinct ASNs, {hv.geo_diversity_30d} geographies, \
-IP churn score {hv.ip_churn_score:.2f}
+IP churn score {_score(hv.ip_churn_score)}
 Malicious co-tenancy:
 {pivot_lines}"""
 

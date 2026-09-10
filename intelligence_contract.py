@@ -39,6 +39,36 @@ def _clamp01(v) -> float:
 
 
 # ---------------------------------------------------------------------------
+# NULLABLE SCORES — the producer contract (riskscore, 2026-09-01)
+# ---------------------------------------------------------------------------
+# riskscore emits every numeric risk/threat score as NULL when there is no
+# measurement, and documents that as deliberate:
+#
+#     fast_flux_risk, dga_risk, concentration_risk, certstream_risk,
+#     dangling_cname_risk, dga_entropy, ip_churn_score, mx_risk_score,
+#     infra_score, ip_direct_threat_score
+#
+# They used to be wrapped in COALESCE(..., 0.0), which turned "this LEFT JOIN
+# found no row" into "we measured this and it scored zero" in SQL, before any
+# consumer could tell them apart. The COALESCEs were removed; these ten fields
+# are therefore `float | None` HERE too, so the distinction survives the
+# boundary. Re-defaulting any of them to 0.0 on this side just re-implements
+# the COALESCE in Python.
+#
+# ⚠️ COMPUTATION vs DISPLAY, the rule for all ten:
+#   * anything that SCORES from them coerces None to 0.0 explicitly and says so
+#     (findings_rules._NotMeasuredIsZero) — absence is not evidence, so it must
+#     never RAISE a score or fire a finding;
+#   * anything that DISPLAYS them renders "not assessed" / "—" / "not measured"
+#     — absence must never read as SAFE.
+# Both are correct; they answer different questions.
+#
+# Counts and flags beside them (ip_changes_30d, certstream.hits, lowest_ttl,
+# the booleans) are NOT in that list: they keep concrete defaults, and _Base
+# below turns a stray NULL for one into that default rather than an error.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Medallion payload models (mirror the riskscore struct_pack)
 # ---------------------------------------------------------------------------
 
@@ -102,7 +132,8 @@ class Routing(_Base):
 
 class EmailSecurity(_Base):
     mx_type: str = "unknown"
-    mx_risk_score: float = 0.0           # 0..1
+    # None = NOT MEASURED (no MX reference row) — see the NULLABLE SCORES note above.
+    mx_risk_score: float | None = None   # 0..1
     dmarc_risk: bool = False             # True == at risk (no enforcement)
     spf_risk: bool = False               # True == at risk (not strict)
     modern_security_present: bool = False
@@ -110,7 +141,7 @@ class EmailSecurity(_Base):
     @field_validator("mx_risk_score")
     @classmethod
     def _clamp(cls, v):
-        return _clamp01(v)
+        return None if v is None else _clamp01(v)
 
 
 class FeedFlag(_Base):
@@ -152,19 +183,22 @@ class DomainDnsFacts(_Base):
     a_record_count: int = 0
     is_dangling_cname: bool = False
     cname_target: Optional[str] = None
-    dga_entropy: float = 0.0             # unbounded Shannon entropy
+    # None = NOT MEASURED — see the NULLABLE SCORES note above.
+    dga_entropy: float | None = None     # unbounded Shannon entropy
 
 
 class HistoricalVelocity(_Base):
     ip_changes_30d: int = 0
     asn_diversity_30d: int = 0
     geo_diversity_30d: int = 0
-    ip_churn_score: float = 0.0          # 0..1
+    # None = NOT MEASURED — see the NULLABLE SCORES note above. The 30-day counts beside it
+    # are counts, not scores: they keep defaulting to 0.
+    ip_churn_score: float | None = None  # 0..1
 
     @field_validator("ip_churn_score")
     @classmethod
     def _clamp(cls, v):
-        return _clamp01(v)
+        return None if v is None else _clamp01(v)
 
 
 class RiskAssessment(_Base):
@@ -443,7 +477,9 @@ class TrustSurface(BaseModel):
     spf_risk: bool = False
     modern_security_present: bool = False
     mx_type: str = "unknown"
-    mx_risk_score: float = 0.0
+    # None = NOT MEASURED, carried through from EmailSecurity for the DISPLAY layer,
+    # exactly as ThreatSurface carries the RiskAssessment sub-scores.
+    mx_risk_score: float | None = None
     # routing integrity
     asn: int = 0
     prefix: Optional[str] = None
