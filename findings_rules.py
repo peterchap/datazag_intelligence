@@ -29,10 +29,11 @@ def _fmt(v: float) -> str:
 # ---------------------------------------------------------------------------
 
 class _NotMeasuredIsZero:
-    """Read a RiskAssessment with unmeasured sub-scores coerced to 0.0.
+    """Read a medallion sub-model with unmeasured scores coerced to 0.0.
 
-    RiskAssessment sub-scores are `float | None`, where None means NOT MEASURED (see the note
-    on the model). Rule evaluation deliberately treats that as 0.0: **absence is not
+    The nullable scores are `float | None`, where None means NOT MEASURED (see the NULLABLE
+    SCORES note in intelligence_contract). Rule evaluation deliberately treats that as 0.0:
+    **absence is not
     evidence**, so a missing signal must never RAISE a finding. That is the mirror of the
     display rule, where a missing signal must never read as SAFE — the renderer shows "Not
     assessed" rather than a green 0.00.
@@ -206,8 +207,9 @@ def _threat_findings(di: DomainIntelligence) -> list[dict]:
                 "category": "threat_intelligence",
             })
 
-    if di.historical_velocity.ip_churn_score > 0.6:
-        hv = di.historical_velocity
+    # ip_churn_score is nullable: unmeasured churn must not fire a churn finding.
+    hv = _NotMeasuredIsZero(di.historical_velocity)
+    if hv.ip_churn_score > 0.6:
         out.append({
             "finding": "high_ip_churn",
             "severity": "medium",

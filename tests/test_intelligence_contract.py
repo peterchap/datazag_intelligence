@@ -79,6 +79,62 @@ def test_parse_nxdomain():
     assert not di.has_intelligence
 
 
+def test_null_scores_stay_unmeasured():
+    """riskscore emits NULL for an unmeasured score (its COALESCEs were removed on
+    2026-09-01). The three that crashed the spotlergroup.com run are scores, so they
+    must survive as None — re-defaulting them to 0.0 here would just re-implement the
+    COALESCE in Python. Counts and flags beside them still take their defaults."""
+    di = DomainIntelligence.model_validate({
+        "schema_version": "1.0", "domain": "x.test",
+        "email_security": {"mx_type": "google", "mx_risk_score": None},
+        "domain_dns_facts": {"dga_entropy": None, "lowest_ttl": None,
+                             "cname_target": None},
+        "historical_velocity": {"ip_churn_score": None, "ip_changes_30d": None},
+        "certstream": {"hits": None},
+        "facts": {"asn": None, "prefix": None},
+    })
+    # scores: not measured
+    assert di.email_security.mx_risk_score is None
+    assert di.domain_dns_facts.dga_entropy is None
+    assert di.historical_velocity.ip_churn_score is None
+    # counts / flags / strings: concrete defaults, no ValidationError
+    assert di.domain_dns_facts.lowest_ttl == 0
+    assert di.historical_velocity.ip_changes_30d == 0
+    assert di.certstream.hits == 0
+    assert di.facts.asn == 0
+    assert di.email_security.mx_type == "google"      # non-null siblings survive
+    assert di.domain_dns_facts.cname_target is None   # declared Optional -> stays None
+    # and it reaches the view model unflattened
+    vm = build_view_models(di)
+    assert vm.trust.mx_risk_score is None
+
+
+def test_unmeasured_churn_fires_no_finding():
+    """Absence is not evidence: an unmeasured churn score must not raise a finding
+    (and must not blow up the > 0.6 comparison)."""
+    di = DomainIntelligence.model_validate({
+        "schema_version": "1.0", "domain": "x.test",
+        "historical_velocity": {"ip_churn_score": None, "ip_changes_30d": 40},
+    })
+    keys = {f["finding"] for f in derive_findings(di, [])}
+    assert "high_ip_churn" not in keys
+
+
+def test_null_risk_subscores_stay_unmeasured():
+    """The other half of the rule: nullable fields KEEP their None, so
+    not-measured never renders as a measured 0.00."""
+    di = DomainIntelligence.model_validate({
+        "schema_version": "1.0", "domain": "x.test",
+        "risk_assessment": {"infra_score": None, "dga_risk": None,
+                            "certstream_risk": 0.0, "reason_codes": None},
+    })
+    ra = di.risk_assessment
+    assert ra.infra_score is None and ra.dga_risk is None
+    assert ra.certstream_risk == 0.0                  # measured zero is preserved
+    assert ra.measured() == {"certstream_risk": 0.0}
+    assert ra.reason_codes == []
+
+
 def test_scale_clamping():
     di = DomainIntelligence.model_validate({
         "schema_version": "1.0", "domain": "x.test",

@@ -87,6 +87,28 @@ def test_vm_from_output_none_when_not_medallion():
 # Explicit no-intelligence state (never silent)
 # ---------------------------------------------------------------------------
 
+def test_prompt_says_not_measured_never_zero():
+    """riskscore emits NULL for an unmeasured score. The prompt must say so: as
+    "0.00" the model reads a green zero as evidence of safety. Formatting a None
+    with :.2f also used to raise TypeError, which killed the whole report."""
+    di = DomainIntelligence.model_validate({
+        "schema_version": "1.0", "domain": "riskyexample.com",
+        "risk_assessment": {"infra_score": None, "ip_direct_threat_score": None,
+                            "fast_flux_risk": None, "dga_risk": None,
+                            "concentration_risk": None, "certstream_risk": None,
+                            "dangling_cname_risk": 0.4},
+        "email_security": {"mx_type": "google", "mx_risk_score": None},
+        "historical_velocity": {"ip_changes_30d": 3, "ip_churn_score": None},
+    })
+    p = _prompt(vm=build_view_models(di))
+
+    assert "Infrastructure (ASN/prefix) risk: not measured" in p
+    assert "mx_risk=not measured" in p
+    assert "IP churn score not measured" in p
+    assert "Dangling-CNAME risk: 0.40" in p          # a measured score still prints
+    assert '"not measured" means Datazag holds no measurement' in p
+
+
 def test_prompt_explicit_when_no_intelligence():
     p = _prompt(output={"domain": "riskyexample.com"})
     assert "No Datazag corpus intelligence is available" in p

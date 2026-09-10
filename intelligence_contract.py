@@ -22,7 +22,8 @@ Field names mirror riskscore/infrastructure/domain_intelligence_api.py:144-225.
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from types import UnionType
+from typing import Literal, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -38,13 +39,78 @@ def _clamp01(v) -> float:
 
 
 # ---------------------------------------------------------------------------
+# NULLABLE SCORES — the producer contract (riskscore, 2026-09-01)
+# ---------------------------------------------------------------------------
+# riskscore emits every numeric risk/threat score as NULL when there is no
+# measurement, and documents that as deliberate:
+#
+#     fast_flux_risk, dga_risk, concentration_risk, certstream_risk,
+#     dangling_cname_risk, dga_entropy, ip_churn_score, mx_risk_score,
+#     infra_score, ip_direct_threat_score
+#
+# They used to be wrapped in COALESCE(..., 0.0), which turned "this LEFT JOIN
+# found no row" into "we measured this and it scored zero" in SQL, before any
+# consumer could tell them apart. The COALESCEs were removed; these ten fields
+# are therefore `float | None` HERE too, so the distinction survives the
+# boundary. Re-defaulting any of them to 0.0 on this side just re-implements
+# the COALESCE in Python.
+#
+# ⚠️ COMPUTATION vs DISPLAY, the rule for all ten:
+#   * anything that SCORES from them coerces None to 0.0 explicitly and says so
+#     (findings_rules._NotMeasuredIsZero) — absence is not evidence, so it must
+#     never RAISE a score or fire a finding;
+#   * anything that DISPLAYS them renders "not assessed" / "—" / "not measured"
+#     — absence must never read as SAFE.
+# Both are correct; they answer different questions.
+#
+# Counts and flags beside them (ip_changes_30d, certstream.hits, lowest_ttl,
+# the booleans) are NOT in that list: they keep concrete defaults, and _Base
+# below turns a stray NULL for one into that default rather than an error.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Medallion payload models (mirror the riskscore struct_pack)
 # ---------------------------------------------------------------------------
+
+def _accepts_none(field) -> bool:
+    """True when the field is DECLARED nullable (`Optional[X]` / `X | None`)."""
+    ann = field.annotation
+    return ann is type(None) or (
+        get_origin(ann) in (Union, UnionType) and type(None) in get_args(ann)
+    )
+
 
 class _Base(BaseModel):
     # Ignore unknown keys (e.g. the optional `scores` block when a profile is set,
     # or any future field riskscore adds) so the contract never breaks on add.
     model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _null_to_default(cls, data):
+        """Producer NULLs become the field default instead of a ValidationError.
+
+        Everything behind this contract emits SQL NULL for "no row / no column / not
+        joined": DuckDB reads of the reporting snapshot, the lake rollups, and any
+        riskscore payload where a COALESCE was dropped. Those arrive as `None`, and a
+        plain `float = 0.0` field rejects them ("Input should be a valid number"),
+        failing the whole report over one absent scalar. Dropping the key lets the
+        declared default apply — exactly what an absent key already does.
+
+        ⚠️ Fields DECLARED nullable keep their None. That is the RiskAssessment
+        measured-zero vs not-measured distinction (see its note below); collapsing it
+        here would reintroduce the precise bug that comment describes.
+        """
+        if not isinstance(data, dict):
+            return data
+        drop = {
+            k for k, v in data.items()
+            if v is None
+            and (f := cls.model_fields.get(k)) is not None
+            and not f.is_required()
+            and not _accepts_none(f)
+        }
+        return {k: v for k, v in data.items() if k not in drop} if drop else data
 
 
 class Facts(_Base):
@@ -66,7 +132,8 @@ class Routing(_Base):
 
 class EmailSecurity(_Base):
     mx_type: str = "unknown"
-    mx_risk_score: float = 0.0           # 0..1
+    # None = NOT MEASURED (no MX reference row) — see the NULLABLE SCORES note above.
+    mx_risk_score: float | None = None   # 0..1
     dmarc_risk: bool = False             # True == at risk (no enforcement)
     spf_risk: bool = False               # True == at risk (not strict)
     modern_security_present: bool = False
@@ -74,7 +141,7 @@ class EmailSecurity(_Base):
     @field_validator("mx_risk_score")
     @classmethod
     def _clamp(cls, v):
-        return _clamp01(v)
+        return None if v is None else _clamp01(v)
 
 
 class FeedFlag(_Base):
@@ -116,19 +183,22 @@ class DomainDnsFacts(_Base):
     a_record_count: int = 0
     is_dangling_cname: bool = False
     cname_target: Optional[str] = None
-    dga_entropy: float = 0.0             # unbounded Shannon entropy
+    # None = NOT MEASURED — see the NULLABLE SCORES note above.
+    dga_entropy: float | None = None     # unbounded Shannon entropy
 
 
 class HistoricalVelocity(_Base):
     ip_changes_30d: int = 0
     asn_diversity_30d: int = 0
     geo_diversity_30d: int = 0
-    ip_churn_score: float = 0.0          # 0..1
+    # None = NOT MEASURED — see the NULLABLE SCORES note above. The 30-day counts beside it
+    # are counts, not scores: they keep defaulting to 0.
+    ip_churn_score: float | None = None  # 0..1
 
     @field_validator("ip_churn_score")
     @classmethod
     def _clamp(cls, v):
-        return _clamp01(v)
+        return None if v is None else _clamp01(v)
 
 
 class RiskAssessment(_Base):
@@ -345,12 +415,6 @@ class PlatformSignal(_Base):
     confidence: float = 0.0
     evidence: str = ""
 
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        # Lake columns can be NULL; drop them so field defaults apply.
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
-
     @field_validator("confidence", mode="before")
     @classmethod
     def _clamp_conf(cls, v):
@@ -391,13 +455,6 @@ class Annotation(_Base):
     # detected platform stack (tech-fingerprint signals)
     platform_signals: list[PlatformSignal] = Field(default_factory=list)
 
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        # The lake emits NULL for absent labels; drop them so bool/str defaults
-        # apply (e.g. is_parked NULL → False) instead of failing validation.
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
-
     @property
     def present(self) -> bool:
         """True when the lake returned usable labels for this domain."""
@@ -420,7 +477,9 @@ class TrustSurface(BaseModel):
     spf_risk: bool = False
     modern_security_present: bool = False
     mx_type: str = "unknown"
-    mx_risk_score: float = 0.0
+    # None = NOT MEASURED, carried through from EmailSecurity for the DISPLAY layer,
+    # exactly as ThreatSurface carries the RiskAssessment sub-scores.
+    mx_risk_score: float | None = None
     # routing integrity
     asn: int = 0
     prefix: Optional[str] = None
@@ -516,11 +575,6 @@ class Registration(_Base):
     status: Optional[str] = None
     rdap_risk_score: Optional[int] = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
-
 
 class DnsHygiene(_Base):
     """Rich DNS/email hygiene from the live scan (celery DNSRecords) — the detail
@@ -542,11 +596,6 @@ class DnsHygiene(_Base):
     tls_days_left: Optional[int] = None
     has_security_txt: bool = False
 
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
-
 
 class AbuseContacts(_Base):
     """Remediation routing — intel.tld_registrar_abuse_contacts / asn_abuse_contacts."""
@@ -554,11 +603,6 @@ class AbuseContacts(_Base):
     registrar_abuse_url: Optional[str] = None
     asn_abuse_email: Optional[str] = None
     asn_abuse_phone: Optional[str] = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
 
 
 class DnsRecordSet(_Base):
