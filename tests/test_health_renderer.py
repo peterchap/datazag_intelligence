@@ -156,6 +156,61 @@ def test_platform_priority_preventative_when_no_impersonation():
     assert "Active impersonation campaign against" not in html
 
 
+# ---------------------------------------------------------------------------
+# A failed lookup must never render as an all-clear
+# ---------------------------------------------------------------------------
+
+def _unchecked_vm():
+    """What the pipeline produces when the impersonation rollup is unreachable:
+    zero counts, lookup_ok=False. Byte-identical to a clean result apart from
+    the flag — which is the whole problem."""
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    return build_view_models(di, detected_platforms=["Google Workspace"],
+                             impersonations=[], findings=derive_findings(di, []),
+                             lookup_ok=False)
+
+
+ALL_CLEARS = [
+    "No active impersonation",
+    "No lookalike domains",
+    "no active campaign right now",
+    "No live impersonation",
+]
+
+
+def test_failed_lookup_renders_no_all_clear():
+    """Regression: the lake was down, every count came back 0, and the report told
+    the customer "No active impersonation of your platforms in the last 30 days" —
+    an all-clear built on a dropped database connection."""
+    html = HealthReportRenderer(_unchecked_vm()).to_html()
+    for claim in ALL_CLEARS:
+        assert claim not in html, f"failed lookup still renders an all-clear: {claim!r}"
+    assert "not checked" in html.lower()
+
+
+def test_failed_lookup_markdown_says_not_checked():
+    md = HealthReportRenderer(_unchecked_vm()).to_markdown()
+    assert "No active impersonation" not in md
+    assert "not checked" in md.lower()
+
+
+def test_successful_empty_lookup_still_says_all_clear():
+    """The other half: a lookup that ran and matched nothing IS an all-clear and
+    must keep saying so — the flag distinguishes them, the counts cannot."""
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    vm = build_view_models(di, detected_platforms=["Google Workspace"],
+                           impersonations=[], findings=derive_findings(di, []))
+    html = HealthReportRenderer(vm).to_html()
+    assert "No active impersonation" in html
+
+
+def test_failed_lookup_priority_makes_no_claim():
+    r = HealthReportRenderer(_unchecked_vm())
+    plat = next(p for p in r._build_priorities() if p["surface"] == "vendor")
+    assert "No live impersonation" not in plat["action"]
+    assert "not checked" in plat["title"].lower()
+
+
 def test_teaser_masks_lookalike_domains():
     html = HealthReportRenderer(_sample_vm(), tier="teaser").to_html()
     assert "rnicrosoft365.com" not in html

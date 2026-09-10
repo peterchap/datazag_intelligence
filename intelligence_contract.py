@@ -545,6 +545,20 @@ class ExternalThreat(BaseModel):
     # Active-scan brand funnel (FREE health report). Brand-scoped by construction;
     # never sourced from platform-global impersonation data.
     brand_funnel: BrandFunnel = Field(default_factory=BrandFunnel)
+    # False when the lookup could not be PERFORMED — the rollup was unreachable, the
+    # API errored. The result is then empty because nothing was checked, which is a
+    # different claim from "we checked and found nothing", and the two are otherwise
+    # indistinguishable: every count is 0 either way.
+    #
+    # ⚠️ Anything that renders an all-clear ("no active impersonation", "no lookalike
+    # domains") MUST gate it on this. A failed lookup rendered as an all-clear tells a
+    # customer they are not being impersonated on the strength of a dropped database
+    # connection. Same rule as the NULLABLE SCORES note above: absence must never read
+    # as safety.
+    #
+    # A successful lookup that matches nothing keeps lookup_ok=True and reports zero —
+    # that IS an all-clear, and stays one.
+    lookup_ok: bool = True
 
     @property
     def total_7d(self) -> int:
@@ -775,6 +789,7 @@ def build_view_models(
     dns_records: Optional[DnsRecordSet] = None,
     subdomains: Optional[list[dict]] = None,
     cert_analysis: Optional[dict] = None,
+    lookup_ok: bool = True,
 ) -> ReportViewModel:
     """Compose the renderer view-model from the medallion payload + impersonation data
     + DuckLake/live-DNS enrichment (annotation/registration/hygiene/abuse/weaponization)."""
@@ -797,6 +812,9 @@ def build_view_models(
         detected_platforms=detected_platforms,
         impersonations=impersonations,
         own_brand=own_brand,
+        # Carried explicitly: this rebuilds the ExternalThreat from parts, so a
+        # lookup_ok=False from the client is lost here unless the caller passes it.
+        lookup_ok=lookup_ok,
         lookalike_candidates=lookalike_candidates,
         own_brand_lookalikes=own_brand_lookalikes,
         brand_funnel=brand_funnel,

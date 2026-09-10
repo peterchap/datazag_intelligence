@@ -121,10 +121,12 @@ class IntelligenceClient:
         (`platforms` / `own_brand`) that drive the headline, plus lower-confidence
         typosquat candidates (`platform_lookalikes` / `own_brand_lookalikes`).
         Returns an empty ExternalThreat if the rollup is unavailable — impersonation
-        data is supplementary, never fatal."""
+        data is supplementary, never fatal — flagged lookup_ok=False so the renderer
+        does not turn "not checked" into an all-clear."""
         empty = ExternalThreat(detected_platforms=platforms)
+        unavailable = ExternalThreat(detected_platforms=platforms, lookup_ok=False)
         if not platforms and not brand:
-            return empty
+            return empty  # nothing to look up: a real (empty) answer, not a failure
 
         url = f"{self.base_url}/platform-impersonations"
         params = {
@@ -138,14 +140,15 @@ class IntelligenceClient:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(url, params=params, headers=self._headers) as resp:
                     if resp.status != 200:
-                        print(f"  [impersonation-api] HTTP {resp.status} from {url} — reporting zero impersonations")
-                        return empty
+                        print(f"  [impersonation-api] HTTP {resp.status} from {url} — NOT CHECKED")
+                        return unavailable
                     data = await resp.json()
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             # Supplementary — never fatal, but never silent either: a swallowed
-            # failure here renders as a false "no impersonation" all-clear.
-            print(f"  [impersonation-api] unreachable ({e!r}) — reporting zero impersonations")
-            return empty
+            # failure here renders as a false "no impersonation" all-clear, which is
+            # what lookup_ok=False exists to prevent.
+            print(f"  [impersonation-api] unreachable ({e!r}) — NOT CHECKED")
+            return unavailable
 
         def _imps(key: str, confidence: str) -> list[PlatformImpersonation]:
             return [PlatformImpersonation.model_validate({**x, "confidence": confidence})

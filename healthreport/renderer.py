@@ -1070,6 +1070,9 @@ HEALTH_REPORT_TEMPLATE = r"""
         {% elif impersonation_total_30d > 0 %}
         <div class="dsc-state" style="color:var(--bad);">{{ impersonation_total_30d }} lookalike domains &mdash; {{ active_campaign_count }} of your platform{{ 's' if active_campaign_count != 1 else '' }} impersonated (30d)</div>
         <p class="dsc-qualifier">Attackers are imitating the platforms your staff log into every day. <strong>Platform impersonation is the on-ramp to brand impersonation</strong> &mdash; the same playbook then targets your customers, in your name.</p>
+        {% elif not impersonation_lookup_ok %}
+        <div class="dsc-state">Impersonation check unavailable &mdash; {{ vendors | length }} trusted platforms in your stack</div>
+        <p class="dsc-qualifier">Our certificate-log rollup could not be reached when this report was generated, so platform impersonation was <strong>not checked</strong> &mdash; this is not an all-clear. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
         {% else %}
         <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms in your stack</div>
         <p class="dsc-qualifier">No active impersonation of your platforms in the last 30 days &mdash; but every platform here is a lure an attacker can deploy. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
@@ -1211,6 +1214,8 @@ HEALTH_REPORT_TEMPLATE = r"""
         {% endfor %}
       </tbody>
     </table>
+    {% elif not impersonation_lookup_ok %}
+    <p class="es-empty">Impersonation monitoring <strong>could not run</strong> for this report &mdash; the certificate-log rollup was unreachable. No conclusion either way; this is not an all-clear.</p>
     {% else %}
     <p class="es-empty">No active impersonation of your platforms observed in the last 30 days. Continuous watch in place.</p>
     {% endif %}
@@ -1383,12 +1388,12 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="scorecard {% if not suppress_platform_counts and active_campaign_count > 0 %}bad{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">▲</span>Trusted platform impersonation</div>
       <div class="scorecard-state">{{ 'Detected' if suppress_platform_counts else platform_scorecard_state }}</div>
-      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> detected in your stack &mdash; each a credential-phishing lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your detected platforms</strong> are being actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains issued in the last 30 days. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your detected platforms observed in the last 30 days. Continuous watch in place. <em>The active risk.</em>{% endif %}</div>
+      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> detected in your stack &mdash; each a credential-phishing lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your detected platforms</strong> are being actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains issued in the last 30 days. <em>The active risk.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the impersonation rollup was unreachable when this report ran, so no conclusion either way. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your detected platforms observed in the last 30 days. Continuous watch in place. <em>The active risk.</em>{% endif %}</div>
     </div>
     <div class="scorecard {% if pill_brand_exposures >= 10 %}bad{% elif pill_brand_exposures > 0 %}warn{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">◆</span>Brand impersonation</div>
       <div class="scorecard-state">{{ brand_scorecard_state }}</div>
-      <div class="scorecard-text">{% if pill_brand_exposures > 0 %}<strong>{{ pill_brand_exposures }} lookalike domain{% if pill_brand_exposures != 1 %}s{% endif %}</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> observed in certificate logs (30 days). <em>The watchlist.</em>{% elif suppress_platform_counts and not brand_monitored %}<strong>Monitoring not yet active</strong> for <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> &mdash; see the active-scan brand funnel for the candidate attack surface. <em>The watchlist.</em>{% else %}<strong>No lookalike domains</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> observed in the current window. <em>The watchlist.</em>{% endif %}</div>
+      <div class="scorecard-text">{% if pill_brand_exposures > 0 %}<strong>{{ pill_brand_exposures }} lookalike domain{% if pill_brand_exposures != 1 %}s{% endif %}</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> observed in certificate logs (30 days). <em>The watchlist.</em>{% elif suppress_platform_counts and not brand_monitored %}<strong>Monitoring not yet active</strong> for <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> &mdash; see the active-scan brand funnel for the candidate attack surface. <em>The watchlist.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the lookalike rollup was unreachable when this report ran, so no conclusion either way for <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code>. <em>The watchlist.</em>{% else %}<strong>No lookalike domains</strong> targeting <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> observed in the current window. <em>The watchlist.</em>{% endif %}</div>
     </div>
     <div class="scorecard neutral">
       <div class="scorecard-label"><span class="scorecard-icon">◉</span>Outbound posture</div>
@@ -2441,6 +2446,9 @@ class HealthReportRenderer:
                 ex = ", ".join(imp.sample_domains[:3]) if imp.sample_domains else "—"
                 A(f"- **{imp.platform}** — {imp.count_7d} in 7d / {imp.count_30d} in 30d "
                   f"({imp.trend}) · {ex}")
+        elif not ext.lookup_ok:
+            A("- Platform impersonation **not checked** — the certificate-log rollup "
+              "was unreachable when this report ran. Not an all-clear.")
         else:
             A("- No active impersonation of your platforms in the last 30 days "
               "(continuous watch in place).")
@@ -2908,6 +2916,9 @@ class HealthReportRenderer:
             "active_campaign_count":   len(actives),
             "impersonation_total_7d":  ext.total_7d,
             "impersonation_total_30d": ext.total_30d,
+            # False = the rollup could not be reached, so the zeros above mean NOT
+            # CHECKED. Every all-clear in the templates below gates on this.
+            "impersonation_lookup_ok": ext.lookup_ok,
             "own_brand":               own,
             # Free health report: suppress platform-GLOBAL impersonation counts
             # (not customer-specific — the "157") and avoid implying we ran a brand
@@ -2918,10 +2929,13 @@ class HealthReportRenderer:
             "platform_lookalikes":     [c for c in ext.lookalike_candidates if c.count_30d > 0],
             "own_brand_lookalikes":    ext.own_brand_lookalikes,
             "has_lookalikes":          ext.has_lookalikes,
-            "platform_scorecard_state": "Elevated" if actives else "Monitoring",
+            "platform_scorecard_state": ("Elevated" if actives
+                                         else "Monitoring" if ext.lookup_ok
+                                         else "Unavailable"),
             "brand_scorecard_state":    ("Elevated" if own.count_30d >= 10
                                          else "Moderate" if own.count_30d > 0
-                                         else "Clear"),
+                                         else "Clear" if ext.lookup_ok
+                                         else "Unavailable"),
             # Trust / threat pillars (medallion)
             "trust_pillar":      self.vm.trust,
             "threat_pillar":     self.vm.threat,
@@ -3513,6 +3527,9 @@ class HealthReportRenderer:
             # No impersonation observed in the window — do NOT claim an active
             # campaign (that contradicts the "Monitoring / no matches" state shown
             # elsewhere). Frame it as preventative readiness on the top target.
+            # `checked` separates "we looked and saw none" from "the rollup was
+            # unreachable": only the first may say there is no campaign.
+            checked = self.vm.external_threat.lookup_ok
             top = vendors[0]
             priorities.append({
                 "severity": "medium",
@@ -3520,10 +3537,14 @@ class HealthReportRenderer:
                 "surface": "vendor",
                 "surface_label": "Platform",
                 "surface_glyph": "▲",
-                "title": f"Stay ready for {top['name']} impersonation — no active campaign right now",
-                "action": (f"No live impersonation of {top['name']} in the last 30 days. As your "
-                           "highest-value platform target, keep staff briefed on its phishing "
-                           "patterns and ensure phishing-resistant MFA is enforced."),
+                "title": (f"Stay ready for {top['name']} impersonation — no active campaign right now"
+                          if checked else
+                          f"Stay ready for {top['name']} impersonation — not checked this run"),
+                "action": ((f"No live impersonation of {top['name']} in the last 30 days. As your "
+                            if checked else
+                            f"Impersonation of {top['name']} could not be checked for this report. As your ")
+                           + "highest-value platform target, keep staff briefed on its phishing "
+                             "patterns and ensure phishing-resistant MFA is enforced."),
                 "why": (f"{top['name']} is among the most-impersonated platforms in our "
                         "certificate-issuance data; campaigns are intermittent, so quiet today "
                         "doesn't mean quiet next month — readiness is the control."),
