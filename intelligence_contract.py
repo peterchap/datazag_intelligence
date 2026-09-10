@@ -22,7 +22,8 @@ Field names mirror riskscore/infrastructure/domain_intelligence_api.py:144-225.
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from types import UnionType
+from typing import Literal, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -41,10 +42,45 @@ def _clamp01(v) -> float:
 # Medallion payload models (mirror the riskscore struct_pack)
 # ---------------------------------------------------------------------------
 
+def _accepts_none(field) -> bool:
+    """True when the field is DECLARED nullable (`Optional[X]` / `X | None`)."""
+    ann = field.annotation
+    return ann is type(None) or (
+        get_origin(ann) in (Union, UnionType) and type(None) in get_args(ann)
+    )
+
+
 class _Base(BaseModel):
     # Ignore unknown keys (e.g. the optional `scores` block when a profile is set,
     # or any future field riskscore adds) so the contract never breaks on add.
     model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _null_to_default(cls, data):
+        """Producer NULLs become the field default instead of a ValidationError.
+
+        Everything behind this contract emits SQL NULL for "no row / no column / not
+        joined": DuckDB reads of the reporting snapshot, the lake rollups, and any
+        riskscore payload where a COALESCE was dropped. Those arrive as `None`, and a
+        plain `float = 0.0` field rejects them ("Input should be a valid number"),
+        failing the whole report over one absent scalar. Dropping the key lets the
+        declared default apply — exactly what an absent key already does.
+
+        ⚠️ Fields DECLARED nullable keep their None. That is the RiskAssessment
+        measured-zero vs not-measured distinction (see its note below); collapsing it
+        here would reintroduce the precise bug that comment describes.
+        """
+        if not isinstance(data, dict):
+            return data
+        drop = {
+            k for k, v in data.items()
+            if v is None
+            and (f := cls.model_fields.get(k)) is not None
+            and not f.is_required()
+            and not _accepts_none(f)
+        }
+        return {k: v for k, v in data.items() if k not in drop} if drop else data
 
 
 class Facts(_Base):
@@ -345,12 +381,6 @@ class PlatformSignal(_Base):
     confidence: float = 0.0
     evidence: str = ""
 
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        # Lake columns can be NULL; drop them so field defaults apply.
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
-
     @field_validator("confidence", mode="before")
     @classmethod
     def _clamp_conf(cls, v):
@@ -390,13 +420,6 @@ class Annotation(_Base):
     mailbox_trust: Optional[str] = None
     # detected platform stack (tech-fingerprint signals)
     platform_signals: list[PlatformSignal] = Field(default_factory=list)
-
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        # The lake emits NULL for absent labels; drop them so bool/str defaults
-        # apply (e.g. is_parked NULL → False) instead of failing validation.
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
 
     @property
     def present(self) -> bool:
@@ -516,11 +539,6 @@ class Registration(_Base):
     status: Optional[str] = None
     rdap_risk_score: Optional[int] = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
-
 
 class DnsHygiene(_Base):
     """Rich DNS/email hygiene from the live scan (celery DNSRecords) — the detail
@@ -542,11 +560,6 @@ class DnsHygiene(_Base):
     tls_days_left: Optional[int] = None
     has_security_txt: bool = False
 
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
-
 
 class AbuseContacts(_Base):
     """Remediation routing — intel.tld_registrar_abuse_contacts / asn_abuse_contacts."""
@@ -554,11 +567,6 @@ class AbuseContacts(_Base):
     registrar_abuse_url: Optional[str] = None
     asn_abuse_email: Optional[str] = None
     asn_abuse_phone: Optional[str] = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _drop_nulls(cls, data):
-        return {k: v for k, v in data.items() if v is not None} if isinstance(data, dict) else data
 
 
 class DnsRecordSet(_Base):
