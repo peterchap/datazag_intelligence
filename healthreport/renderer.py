@@ -105,6 +105,16 @@ def _join_clauses(parts: list[str]) -> str:
     return ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
+_LOCK_TOKENS = ("transferprohibited", "deleteprohibited", "updateprohibited", "renewprohibited")
+
+
+def _locks_from_status(status: str | None) -> int:
+    """Count registrar locks from the RDAP status string on the contract, so the
+    audit does not depend on the legacy dict being populated."""
+    low = (status or "").lower()
+    return sum(1 for t in _LOCK_TOKENS if t in low)
+
+
 def control_impact(name: str) -> str:
     return CONTROL_IMPACT.get((name or "").strip(), "medium")
 
@@ -4171,6 +4181,7 @@ class HealthReportRenderer:
         cannot externally verify them. Those live as 'checklist items' on
         the platform card.
         """
+        reg = self.vm.registration
         ea = self.ea or {}
         rdap = self.rdap or {}
         flags = self.flags or {}
@@ -4386,7 +4397,8 @@ class HealthReportRenderer:
             })
 
         # ─── Certificate & web ────────────────────────────────────────────
-        if flags.get("has_caa"):
+        # Contract first (vm.hygiene), legacy only as a fallback for --input_json.
+        if ea.get("caa_present") or flags.get("has_caa"):
             controls["Certificate & web"].append({
                 "name": "CAA records", "state": "deployed",
                 "evidence": "CAA records published — issuance restricted",
@@ -4475,7 +4487,7 @@ class HealthReportRenderer:
             })
 
         # ─── DNS security ─────────────────────────────────────────────────
-        if rdap.get("dnssec_enabled"):
+        if ea.get("dnssec") or reg.dnssec or rdap.get("dnssec_enabled"):
             controls["DNS security"].append({
                 "name": "DNSSEC", "state": "deployed",
                 "evidence": "Domain signed; delegation signing active",
@@ -4489,7 +4501,7 @@ class HealthReportRenderer:
             })
 
         # ─── Domain registration ──────────────────────────────────────────
-        lock_count = rdap.get("lock_count", 0) or 0
+        lock_count = rdap.get("lock_count", 0) or _locks_from_status(reg.status)
         if lock_count >= 4:
             controls["Domain registration"].append({
                 "name": "Registrar locks", "state": "deployed",
@@ -4510,10 +4522,12 @@ class HealthReportRenderer:
                           "consider server-side locks for high-value domains",
             })
 
-        if rdap.get("abuse_email"):
+        abuse_email = (rdap.get("abuse_email") or self.vm.abuse.registrar_abuse_email
+                       or self.vm.abuse.asn_abuse_email)
+        if abuse_email:
             controls["Domain registration"].append({
                 "name": "Abuse contact published", "state": "deployed",
-                "evidence": f"Contact: {rdap.get('abuse_email')}",
+                "evidence": f"Contact: {abuse_email}",
                 "action": None,
             })
         else:
