@@ -50,40 +50,15 @@ from healthreport.renderer import HealthReportRenderer, is_platform_name
 # ---------------------------------------------------------------------------
 
 def synth_live_dns_report(output: dict) -> dict:
-    """Build the minimal `live_dns_report` the riskscore merge reads
-    (domain_intelligence_api.py:252-265) from dnsproject's `output` dict.
+    """Deprecated alias for canonical_collect.build_live_dns_report.
 
-    The endpoint only consumes email_security.{inferred_mbp,dmarc_enforced,
-    spf_strict} and dns_profile.records.A.raw + security_heuristics.lowest_ttl —
-    so we synthesise exactly those from the live scan rather than reshaping the
-    whole report.
+    There were two builders for one payload, reading different shapes of the same
+    scan; the pipeline called one and this was never called at all. Keeping a
+    second implementation alive is how a shape mismatch goes unnoticed, so this
+    now delegates and the logic lives in one place.
     """
-    ea = output.get("email_auth") or {}
-    tech = output.get("technographics") or {}
-    dns = output.get("dns_records") or {}
-    labels = output.get("labels") or {}
-
-    dmarc_policy = (ea.get("dmarc_policy") or "").lower()
-    spf_raw = (ea.get("spf_raw") or "").lower()
-    spf_strictness = (ea.get("spf_strictness") or ea.get("spf") or "").lower()
-    spf_strict = ("-all" in spf_raw) or spf_strictness in ("strict", "-all", "hardfail")
-
-    lowest_ttl = (labels.get("lowest_ttl") or output.get("lowest_ttl")
-                  or (output.get("dns_profile", {}).get("security_heuristics", {}) or {}).get("lowest_ttl")
-                  or 0)
-
-    return {
-        "email_security": {
-            "inferred_mbp": tech.get("mx_provider_name") or tech.get("mx_mbp_category") or "unknown",
-            # p=quarantine and p=reject both count as enforced; p=none is monitor-only.
-            "dmarc_enforced": dmarc_policy in ("reject", "quarantine"),
-            "spf_strict": bool(spf_strict),
-        },
-        "dns_profile": {
-            "records": {"A": {"raw": list(dns.get("a") or [])}},
-            "security_heuristics": {"lowest_ttl": int(lowest_ttl or 0)},
-        },
-    }
+    import canonical_collect
+    return canonical_collect.build_live_dns_report(output)
 
 
 def detect_platforms(output: dict) -> list[str]:
