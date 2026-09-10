@@ -56,34 +56,26 @@ PLATFORM_DESIRABILITY: dict[str, dict[str, Any]] = {
     # name (lowercase substring match)        rank weight, role, reason
     "microsoft 365":      {"weight": 100, "tier": "high",
                            "role": "Email, identity, productivity · primary work environment",
-                           "why": "A fake M365 login works on virtually any office worker. "
-                                  "Captured credentials unlock email, files, calendar, and "
-                                  "frequent SSO into other tools. The most-impersonated trusted "
-                                  "platform in our certificate-issuance data globally."},
+                           "why": "Works on any office worker, and the credentials unlock email, "
+                                  "files and SSO into other tools. The most-impersonated "
+                                  "platform in our data."},
     "google workspace":   {"weight": 90, "tier": "high",
                            "role": "Search Console, calendar, productivity · secondary work environment",
-                           "why": "Workspace credentials unlock email, drive, and calendar. "
-                                  "Search Console access additionally lets attackers manipulate "
-                                  "your search visibility — relevant to brand-impersonation "
-                                  "campaigns covered in section 05."},
+                           "why": "Unlocks email, drive and calendar. Search Console access also "
+                                  "lets attackers manipulate your search visibility."},
     "okta":               {"weight": 85, "tier": "high",
                            "role": "Identity provider · single sign-on",
-                           "why": "Okta credentials ARE the keys — a captured Okta login "
-                                  "unlocks every application behind the SSO. Identity "
-                                  "providers are among the most-imitated platforms in our "
-                                  "certificate-issuance data."},
+                           "why": "Okta credentials ARE the keys — one captured login unlocks "
+                                  "every application behind the SSO."},
     "docusign":           {"weight": 70, "tier": "med-high",
                            "role": "Document signing · contract workflow",
-                           "why": "DocuSign lures exploit urgency ('document awaiting "
-                                  "signature') and work on staff at every level. A staple "
-                                  "of credential-phishing campaigns."},
+                           "why": "Urgency lures ('document awaiting signature') that work on "
+                                  "staff at every level. A phishing staple."},
     "mailchimp":          {"weight": 75, "tier": "med-high",
                            "role": "Marketing email, customer mailing list · outbound channel",
-                           "why": "Mailchimp credentials unlock the customer mailing list directly. "
-                                  "Fastest known path from staff compromise to brand-impersonation "
-                                  "at scale — attackers send convincing email from your real "
-                                  "Mailchimp account to your real customer list. Recent breach "
-                                  "history makes this an especially active target."},
+                           "why": "Unlocks the customer mailing list directly — the fastest path "
+                                  "from staff compromise to brand impersonation at scale, sent "
+                                  "from your real account."},
     "apple":              {"weight": 50, "tier": "med",
                            "role": "Apple Business / device management",
                            "why": "Apple ID credentials unlock device management and App Store access."},
@@ -701,6 +693,19 @@ HEALTH_REPORT_TEMPLATE = r"""
   .next-section-cta-text strong { color: var(--ink); font-weight: 700; }
   .next-section-cta-arrow { display: inline-flex; align-items: center; gap: 8px; font-size: 10.5px; font-weight: 800; color: var(--cyan-deep); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
 
+  /* Mechanism steps — ported from the free report (freereport/renderer.py .mech*),
+     restyled on this report's tokens. Numbered steps carry the explanation this
+     section used to make in a 120-word paragraph. */
+  .mech { border: 1px solid var(--rule-light); border-radius: 12px; overflow: hidden; margin: 0 56px 18px; background: var(--white); }
+  .mech-h { background: var(--navy); color: var(--white); font-size: 12px; font-weight: 700; letter-spacing: 0.02em; padding: 11px 18px; }
+  .mech-steps { padding: 15px 18px 5px; display: flex; flex-direction: column; gap: 11px; }
+  .mstep { display: flex; gap: 13px; align-items: flex-start; }
+  .mstep .mnum { flex: 0 0 auto; width: 25px; height: 25px; border-radius: 50%; background: var(--cyan-glow); color: var(--cyan-deep); font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--cyan); }
+  .mstep .mbody { font-size: 11.5px; line-height: 1.55; color: var(--ink-2); }
+  .mstep .mbody b { color: var(--ink); font-weight: 600; }
+  .mech-punch { margin: 6px 18px 15px; background: var(--rule-lighter); border-left: 3px solid var(--cyan); border-radius: 0 7px 7px 0; padding: 11px 15px; font-size: 12px; line-height: 1.55; color: var(--ink); font-weight: 500; }
+  .mech-punch b { color: var(--cyan-deep); font-weight: 700; }
+
   /* ============ Section 04 — Platform exposure (monitoring state) ============ */
   .monitoring-state-panel { margin: 0 56px 22px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 24px 26px; display: grid; grid-template-columns: 56px 1fr; gap: 22px; align-items: start; }
   .monitoring-state-icon { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, var(--cyan-page) 0%, #0078A0 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 2px 10px rgba(0,150,204,0.25); position: relative; }
@@ -1054,7 +1059,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     </h1>
 
     <p class="cover-deck">
-      Attackers imitate the platforms your staff trust to steal credentials &mdash; then use that access to impersonate <strong>your brand</strong> to <strong>your customers</strong>. This report measures both: the <strong>platform-impersonation activity</strong> already targeting you, and the <strong>trust &amp; infrastructure gaps</strong> in your public DNS that decide how far a campaign can travel. All from public data &mdash; the same data an attacker reads first.
+      Attackers imitate the platforms your staff trust, then use that access to reach <strong>your customers</strong>. This report measures both: the impersonation already aimed at you, and the gaps in your public DNS that decide how far it travels.
     </p>
 
     <div class="dual-score">
@@ -1066,23 +1071,23 @@ HEALTH_REPORT_TEMPLATE = r"""
         </div>
         {% if suppress_platform_counts %}
         <div class="dsc-state">{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }} detected in your stack &mdash; each an impersonation lure</div>
-        <p class="dsc-qualifier">Every platform your staff log into is a brand an attacker can imitate to phish them. <strong>Platform impersonation is the on-ramp to brand impersonation</strong> &mdash; the same playbook then targets your customers, in your name.</p>
+        <p class="dsc-qualifier">Every platform your staff log into is a brand an attacker can imitate. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
         {% elif impersonation_total_30d > 0 %}
         <div class="dsc-state" style="color:var(--bad);">{{ impersonation_total_30d }} lookalike domains &mdash; {{ active_campaign_count }} of your platform{{ 's' if active_campaign_count != 1 else '' }} impersonated (30d)</div>
-        <p class="dsc-qualifier">Attackers are imitating the platforms your staff log into every day. <strong>Platform impersonation is the on-ramp to brand impersonation</strong> &mdash; the same playbook then targets your customers, in your name.</p>
+        <p class="dsc-qualifier">Attackers are imitating the platforms your staff use daily. <strong>Platform impersonation is the on-ramp to brand impersonation</strong> &mdash; the same playbook then targets your customers.</p>
         {% elif not impersonation_lookup_ok %}
         <div class="dsc-state">Impersonation check unavailable &mdash; {{ vendors | length }} trusted platforms in your stack</div>
-        <p class="dsc-qualifier">Our certificate-log rollup could not be reached when this report was generated, so platform impersonation was <strong>not checked</strong> &mdash; this is not an all-clear. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
+        <p class="dsc-qualifier">Our certificate-log rollup was unreachable when this report ran, so platform impersonation was <strong>not checked</strong> &mdash; this is not an all-clear.</p>
         {% else %}
         <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms in your stack</div>
-        <p class="dsc-qualifier">No active impersonation of your platforms in the last 30 days &mdash; but every platform here is a lure an attacker can deploy. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
+        <p class="dsc-qualifier">No active impersonation of your platforms in the last 30 days &mdash; but every platform here is a lure. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
         {% endif %}
         {% if platform_list.platforms %}
         <div class="dsc-platform-list">
           {% for item in platform_list.platforms %}<span class="dsc-platform-name{% if item.cname_only %} cname-only{% endif %}">{{ item.name }}{% if item.cname_only %}<span class="dsc-platform-marker">◆</span>{% endif %}</span>{% if not loop.last %} <span class="dsc-platform-sep">·</span> {% endif %}{% endfor %}
         </div>
         {% if platform_list.has_cname_items %}
-        <p class="dsc-platform-footnote"><span class="dsc-platform-marker">◆</span> <strong>{{ platform_list.cname_count }} surfaced from subdomain CNAMEs.</strong> If we found these from outside, a bad actor performing reconnaissance can too &mdash; the same data is in public DNS.</p>
+        <p class="dsc-platform-footnote"><span class="dsc-platform-marker">◆</span> <strong>{{ platform_list.cname_count }} surfaced from subdomain CNAMEs.</strong> If we found these from outside, so can an attacker &mdash; it is all public DNS.</p>
         {% endif %}
         {% endif %}
         <div class="dsc-actions">
@@ -1094,7 +1099,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           </ul>
         </div>
         <p class="dsc-context">
-          Datazag observes <strong>85&ndash;90%</strong> of certificate-based impersonation activity targeting platforms like these &mdash; which is why this surface matters.
+          Datazag observes <strong>85&ndash;90%</strong> of certificate-based impersonation targeting platforms like these.
         </p>
       </div>
 
@@ -1105,7 +1110,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           <span class="dsc-grade-ref">{{ infra_grade.letter }} &middot; {{ infra_score }}/100</span>
         </div>
         <div class="dsc-state">{{ infra_grade.headline }}</div>
-        <p class="dsc-qualifier">The trust and infrastructure gaps in your public DNS &mdash; DMARC, SPF, DNSSEC, CAA, certificates, routing &mdash; that decide <strong>how far a brand-impersonation campaign can travel</strong> once it starts.</p>
+        <p class="dsc-qualifier">The gaps in your public DNS &mdash; DMARC, SPF, DNSSEC, CAA, certificates, routing &mdash; that decide <strong>how far a campaign travels</strong> once it starts.</p>
         <div class="dsc-actions">
           <div class="dsc-actions-label">Open gaps</div>
           <ul class="dsc-actions-list compact">
@@ -1115,7 +1120,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           </ul>
         </div>
         <p class="dsc-context">
-          Each gap is fixable through DNS, certificate, or email-auth changes you control. The implementation-changes roadmap is in <strong>section 09</strong>.
+          Each gap is fixable through changes you control. The roadmap is in <strong>section 09</strong>.
         </p>
       </div>
     </div>
@@ -1127,11 +1132,11 @@ HEALTH_REPORT_TEMPLATE = r"""
         <div class="ogb-headline">{{ grade.headline }}.</div>
         <div class="ogb-detail">
           {% if driving_surface == 'platform' %}
-          The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. You can&rsquo;t stop the campaigns, but section 09 sequences the defence-side fixes that limit how far they reach your customers.
+          The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. Section 09 sequences the defence-side fixes that limit how far it reaches.
           {% elif driving_surface == 'infrastructure' %}
-          The bigger driver is your defence weaknesses &mdash; short-effort DNS, certificate, and email-auth gaps that let an impersonation campaign travel further than it should. Section 09 prioritises them.
+          The bigger driver is your defence weaknesses &mdash; short-effort DNS, certificate and email-auth gaps that let a campaign travel further than it should. Section 09 prioritises them.
           {% else %}
-          Both the attacker problem and your defence weaknesses warrant attention. Section 09 sequences the implementation changes by impact.
+          Both warrant attention. Section 09 sequences the changes by impact.
           {% endif %}
         </div>
       </div>
@@ -1169,7 +1174,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Who is impersonating {{ org_name }}.</h1>
-    <p class="section-headline">Lookalike domains observed in certificate-transparency logs over the last 7 and 30 days &mdash; impersonating the platforms <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain }}</code> uses (staff-phishing) and the <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code> brand itself (customer-phishing).</p>
+    <p class="section-headline">Lookalikes observed in certificate-transparency logs over the last 7 and 30 days &mdash; against the platforms <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain }}</code> uses, and the <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code> brand itself.</p>
   </div>
 
   <div class="footprint-summary">
@@ -1194,7 +1199,7 @@ HEALTH_REPORT_TEMPLATE = r"""
         {% if not vendors %}<tr><td colspan="3" style="color:var(--ink-3)">No platforms detected from DNS.</td></tr>{% endif %}
       </tbody>
     </table>
-    <p class="es-foot">Confidence: <strong>confirmed</strong> = live mail-routing (MX), active subdomain (CNAME) or send config (SPF); <strong>indicative</strong> = a verification token only (may be stale).</p>
+    <p class="es-foot">Confidence: <strong>confirmed</strong> = live MX, CNAME or SPF; <strong>indicative</strong> = a verification token only (may be stale).</p>
   </div>
 
   <div class="es-block">
@@ -1215,7 +1220,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       </tbody>
     </table>
     {% elif not impersonation_lookup_ok %}
-    <p class="es-empty">Impersonation monitoring <strong>could not run</strong> for this report &mdash; the certificate-log rollup was unreachable. No conclusion either way; this is not an all-clear.</p>
+    <p class="es-empty">Impersonation monitoring <strong>could not run</strong> &mdash; the certificate-log rollup was unreachable. Not an all-clear.</p>
     {% else %}
     <p class="es-empty">No active impersonation of your platforms observed in the last 30 days. Continuous watch in place.</p>
     {% endif %}
@@ -1251,9 +1256,9 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Could someone impersonate {{ org_name }}?</h1>
     {% if brand_funnel.monitored %}
-    <p class="section-headline">Continuous brand monitoring is active for <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code>. Below is the retrospective lookalike history, plus the candidate attack surface generated at report time.</p>
+    <p class="section-headline">Continuous brand monitoring is active for <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code>. Below: the lookalike history, plus the candidate attack surface generated at report time.</p>
     {% else %}
-    <p class="section-headline">Brand monitoring is <strong>not yet active</strong> for <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code>. There is no retrospective history to show &mdash; so we generated the candidate attack surface and checked it against the Datazag corpus <em>at report time</em>. This is a point-in-time snapshot of what an attacker could register today.</p>
+    <p class="section-headline">Brand monitoring is <strong>not yet active</strong> for {{ domain_root }}, so there is no history to show. Instead we generated the candidate attack surface an attacker could register today.</p>
     {% endif %}
   </div>
 
@@ -1264,7 +1269,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     {% endfor %}
   </div>
   {% if brand_funnel.checked and brand_funnel.checked < brand_funnel.generated %}
-  <p class="es-foot">Checked the top {{ brand_funnel.checked }} candidates by priority against the corpus; the remaining {{ brand_funnel.generated - brand_funnel.checked }} were generated but not yet resolved (cost-capped &mdash; the full set is checked continuously under the paid Watch).</p>
+  <p class="es-foot">Top candidates checked by priority; the rest were generated but not resolved (cost-capped &mdash; the full set is checked under the paid Watch).</p>
   {% endif %}
 
   {% if brand_funnel.near_miss %}
@@ -1272,7 +1277,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="es-label">Highlighted near-miss</div>
     <p class="es-line"><span class="lure-chip">{{ brand_funnel.near_miss.domain }}</span> &mdash;
       {% if brand_funnel.near_miss.registered %}already registered{% else %}<strong>not registered today, but registrable right now</strong>{% endif %}.
-      A convincing lookalike of <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> that an attacker could stand up for a credential-phishing or invoice-redirection lure.</p>
+      A convincing lookalike of <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> an attacker could stand up for credential-phishing or invoice redirection.</p>
   </div>
   {% endif %}
 
@@ -1305,9 +1310,9 @@ HEALTH_REPORT_TEMPLATE = r"""
   {# §5 paid-tier pitch — capability description only, no per-domain data #}
   <div class="es-block">
     <div class="es-label">What Brand Impersonation Watch adds</div>
-    <p class="es-line muted"><strong>Continuous detection</strong> &mdash; new lookalike certificates matched within seconds of issuance, not just at report time.</p>
-    <p class="es-line muted"><strong>Weaponization verdict</strong> &mdash; for each live lookalike, whether it is serving a credential-capture form using your brand's assets.</p>
-    <p class="es-line muted"><strong>Takedown intelligence</strong> &mdash; for the hosting network, how long takedown typically takes and whether the host acts on abuse reports.</p>
+    <p class="es-line muted"><strong>Continuous detection</strong> &mdash; new lookalike certificates matched within seconds of issuance.</p>
+    <p class="es-line muted"><strong>Weaponization verdict</strong> &mdash; whether each live lookalike serves a credential-capture form using your brand.</p>
+    <p class="es-line muted"><strong>Takedown intelligence</strong> &mdash; how long takedown takes on that host, and whether it acts on abuse reports.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -1326,7 +1331,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="toc-header">
     <div class="toc-eyebrow">A guided tour</div>
     <h2 class="toc-title">Mapping your attack surface, in ten sections.</h2>
-    <p class="toc-lede">This report describes your attack surface and gives you a roadmap to minimise it. Each section is one of three kinds: <strong>Context</strong> orients you, <strong>Findings</strong> tell you what we observed, <strong>Action</strong> tells you what to do about it. The report is designed to be read in order, but each section also stands alone &mdash; if you only have ten minutes, sections 01, 02 and 09 are the spine.</p>
+    <p class="toc-lede">This report maps your attack surface and gives you a roadmap to reduce it. Every section is <strong>Context</strong>, <strong>Findings</strong> or <strong>Action</strong>. Read it in order, or take sections 01, 02 and 09 as the spine.</p>
   </div>
   <ol class="toc-list">
     {% for item in toc_items %}
@@ -1344,7 +1349,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="toc-callout-icon">★</div>
     <div>
       <h5>How to read this report</h5>
-      <p>If you have <strong>ten minutes</strong>, read sections 01, 02 and 09. If you have <strong>thirty minutes</strong>, add 03 and 04 &mdash; the platform surface where most attacks now originate. The full report is designed for technical and non-technical readers in parallel: every section opens with plain-English context before the technical detail.</p>
+      <p><strong>Ten minutes:</strong> sections 01, 02 and 09. <strong>Thirty:</strong> add 03 and 04 &mdash; the platform surface where most attacks now begin. Every section opens in plain English before the technical detail.</p>
     </div>
   </div>
   <div class="toc-spacer"></div>
@@ -1366,7 +1371,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 01</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">At a glance.</h1>
-    <p class="section-headline"><strong>{{ org_name }}&rsquo;s exposure is at {{ grade.headline | lower }}.</strong> First, the <strong>attacker problem</strong> &mdash; impersonation activity already aimed at your platforms and your brand. Then your <strong>defence weaknesses</strong> &mdash; the trust and infrastructure gaps that decide how far those campaigns travel. The implementation-changes roadmap in section 09 sequences the fixes.</p>
+    <p class="section-headline"><strong>{{ org_name }}&rsquo;s exposure is at {{ grade.headline | lower }}.</strong> First the <strong>attacker problem</strong> &mdash; impersonation already aimed at your platforms and brand. Then the <strong>defence weaknesses</strong> that decide how far a campaign travels.</p>
   </div>
   <div class="grade-band">
     <div class="grade-band-letter">{{ grade.letter }}</div>
@@ -1381,14 +1386,14 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div style="display:flex;justify-content:space-between;font-size:9.5px;font-weight:700;color:var(--ink-4);letter-spacing:0.05em;padding:0 2px;">
         {% for L in ['A','B','C','D','E','F'] %}<span{% if L == grade.letter %} style="color:var(--ink);"{% endif %}>{{ L }}</span>{% endfor %}
       </div>
-      <div class="grade-band-text" style="margin-top:4px;">Most {{ grade.letter }}-grade organisations move toward a higher grade within a quarter by completing the items in section 09. The grade reflects trusted-platform exposure (the active risk), brand exposure (the watchlist), and outbound posture (the fixable item).</div>
+      <div class="grade-band-text" style="margin-top:4px;">Most {{ grade.letter }}-grade organisations move up a band within a quarter by completing section 09. The grade weighs platform exposure, brand exposure and outbound posture.</div>
     </div>
   </div>
   <div class="scorecards">
     <div class="scorecard {% if not suppress_platform_counts and active_campaign_count > 0 %}bad{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">▲</span>Trusted platform impersonation</div>
       <div class="scorecard-state">{{ 'Detected' if suppress_platform_counts else platform_scorecard_state }}</div>
-      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> detected in your stack &mdash; each a credential-phishing lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your detected platforms</strong> are being actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains issued in the last 30 days. <em>The active risk.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the impersonation rollup was unreachable when this report ran, so no conclusion either way. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your detected platforms observed in the last 30 days. Continuous watch in place. <em>The active risk.</em>{% endif %}</div>
+      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> in your stack &mdash; each a lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your platforms</strong> actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains in 30 days. <em>The active risk.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the impersonation rollup was unreachable, so no conclusion either way. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your platforms in the last 30 days. <em>The active risk.</em>{% endif %}</div>
     </div>
     <div class="scorecard {% if pill_brand_exposures >= 10 %}bad{% elif pill_brand_exposures > 0 %}warn{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">◆</span>Brand impersonation</div>
@@ -1403,7 +1408,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
   <div class="assessment-strip">
     <span class="assessment-strip-icon">i</span>
-    <span><strong>First assessment.</strong> No quarter-on-quarter delta in this report. From the next snapshot onward, this strip will surface what changed since the last assessment &mdash; new platforms detected, posture changes, new lookalike registrations.</span>
+    <span><strong>First assessment.</strong> No delta yet. From the next snapshot this strip shows what changed &mdash; new platforms, posture changes, new lookalike registrations.</span>
   </div>
   <div class="priorities-header">
     <h3>Three things to address first.</h3>
@@ -1435,7 +1440,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="teaser-cta-icon">🔒</div>
     <div class="teaser-cta-body">
       <h4>This is the teaser edition.</h4>
-      <p>The full report names every lookalike domain, shows the evidence behind each finding, and includes step-by-step remediation guidance with effort estimates. <strong>{{ brand_cfg.contact_email }}</strong> &middot; {{ brand_cfg.contact_web }}</p>
+      <p>The full report names every lookalike domain and gives step-by-step remediation with effort estimates. <strong>{{ brand_cfg.contact_email }}</strong> &middot; {{ brand_cfg.contact_web }}</p>
     </div>
   </div>
   {% endif %}
@@ -1455,7 +1460,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 02</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">Why attackers prefer trusted platforms.</h1>
-    <p class="section-headline">Imitating a single company gives an attacker access to that company&rsquo;s customers. <strong>Imitating a platform your staff already trusts gives them access to every company&rsquo;s staff.</strong> That asymmetry is why platform-impersonation is the largest single slice of your attack surface &mdash; and why this report describes it before the brand-impersonation side.</p>
+    <p class="section-headline">Imitating one company reaches that company&rsquo;s customers. <strong>Imitating a platform your staff already trust reaches every company&rsquo;s staff.</strong> That asymmetry is why this report starts with the platform side.</p>
   </div>
   <div class="data-panel">
     <div class="data-panel-inner">
@@ -1467,8 +1472,17 @@ HEALTH_REPORT_TEMPLATE = r"""
           <div class="data-panel-bar-rest">Everything else · 10&ndash;15%</div>
         </div>
       </div>
-      <p class="data-panel-claim">Of all suspicious certificate registrations Datazag observed in {{ research_month }}, <strong>between 85 and 90 per cent imitated a trusted technology platform</strong> &mdash; Microsoft 365, Google Workspace, Apple, DocuSign, Mailchimp, PayPal, Amazon, Cloudflare, and the rest of the platforms most companies log into every day. Single-company brand impersonation accounted for the remainder. One phishing kit imitating Microsoft 365 can be used against thousands of tenants; a kit imitating any single company only works against that company&rsquo;s customers. <strong>Attackers follow the volume &mdash; and the volume is wherever the platforms are.</strong> Which is why your platform-footprint shapes the recon picture: the same DNS, certificate, and CNAME data that surfaced your stack on the cover is what an attacker reads first.</p>
+      <p class="data-panel-claim">Of all suspicious certificate registrations Datazag observed in {{ research_month }}, <strong>85&ndash;90% imitated a trusted technology platform</strong> &mdash; Microsoft 365, Google Workspace, DocuSign and the rest your staff log into daily. One kit imitating Microsoft 365 works against thousands of tenants; one imitating your brand works only against your customers. <strong>Attackers follow the volume.</strong></p>
     </div>
+  </div>
+  <div class="mech">
+    <div class="mech-h">How mass credential harvesting works &mdash; &ldquo;spray and pray&rdquo;</div>
+    <div class="mech-steps">
+      <div class="mstep"><div class="mnum">1</div><div class="mbody"><b>Harvest the list.</b> Corporate addresses from breach dumps and public directories &mdash; accumulated by the million, not chosen.</div></div>
+      <div class="mstep"><div class="mnum">2</div><div class="mbody"><b>Blast identical fakes.</b> The same fake platform alert &mdash; &ldquo;your password has expired&rdquo; &mdash; to every address, each pointing at a fake login page.</div></div>
+      <div class="mstep"><div class="mnum">3</div><div class="mbody"><b>Harvest at volume.</b> If 1% enter their password, the operator nets thousands of logins and resells them.</div></div>
+    </div>
+    <div class="mech-punch">Nobody decided to target {{ domain }}. They decided to target <b>everyone using these platforms</b>. A captured login is usually silent: no outage, no alert.</div>
   </div>
   <div class="surfaces-grid">
     <div class="surface-panel inbound">
@@ -1497,16 +1511,16 @@ HEALTH_REPORT_TEMPLATE = r"""
     </div>
   </div>
   <div class="causal-section">
-    <div class="causal-header"><h3>How they connect.</h3><span class="sub">Trusted platform impersonation is often upstream of brand impersonation. The path below shows one common example &mdash; there are others.</span></div>
+    <div class="causal-header"><h3>How they connect.</h3><span class="sub">Platform impersonation is often upstream of brand impersonation. One common path:</span></div>
     <div class="causal-example-eyebrow">A Microsoft 365-led attack chain</div>
     <div class="causal-chain">
-      <div class="causal-step start"><span class="causal-step-num">Step 1</span><span class="causal-step-title">Cloned M365 login</span><span class="causal-step-detail">Attacker registers a lookalike domain and sends a phishing email. Office manager clicks and enters credentials.</span></div>
+      <div class="causal-step start"><span class="causal-step-num">Step 1</span><span class="causal-step-title">Cloned M365 login</span><span class="causal-step-detail">Attacker sends a phishing email; a staff member enters their credentials.</span></div>
       <div class="causal-arrow">→</div>
-      <div class="causal-step"><span class="causal-step-num">Step 2</span><span class="causal-step-title">Tenant compromise</span><span class="causal-step-detail">Credentials work. Attacker is inside your real Microsoft 365 tenant.</span></div>
+      <div class="causal-step"><span class="causal-step-num">Step 2</span><span class="causal-step-title">Tenant compromise</span><span class="causal-step-detail">The credentials work. The attacker is inside your real tenant.</span></div>
       <div class="causal-arrow">→</div>
-      <div class="causal-step"><span class="causal-step-num">Step 3</span><span class="causal-step-title">Email from your domain</span><span class="causal-step-detail">Attacker sends a real email from <code style="font-family:'JetBrains Mono',monospace;font-size:9.5px;">@{{ domain }}</code>. DMARC, SPF and DKIM all pass.</span></div>
+      <div class="causal-step"><span class="causal-step-num">Step 3</span><span class="causal-step-title">Email from your domain</span><span class="causal-step-detail">A real email from <code style="font-family:'JetBrains Mono',monospace;font-size:9.5px;">@{{ domain }}</code>. DMARC, SPF and DKIM all pass.</span></div>
       <div class="causal-arrow">→</div>
-      <div class="causal-step end"><span class="causal-step-num">Step 4</span><span class="causal-step-title">Customer fraud</span><span class="causal-step-detail">A genuine-looking 'updated invoice' lands in your customer&rsquo;s inbox. They pay an attacker bank account.</span></div>
+      <div class="causal-step end"><span class="causal-step-num">Step 4</span><span class="causal-step-title">Customer fraud</span><span class="causal-step-detail">An &ldquo;updated invoice&rdquo; reaches your customer. They pay an attacker&rsquo;s account.</span></div>
     </div>
     <div class="causal-tags"><span class="tag-vendor">▲ Trusted platform impersonation</span><span class="tag-brand">◆ Brand impersonation</span></div>
   </div>
@@ -1526,7 +1540,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 03</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Your stack, ordered by attacker preference.</h1>
-    <p class="section-headline">Attackers don&rsquo;t imitate platforms at random. They imitate the ones that <em>work</em> &mdash; platforms with universal staff recognition, credentials that unlock other systems, or customer lists that monetise quickly. Below: <strong>the SaaS we detected in your stack</strong>, ordered by how often each platform is impersonated in our certificate-issuance observations.</p>
+    <p class="section-headline">Attackers imitate the platforms that <em>work</em> &mdash; universal staff recognition, credentials that unlock other systems, lists that monetise fast. Your stack, ordered by how often each is impersonated.</p>
   </div>
   <div class="footprint-summary">
     <div class="footprint-stat"><div class="footprint-stat-num">{{ vendors | length }}</div><div class="footprint-stat-label">Platforms detected</div></div>
@@ -1576,7 +1590,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   {% endif %}
 
   <div class="next-section-cta">
-    <div class="next-section-cta-text"><strong>The next section</strong> shows the active attacker infrastructure currently imitating each of your top three trusted platforms &mdash; what those campaigns look like and what your staff are likely to encounter.</div>
+    <div class="next-section-cta-text">The next section shows the attacker infrastructure currently imitating your top platforms.</div>
     <div class="next-section-cta-arrow">Section 04 →</div>
   </div>
 
@@ -1596,7 +1610,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 04</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Active campaigns against your platforms.</h1>
-    <p class="section-headline">For each detected platform, Datazag continuously watches certificate-issuance and DNS activity for new infrastructure that imitates it. The table below shows <strong>observed impersonation volume over the last 7 and 30 days</strong> for the platforms in your stack — the lures your staff are most likely to encounter.</p>
+    <p class="section-headline">For each platform in your stack, <strong>observed impersonation volume over the last 7 and 30 days</strong> &mdash; the lures your staff are most likely to encounter.</p>
   </div>
 
   {% if active_campaign_count > 0 %}
@@ -1629,8 +1643,8 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="monitoring-state-icon">◉</div>
     <div class="monitoring-state-body">
       <h3>Monitoring active — no current high-confidence campaigns against your platforms.</h3>
-      <p>Your {{ vendors | length }} detected platforms are under continuous surveillance against the trusted-platform-impersonation corpus. At the time of this snapshot, <strong>no attacker infrastructure currently in our 30-day observation window matches your platform stack with high confidence</strong>.</p>
-      <p>Active campaigns are intermittent by nature — when one emerges that targets a platform you depend on, this section will populate with the campaign signature, observed lure domains, and recommended staff briefing language.</p>
+      <p>Your {{ vendors | length }} detected platforms are under continuous surveillance. At this snapshot, <strong>no attacker infrastructure in our 30-day window matches your stack with high confidence</strong>.</p>
+      <p>Campaigns are intermittent. When one targets a platform you depend on, this section populates with its signature and observed lure domains.</p>
       <div class="monitoring-state-meta">
         <span><strong>Watch window:</strong> last 30 days</span>
         <span class="sep">·</span>
@@ -1644,7 +1658,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="platform-preview-header">
     <h4>Per-platform watch state</h4>
-    <p>Each platform below has a continuous certificate-issuance and DNS subscription against attacker-infrastructure patterns matching that brand.</p>
+    <p>Each platform below has a continuous certificate and DNS subscription against attacker-infrastructure patterns for that brand.</p>
   </div>
   <div class="platform-preview-grid">
     {% for v in vendors %}
@@ -1665,7 +1679,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <span class="lookalike-badge">Lower confidence</span>
       Lookalike candidates &mdash; fuzzy matches awaiting corroboration
     </div>
-    <p class="lookalike-intro">These are <strong>fuzzy typosquat candidates</strong> against your platforms — not exact certificate matches. They are shown separately because dictionary-word and short brand names produce false positives; treat them as a watchlist, not confirmed activity.</p>
+    <p class="lookalike-intro">These are <strong>fuzzy typosquat candidates</strong>, not exact certificate matches &mdash; a watchlist, not confirmed activity. Short or dictionary-word brand names can produce false positives.</p>
     <table class="vendor-table">
       <thead><tr><th>Platform</th><th>7 days</th><th>30 days</th><th>Candidate domains</th></tr></thead>
       <tbody>
@@ -1684,7 +1698,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="methodology-card">
     <h5>How this data is gathered &amp; how to read the counts</h5>
-    <p>Datazag&rsquo;s certificate-issuance pipeline observes new SSL certificates as they&rsquo;re issued, cross-references against a corpus of known trusted-platform brand signatures, and counts the distinct attacker domains imitating each platform over rolling 7- and 30-day windows. The headline counts are <strong>exact matches</strong>; lookalike candidates above are lower-confidence fuzzy matches. <strong>Confidence note:</strong> common dictionary-word or very short brand names (e.g. generic single words) can still produce false positives — treat low single-digit counts on generic names with caution. Continuous-monitoring customers receive immediate alerts when new campaigns appear.</p>
+    <p>We observe new SSL certificates as they are issued, match them against known platform brand signatures, and count distinct attacker domains per platform over rolling 7- and 30-day windows. Headline counts are <strong>exact matches</strong>; treat low single-digit counts on generic names with caution.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -1703,7 +1717,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 05</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Attacks aimed at your customers.</h1>
-    <p class="section-headline">Lookalike domains, suspicious certificates, and typosquats targeting <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code> &mdash; the campaigns where <strong>your brand is the lure and your customers are the target</strong>. Continuously refreshed against our certificate-issuance and DNS corpus.</p>
+    <p class="section-headline">Lookalikes, suspicious certificates and typosquats targeting {{ domain_root }} &mdash; where <strong>your brand is the lure and your customers are the target</strong>.</p>
   </div>
 
   <div class="brand-summary-grid">
@@ -1730,11 +1744,11 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="brand-watchlist-items">
       {% for d in own_brand.sample_domains %}<span class="lure-chip">{{ d }}</span>{% endfor %}
     </div>
-    <p class="brand-watchlist-note">Each domain above was issued a certificate containing your brand string within the watch window. Review for active content or mail service; initiate takedown where warranted.</p>
+    <p class="brand-watchlist-note">Each domain above carried a certificate containing your brand string. Review for active content or mail, and take down where warranted.</p>
     {% else %}
     <div class="brand-watchlist-empty">
       <strong>Watch is live; no current matches.</strong>
-      Lookalike-domain detection across our 320M-domain corpus is running continuously for <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> and its common typosquat patterns. When a match emerges, it will appear in this watchlist with the registration date, observed activity, and recommended takedown path.
+      Lookalike detection runs continuously for <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(15,23,42,0.05);padding:1px 4px;border-radius:3px;">{{ domain_root }}</code> and its typosquat patterns. Matches appear here with registration date and takedown path.
     </div>
     {% endif %}
   </div>
@@ -1745,7 +1759,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <span class="lookalike-badge">Lower confidence</span>
       Typosquat candidates for {{ domain_root }} &mdash; {{ own_brand_lookalikes.count_30d }} in 30 days
     </div>
-    <p class="lookalike-intro">Fuzzy lookalikes of your own brand string — homoglyph and typo variants that are <strong>not exact certificate matches</strong>. A watchlist for monitoring, not confirmed impersonation.</p>
+    <p class="lookalike-intro">Homoglyph and typo variants of your brand string that are <strong>not exact certificate matches</strong> &mdash; a watchlist, not confirmed impersonation.</p>
     {% if own_brand_lookalikes.sample_domains %}
     <div class="brand-watchlist-items">
       {% for d in own_brand_lookalikes.sample_domains %}<span class="lure-chip muted">{{ d }}</span>{% endfor %}
@@ -1756,7 +1770,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="methodology-card">
     <h5>What this section watches</h5>
-    <p>Three signal sources: <strong>(1)</strong> certificate-issuance logs for new SSL certs containing your brand string (the exact-match headline above), <strong>(2)</strong> DNS registration data for typosquats and homoglyph variants of your domain (the lower-confidence candidates), <strong>(3)</strong> our active-infrastructure corpus where any of the above start sending mail or hosting pages. Detection is continuous; this section reflects the state at the snapshot timestamp.</p>
+    <p>Three signal sources: certificate-issuance logs for new certs carrying your brand string, DNS registration data for typosquats and homoglyphs, and our active-infrastructure corpus once any of them start sending mail or hosting pages.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -1775,7 +1789,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 06</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Defensive controls — what we can see externally.</h1>
-    <p class="section-headline">Every control here is <strong>directly observable</strong> from DNS, SSL, or RDAP — no tenant access required. Items marked <strong>deployed</strong> are credit for work already done. Items marked <strong>partial</strong> or <strong>missing</strong> are minimisation opportunities, each with the exact remediation step underneath.</p>
+    <p class="section-headline">Every control here is <strong>directly observable</strong> from DNS, SSL or RDAP &mdash; no tenant access required. <strong>Deployed</strong> is credit for work done; <strong>partial</strong> and <strong>missing</strong> each carry the exact fix underneath.</p>
   </div>
 
   <div class="controls-summary-strip">
@@ -1793,7 +1807,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="mandate-callout-body">
       <div class="mandate-callout-title">DMARC has moved from best practice to operational requirement.</div>
       <div class="mandate-callout-text">
-        Google and Yahoo have required DMARC for bulk senders (5,000+ msgs/day) since <strong>February 2024</strong>; Microsoft since <strong>May 2025</strong>; Apple and Comcast are aligned with the same requirements. Non-compliant senders now face permanent rejections rather than delays. Even for estates below the bulk-sender threshold, the trajectory means deliverability problems are arriving &mdash; ahead of any consideration of the impersonation-defence value.
+        Google and Yahoo have required DMARC for bulk senders since <strong>February 2024</strong>, Microsoft since <strong>May 2025</strong>. Non-compliant senders now face permanent rejections &mdash; deliverability problems arrive regardless of the impersonation-defence value.
       </div>
     </div>
   </div>
@@ -1824,9 +1838,9 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="methodology-card">
     <h5>Methodology notes</h5>
-    <p><strong>SPF doesn&rsquo;t inherit to subdomains.</strong> SPF records apply only to the exact domain they&rsquo;re published at. If subdomains send mail (e.g. <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">mailgun.{{ domain }}</code>, <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">support.{{ domain }}</code>), each one needs its own SPF record. The audit above shows the apex domain only. DMARC, in contrast, inherits to subdomains unless overridden via the <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">sp=</code> tag.</p>
-    <p><strong>DKIM cannot be reliably tested externally.</strong> DKIM records sit at <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">{selector}._domainkey.{{ domain }}</code> where the selector is an arbitrary subdomain chosen by the sending platform. Without internal knowledge or a real signed email to inspect, we cannot enumerate selectors. For platforms we recognise (Microsoft 365: selector1/selector2; Google Workspace: google), we can probe specific selectors &mdash; but absence there doesn&rsquo;t confirm DKIM is missing.</p>
-    <p><strong>What we can&rsquo;t see externally.</strong> Beyond the controls above &mdash; phishing-resistant MFA on platform tenants, Conditional Access policies, anti-phishing rules in Microsoft Defender or equivalents, internal SIEM rules, and staff training programmes. Those appear as checklist items on the cover platform card rather than as audited controls here.</p>
+    <p><strong>SPF doesn&rsquo;t inherit to subdomains.</strong> Each sending subdomain needs its own record; the audit above covers the apex only. DMARC does inherit, unless overridden with <code style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(15,23,42,0.05);padding:1px 3px;border-radius:3px;">sp=</code>.</p>
+    <p><strong>DKIM cannot be reliably tested externally.</strong> Selectors are arbitrary subdomains chosen by the sending platform, so we cannot enumerate them. We probe known selectors for platforms we recognise &mdash; absence there does not confirm DKIM is missing.</p>
+    <p><strong>What we cannot see externally.</strong> MFA, Conditional Access, anti-phishing rules, SIEM and staff training sit inside your tenants. They appear as checklist items on the cover card, not as audited controls.</p>
   </div>
 
   <div class="cover-footer"><span>Datazag Health Report · Confidential</span><span class="right">Page {{ ns.page }} of {{ total_pages }}</span></div>
@@ -1844,7 +1858,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Every record an attacker can read.</h1>
-    <p class="section-headline">This is the complete DNS footprint we captured for <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain }}</code> &mdash; the same records any attacker enumerates first. {{ dns_records_view.total }} records captured; <strong>{{ dns_records_view.weak }}</strong> flagged as defensive weaknesses.</p>
+    <p class="section-headline">The complete DNS footprint for <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain }}</code> &mdash; the records any attacker enumerates first. {{ dns_records_view.total }} captured; <strong>{{ dns_records_view.weak }}</strong> flagged as weaknesses.</p>
   </div>
 
   {% for g in dns_records_view.groups %}
@@ -1863,7 +1877,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="methodology-card">
     <h5>Why the full record set matters</h5>
-    <p>Public DNS is the first thing an attacker reads during reconnaissance: A/AAAA reveal where you host, MX and SPF/DKIM/DMARC TXT reveal how you send mail (and whether you can be spoofed), NS reveals your DNS provider and redundancy, verification TXT tokens reveal which SaaS platforms you use, and the absence of CAA/DNSSEC reveals soft spots. Every record above is externally visible — the weaknesses flagged are the ones worth closing.</p>
+    <p>Public DNS is the first thing an attacker reads: A/AAAA show where you host, MX and TXT show how you send mail and whether you can be spoofed, NS shows your provider, and missing CAA/DNSSEC shows the soft spots.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -1882,7 +1896,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">The quality of the ground you're built on.</h1>
-    <p class="section-headline">Your domain inherits the reputation of the IP, prefix and ASN that host it. Below is what the Datazag corpus knows about that infrastructure &mdash; routing integrity, reputation scoring, active threat-feed listings, and whether you share space with known-malicious domains.</p>
+    <p class="section-headline">Your domain inherits the reputation of the IP, prefix and ASN hosting it &mdash; routing integrity, threat-feed listings, and whether you share space with known-malicious domains.</p>
   </div>
 
   <div class="infra-overview">
@@ -1944,7 +1958,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="methodology-card">
     <h5>How this is assessed</h5>
-    <p>Datazag continuously scores every ASN and BGP prefix in the global routing table against threat feeds (Feodo, URLhaus, ThreatFox, SSLBL, Spamhaus), RPKI validity, MANRS participation, routing anomalies (MOAS / hijack signals), and the density of malicious domains sharing the same infrastructure. Your domain inherits that reputation — clean hosting limits an attacker's options; risky neighbourhoods expand them.</p>
+    <p>We score every ASN and prefix against threat feeds, RPKI validity, MANRS participation, routing anomalies, and the density of malicious neighbours. Your domain inherits that reputation &mdash; clean hosting limits an attacker&rsquo;s options.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -2046,7 +2060,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="methodology-card">
     <h5>What we look for</h5>
-    <p>Subdomains discovered via DNS brute-force, SSL transparency logs (Certificate Transparency feeds), and zone enumeration. Each subdomain is checked for: dangling CNAMEs (deleted but still pointed at), takeover-vulnerable platforms (services that respond to abandoned subdomain claims), shared cross-domain SAN certificates (which leak relationships between unrelated estates), and certificates that missed auto-renewal.</p>
+    <p>Subdomains found via DNS enumeration and certificate transparency, each checked for dangling CNAMEs, takeover-vulnerable platforms, shared cross-domain SAN certificates, and missed auto-renewals.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -2080,7 +2094,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="timeline-baseline">
-    <strong>First assessment.</strong> This snapshot establishes your baseline. From the next assessment onward, this section will show changes between snapshots — new subdomains appearing, NS or MX provider rotations, dynamic-DNS adoption, or any change that deviates from your established pattern.
+    <strong>First assessment.</strong> This snapshot is your baseline. From the next one, this section shows what changed &mdash; new subdomains, provider rotations, anything off your pattern.
   </div>
 
   <div class="toc-spacer"></div>
@@ -2099,7 +2113,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 09</span><span class="section-rule"></span><span class="section-tag" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
     <h1 class="section-title-h1">The implementation changes that close the gaps.</h1>
-    <p class="section-headline">Your defence weaknesses, sequenced by impact &mdash; the concrete DNS, certificate, and email-auth changes that limit how far the attacker problem can travel. <strong>This fortnight</strong> is what you should not wait on; <strong>this quarter</strong> is the substantive work; <strong>this year</strong> is structural improvement.</p>
+    <p class="section-headline">Your defence weaknesses, sequenced by impact &mdash; the DNS, certificate and email-auth changes that limit how far the attacker problem can travel. <strong>This</strong> is structural improvement.</p>
   </div>
 
   <div class="roadmap-grid">
@@ -2130,7 +2144,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="roadmap-narrative">
-    <strong>How this prioritises:</strong> items affecting trusted-platform exposure or sensitive subdomains land in <strong>this fortnight</strong>. Outbound-posture work and brand-protection wiring is <strong>this quarter</strong>. Estate-wide hygiene improvements — CAA across all subdomains, MTA-STS, full BIMI deployment with verified mark certificate — are <strong>this year</strong>. Reassessment at the next snapshot will reorder as appropriate.
+    <strong>How this prioritises:</strong> trusted-platform exposure and sensitive subdomains land in <strong>this fortnight</strong>; outbound posture and brand wiring in <strong>this quarter</strong>; estate-wide hygiene in <strong>this year</strong>.
   </div>
 
   <div class="toc-spacer"></div>
@@ -2149,7 +2163,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-rule"></span><span class="section-tag pill-action" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
     <h1 class="section-title-h1">Remediation plan — hand this to your team.</h1>
-    <p class="section-headline">Every actionable fix from this report, consolidated and prioritised by severity. Each row is a self-contained instruction: what's wrong now, and the exact change to make. This page is designed to be detached and given to whoever owns DNS, email, and infrastructure.</p>
+    <p class="section-headline">Every actionable fix, consolidated and prioritised. Each row is self-contained: what is wrong now, and the exact change to make. Detach this page and hand it to whoever owns DNS, email, and infrastructure.</p>
   </div>
 
   {% if remediation_actions %}
@@ -2172,7 +2186,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="monitoring-state-icon">✓</div>
     <div class="monitoring-state-body">
       <h3>No outstanding remediation items.</h3>
-      <p>No partial or missing controls and no actionable high/medium findings were detected in this assessment. Maintain current posture and re-assess on the next snapshot.</p>
+      <p>No partial or missing controls and no actionable findings in this assessment. Maintain posture and re-assess next snapshot.</p>
     </div>
   </div>
   {% endif %}
@@ -2193,7 +2207,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 10</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">Plain-English definitions.</h1>
-    <p class="section-headline">Every technical term used in this report, defined for the cold reader. The methodology block below describes how the evidence was gathered.</p>
+    <p class="section-headline">Every technical term used in this report, in one line each. Methodology below.</p>
   </div>
 
   <div class="glossary-grid">
@@ -2207,10 +2221,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="methodology-block">
     <h4>Methodology</h4>
-    <p><strong>Data sources.</strong> Live DNS resolution at snapshot time; SSL transparency logs (Certificate Transparency feeds); Datazag&rsquo;s continuous certificate-issuance pipeline observing new SSL issuance across the public web; RDAP for domain registration data; ASN and BGP routing observations across 320 million domains, refreshed hourly.</p>
-    <p><strong>Trusted-platform corpus.</strong> Maintained list of identity platforms most-frequently impersonated in the certificate-issuance data. Currently includes Microsoft 365, Google Workspace, Apple, PayPal, Amazon, DocuSign, Mailchimp, Cloudflare, and the long tail of SaaS platforms used by typical SMB and mid-market estates.</p>
-    <p><strong>The 85&ndash;90% figure.</strong> Of all suspicious certificate registrations observed by Datazag in April 2026, between 85 and 90 per cent imitated a trusted technology platform. The figure is refreshed monthly; the range absorbs month-to-month variance.</p>
-    <p><strong>Trust Grade.</strong> A composite score 0&ndash;100 (higher = more exposed) mapped to a six-band letter grade (A&ndash;F). Drivers include platform-impersonation exposure, brand-impersonation exposure, outbound posture (DMARC/SPF/BIMI/CAA), and infrastructure findings.</p>
+    <p><strong>Data sources.</strong> Live DNS at snapshot time; certificate transparency logs; Datazag&rsquo;s certificate-issuance pipeline; RDAP registration data; ASN and BGP observations across 320 million domains, refreshed hourly.</p>
+    <p><strong>Trusted-platform corpus.</strong> The identity platforms most often impersonated in certificate-issuance data &mdash; Microsoft 365, Google Workspace, Apple, PayPal, DocuSign, Mailchimp, Cloudflare, and the SaaS long tail.</p>
+    <p><strong>The 85&ndash;90% figure.</strong> Of suspicious certificate registrations Datazag observed in April 2026, 85&ndash;90% imitated a trusted platform. Refreshed monthly; the range absorbs variance.</p>
+    <p><strong>Trust Grade.</strong> A 0&ndash;100 composite (higher = more exposed) mapped to A&ndash;F. Driven by platform exposure, brand exposure, outbound posture and infrastructure findings.</p>
   </div>
 
   <div class="toc-spacer"></div>
@@ -4818,40 +4832,40 @@ class HealthReportRenderer:
 
     @staticmethod
     def _glossary_items() -> list[dict[str, str]]:
-        """Plain-English definitions for every technical term used in the report."""
+        """Plain-English definitions. One line each — the report is read, not studied."""
         return [
             {"term": "Trusted platform impersonation",
-             "def":  "Attackers imitate a platform your staff trusts (Microsoft 365, Google Workspace, etc.) to capture their credentials. The largest impersonation surface — 85&ndash;90% of observed activity."},
+             "def":  "Attackers imitate a platform your staff trust to capture credentials. 85&ndash;90% of observed activity."},
             {"term": "Brand impersonation",
-             "def":  "Attackers imitate your own brand to defraud your customers. Lookalike domains, typosquats, fraudulent certificates."},
+             "def":  "Attackers imitate your brand to defraud your customers &mdash; lookalikes, typosquats, fraudulent certificates."},
             {"term": "<span class=\"acronym\">DMARC</span>",
-             "def":  "Domain-based Message Authentication, Reporting &amp; Conformance. Tells receiving mail servers what to do with unauthenticated mail claiming to be from you (none / quarantine / reject)."},
+             "def":  "Tells receiving servers what to do with unauthenticated mail claiming to be from you (none / quarantine / reject)."},
             {"term": "<span class=\"acronym\">SPF</span>",
-             "def":  "Sender Policy Framework. Lists which mail servers are authorised to send email as your domain."},
+             "def":  "Lists which mail servers may send as your domain."},
             {"term": "<span class=\"acronym\">BIMI</span>",
-             "def":  "Brand Indicators for Message Identification. Displays your verified logo in supporting inboxes — requires DMARC enforcement."},
+             "def":  "Shows your verified logo in supporting inboxes; requires DMARC enforcement."},
             {"term": "<span class=\"acronym\">CAA</span>",
-             "def":  "Certification Authority Authorisation. Restricts which certificate authorities can issue SSL/TLS certificates for your domain."},
+             "def":  "Restricts which certificate authorities may issue for your domain."},
             {"term": "<span class=\"acronym\">MTA-STS</span>",
-             "def":  "Mail Transfer Agent Strict Transport Security. Enforces TLS for inbound mail delivery, preventing downgrade attacks."},
+             "def":  "Enforces TLS on inbound mail, preventing downgrade attacks."},
             {"term": "<span class=\"acronym\">DNSSEC</span>",
-             "def":  "DNS Security Extensions. Cryptographically signs DNS responses so receivers can validate that records haven't been tampered with."},
+             "def":  "Signs DNS responses so receivers can detect tampering."},
             {"term": "<span class=\"acronym\">SSL stripping</span>",
-             "def":  "An attack that downgrades HTTPS to HTTP, allowing credentials and session data to be intercepted in plain text."},
+             "def":  "Downgrading HTTPS to HTTP so credentials can be read in plain text."},
             {"term": "HSTS",
-             "def":  "HTTP Strict Transport Security. Tells browsers to only access your site over HTTPS, preventing SSL stripping."},
+             "def":  "Tells browsers to use HTTPS only, preventing SSL stripping."},
             {"term": "Dangling CNAME",
-             "def":  "A subdomain CNAME pointing at a service that has been deleted. Attackers can claim the abandoned resource and serve content from your subdomain."},
+             "def":  "A subdomain pointing at a deleted service &mdash; claimable by an attacker."},
             {"term": "Subdomain takeover",
-             "def":  "An attack where a subdomain points at an abandoned third-party service that an attacker can claim — turning your subdomain into theirs."},
+             "def":  "Claiming that abandoned service, so your subdomain becomes theirs."},
             {"term": "Cross-domain SAN",
-             "def":  "Subject Alternative Name on an SSL certificate that covers unrelated domains. Reveals infrastructure relationships and creates joint failure modes."},
+             "def":  "One certificate covering unrelated domains. Reveals relationships, creates joint failure modes."},
             {"term": "Certificate Transparency",
-             "def":  "Public logs of every SSL certificate issued. Datazag observes these in real time to detect impersonation infrastructure as it appears."},
+             "def":  "Public logs of every SSL certificate issued; we watch them in real time."},
             {"term": "Trust Grade",
-             "def":  "Datazag&rsquo;s six-band letter grade (A&ndash;F) summarising overall exposure. Derived from a composite 0&ndash;100 score with higher = worse."},
+             "def":  "Our A&ndash;F grade from a 0&ndash;100 composite; higher = more exposed."},
             {"term": "CertStream",
-             "def":  "Datazag&rsquo;s real-time certificate-issuance pipeline. Watches new SSL certificates as they&rsquo;re issued, cross-referenced against trusted-platform brand signatures."},
+             "def":  "Our certificate-issuance pipeline, matched against platform brand signatures."},
         ]
 
     # ----- TOC -------------------------------------------------------------
@@ -4860,29 +4874,29 @@ class HealthReportRenderer:
     def _toc_items() -> list[dict[str, str]]:
         return [
             {"title": "At-a-glance", "kind": "context", "section": "glance",
-             "desc": "Your overall Trust Grade, how the two slices of your attack surface compare, and the three things to address first."},
+             "desc": "Your Trust Grade, how the two slices of your attack surface compare, and what to fix first."},
             {"title": "Why this matters", "kind": "context", "section": "why",
-             "desc": "Why 85&ndash;90% of impersonation attacks target trusted technology platforms, and how to read both the inbound (platform) and outbound (brand) sides of your attack surface."},
+             "desc": "Why 85&ndash;90% of impersonation targets trusted platforms, and how to read the inbound and outbound sides."},
             {"title": "Your vendor footprint", "kind": "findings", "section": "vendor_footprint",
-             "desc": "The technology platforms your stack actually depends on, ordered by attacker desirability rather than internal priority."},
+             "desc": "The platforms your stack depends on, ordered by attacker desirability."},
             {"title": "Trusted platform-impersonation exposure", "kind": "findings", "section": "platform_exposure",
-             "desc": "For each detected platform: the active attacker infrastructure imitating it, recently observed lures, and what those campaigns look like to your staff. <em>Highest-volume slice of the attack surface.</em>"},
+             "desc": "Active attacker infrastructure imitating each platform. <em>Highest-volume slice.</em>"},
             {"title": "Brand-impersonation exposure", "kind": "findings", "section": "brand_exposure",
-             "desc": "Lookalike domains, suspicious certificates, and typosquats targeting your own brand &mdash; the campaigns aimed at your customers, not your staff."},
+             "desc": "Lookalikes and typosquats targeting your brand &mdash; aimed at your customers, not your staff."},
             {"title": "Outbound posture", "kind": "findings", "section": "controls",
-             "desc": "Your domain authentication: DMARC, SPF, BIMI, CAA, MTA-STS. The technical defences that constrain how far a brand-impersonation campaign can travel."},
+             "desc": "DMARC, SPF, BIMI, CAA, MTA-STS &mdash; the defences that constrain how far a campaign travels."},
             {"title": "Full DNS records", "kind": "findings", "section": "dns_records",
-             "desc": "Every DNS record we captured for your domain &mdash; A, MX, NS, TXT, CAA, DNSSEC &mdash; with the specific records that are defensive weaknesses called out inline."},
+             "desc": "Every record we captured, with the defensive weaknesses called out inline."},
             {"title": "Infrastructure &amp; routing intelligence", "kind": "findings", "section": "infra_routing",
-             "desc": "The quality of the IP, prefix and ASN your domain is hosted on &mdash; RPKI/MOAS routing integrity, ASN/IP reputation, threat-feed listings, and malicious co-tenancy in the Datazag corpus."},
+             "desc": "The quality of the IP, prefix and ASN hosting you &mdash; routing integrity, reputation, co-tenancy."},
             {"title": "Hidden infrastructure", "kind": "findings", "section": "hidden_infra",
-             "desc": "Forgotten subdomains, dormant services, certificate hygiene across your wider estate &mdash; the assets attackers find that you may not know exist."},
+             "desc": "Forgotten subdomains and dormant services &mdash; the assets attackers find that you may not know exist."},
             {"title": "Twelve-month timeline", "kind": "findings", "section": "timeline",
-             "desc": "Every infrastructure change observed in the past year &mdash; including any that look unusual against your baseline."},
+             "desc": "Infrastructure changes over the past year, and any that look unusual."},
             {"title": "Your minimisation roadmap", "kind": "action", "section": "roadmap",
-             "desc": "How to minimise your attack surface, sequenced by impact &mdash; this fortnight, this quarter, this year &mdash; with effort estimates and ownership recommendations."},
+             "desc": "The fixes sequenced by impact &mdash; fortnight, quarter, year &mdash; with effort and ownership."},
             {"title": "IT remediation plan", "kind": "action", "section": "remediation_plan",
-             "desc": "A detailed, hand-to-the-team work list &mdash; every fix with its current state and the exact step, prioritised by severity. Designed to be detached and given to whoever owns the changes."},
+             "desc": "Every fix with its current state and exact step. Detachable, for whoever owns the changes."},
             {"title": "Glossary &amp; methodology", "kind": "context", "section": "glossary",
-             "desc": "Plain-English definitions of every technical term used, plus how the evidence behind each finding was gathered."},
+             "desc": "Definitions of every technical term, plus how the evidence was gathered."},
         ]
