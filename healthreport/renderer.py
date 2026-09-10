@@ -770,6 +770,15 @@ HEALTH_REPORT_TEMPLATE = r"""
   .et-key { font-size: 9.5px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--cyan-deep); }
   .et-val { font-size: 11.5px; line-height: 1.55; color: var(--ink-2); }
   .et-val b { color: var(--ink); font-weight: 600; }
+  .ogb-band, .gb-band { font-size: 26px; font-weight: 900; letter-spacing: -0.02em; line-height: 1; text-transform: uppercase; }
+  .ogb-band { color: var(--white); }
+  .gb-band { color: var(--ink); }
+  .ogb-scoreline, .gb-scoreline { font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; margin-top: 6px; }
+  .ogb-scoreline { color: var(--white-3); }
+  .gb-scoreline { color: var(--ink-3); }
+  .economy-note { margin: 0 56px 14px; background: var(--rule-lighter); border-left: 3px solid var(--cyan); border-radius: 0 9px 9px 0; padding: 12px 16px; }
+  .economy-note-h { font-size: 10px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--cyan-deep); margin-bottom: 5px; }
+  .economy-note p { font-size: 11.5px; line-height: 1.6; color: var(--ink-2); }
   .exec-benchmark { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule-lighter); font-size: 11px; line-height: 1.55; color: var(--ink-3); }
   /* Attack-economy primer — ported with the mechanism from the free report. */
   .primer { margin: 0 56px 14px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 16px 20px 12px; }
@@ -1153,20 +1162,20 @@ HEALTH_REPORT_TEMPLATE = r"""
         <div class="dsc-label">
           <span class="dsc-icon">▲</span>
           The attacker problem &mdash; platform impersonation
-          <span class="dsc-grade-ref">{{ platform_grade.letter }} &middot; {{ platform_score }}/100</span>
+          <span class="dsc-grade-ref">{{ platform_grade.band }} &middot; {{ platform_score }}/100 exposure</span>
         </div>
         {% if suppress_platform_counts %}
         <div class="dsc-state">{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }} detected in your stack &mdash; each an impersonation lure</div>
-        <p class="dsc-qualifier">Every platform your staff log into is a brand an attacker can imitate. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
+        <p class="dsc-qualifier">Every platform your staff log into is a brand an attacker can imitate. <strong>Platform impersonation is usually how brand impersonation starts.</strong></p>
         {% elif impersonation_total_30d > 0 %}
         <div class="dsc-state" style="color:var(--bad);">{{ impersonation_total_30d }} lookalike domains &mdash; {{ active_campaign_count }} of your platform{{ 's' if active_campaign_count != 1 else '' }} impersonated (30d)</div>
-        <p class="dsc-qualifier">Attackers are imitating the platforms your staff use daily. <strong>Platform impersonation is the on-ramp to brand impersonation</strong> &mdash; the same playbook then targets your customers.</p>
+        <p class="dsc-qualifier">Attackers are imitating the platforms your staff use daily. <strong>Platform impersonation is usually how brand impersonation starts</strong> &mdash; the same technique then targets your customers.</p>
         {% elif not impersonation_lookup_ok %}
         <div class="dsc-state">Impersonation check unavailable &mdash; {{ vendors | length }} trusted platforms in your stack</div>
         <p class="dsc-qualifier">Our certificate-log rollup was unreachable when this report ran, so platform impersonation was <strong>not checked</strong> &mdash; this is not an all-clear.</p>
         {% else %}
         <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms in your stack</div>
-        <p class="dsc-qualifier">No active impersonation of your platforms in the last 30 days &mdash; but every platform here is a lure. <strong>Platform impersonation is the on-ramp to brand impersonation.</strong></p>
+        <p class="dsc-qualifier">No active impersonation of your platforms in the last 30 days &mdash; but every platform here is a lure. <strong>Platform impersonation is usually how brand impersonation starts.</strong></p>
         {% endif %}
         {% if platform_list.platforms %}
         <div class="dsc-platform-list">
@@ -1193,7 +1202,7 @@ HEALTH_REPORT_TEMPLATE = r"""
         <div class="dsc-label">
           <span class="dsc-icon">◉</span>
           Your defence weaknesses &mdash; trust &amp; infrastructure
-          <span class="dsc-grade-ref">{{ infra_grade.letter }} &middot; {{ infra_score }}/100</span>
+          <span class="dsc-grade-ref">{{ infra_grade.band }} &middot; {{ infra_score }}/100 exposure</span>
         </div>
         <div class="dsc-state">{{ infra_grade.headline }}</div>
         <p class="dsc-qualifier">The gaps in your public DNS &mdash; DMARC, SPF, DNSSEC, CAA, certificates, routing &mdash; that decide <strong>how easily your own domain can be spoofed, hijacked or mis-issued against</strong>. A separate surface from the platform lures above.</p>
@@ -1206,7 +1215,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           </ul>
         </div>
         <p class="dsc-context">
-          Each gap is fixable through changes you control. The roadmap is in <strong>section 07</strong>.
+          Each gap is fixable through changes you control. The roadmap is in <strong>section {{ section_no.roadmap }}</strong>.
         </p>
       </div>
     </div>
@@ -1214,15 +1223,16 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="overall-grade-band">
       <div class="ogb-letter">{{ grade.letter }}</div>
       <div class="ogb-body">
-        <div class="ogb-label">Overall Trust Grade &middot; the attacker problem and your defences, combined</div>
-        <div class="ogb-headline">{{ grade.headline }}.</div>
+        <div class="ogb-label">External exposure &middot; the attacker problem and your defences, combined</div>
+        <div class="ogb-band">{{ grade.band }}</div>
+        <div class="ogb-scoreline">Risk score {{ overall_score }}/100 &mdash; higher is more exposed &middot; grade {{ grade.letter }}</div>
         <div class="ogb-detail">
           {% if driving_surface == 'platform' %}
           The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. That is defended inside your tenants (MFA, Conditional Access), which this report cannot see; section 07 sequences what you can fix from the outside.
           {% elif driving_surface == 'infrastructure' %}
-          The bigger driver is your defence weaknesses &mdash; short-effort DNS, certificate and email-auth gaps that let a campaign travel further than it should. Section 07 prioritises them.
+          The bigger driver is your defence weaknesses &mdash; short-effort DNS, certificate and email-auth gaps that let a campaign travel further than it should. Section {{ section_no.roadmap }} prioritises them.
           {% else %}
-          Both warrant attention. Section 07 sequences the changes by impact.
+          Both warrant attention. Section {{ section_no.roadmap }} sequences the changes by impact.
           {% endif %}
         </div>
       </div>
@@ -1336,7 +1346,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="toc-header">
     <div class="toc-eyebrow">A guided tour</div>
     <h2 class="toc-title">Mapping your attack surface, in {{ toc_items | length }} sections.</h2>
-    <p class="toc-lede">This report maps your attack surface and gives you a roadmap to reduce it. Every section is <strong>Context</strong>, <strong>Findings</strong> or <strong>Action</strong>. Read it in order, or take sections 01, 03 and 07 as the spine.</p>
+    <p class="toc-lede">This report maps your attack surface and gives you a roadmap to reduce it. Every section is <strong>Context</strong>, <strong>Findings</strong> or <strong>Action</strong>. Read it in order, or take sections {{ section_no.glance }}, {{ section_no.external_summary }} and {{ section_no.roadmap }} as the essentials.</p>
   </div>
   <ol class="toc-list">
     {% for item in toc_items %}
@@ -1354,7 +1364,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="toc-callout-icon">★</div>
     <div>
       <h5>How to read this report</h5>
-      <p><strong>Ten minutes:</strong> sections 01, 03 and 07. <strong>Thirty:</strong> add 02 and 04 &mdash; the attack economy and your defensive controls. Every section opens in plain English before the technical detail.</p>
+      <p><strong>Ten minutes:</strong> sections {{ section_no.glance }}, {{ section_no.external_summary }} and {{ section_no.roadmap }}. <strong>Thirty:</strong> add {{ section_no.controls }} &mdash; your defensive controls. Every section opens in plain English before the technical detail.</p>
     </div>
   </div>
   <div class="toc-spacer"></div>
@@ -1371,10 +1381,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 01 · At a glance<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.glance }} · At a glance<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 01</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.glance }}</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">At a glance.</h1>
     <p class="section-headline">Three separate questions, answered separately: <strong>what is targeting your people</strong>, <strong>what is targeting your company</strong>, and <strong>what an attacker can exploit</strong>.</p>
   </div>
@@ -1387,7 +1397,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div class="et-row"><span class="et-key">Most important</span><span class="et-val"><b>{{ exec_summary.immediate }}.</b> {{ exec_summary.immediate_detail }}. This is infrastructure serving your domain, not a lookalike of it.</span></div>
       {% endif %}
       {% if exec_summary.fixable %}
-      <div class="et-row"><span class="et-key">Most fixable</span><span class="et-val"><b>{{ exec_summary.fixable }}</b>{% if exec_summary.fixable_count > 1 %} and {{ exec_summary.fixable_count - 1 }} other control{{ 's' if exec_summary.fixable_count > 2 else '' }}{% endif %} &mdash; changes you make yourself, in DNS. Section 07 sequences them.</span></div>
+      <div class="et-row"><span class="et-key">Most fixable</span><span class="et-val"><b>{{ exec_summary.fixable }}</b>{% if exec_summary.fixable_count > 1 %} and {{ exec_summary.fixable_count - 1 }} other control{{ 's' if exec_summary.fixable_count > 2 else '' }}{% endif %} &mdash; changes you make yourself, in DNS. Section {{ section_no.roadmap }} sequences them.</span></div>
       {% endif %}
       {% if exec_summary.monitor %}
       <div class="et-row"><span class="et-key">Ongoing</span><span class="et-val"><b>{{ exec_summary.monitor }}</b>. Not aimed at you specifically &mdash; aimed at everyone using those platforms, which includes you.</span></div>
@@ -1400,6 +1410,8 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="grade-band">
     <div class="grade-band-letter">{{ grade.letter }}</div>
     <div class="grade-band-body">
+      <div class="gb-band">{{ grade.band }} exposure</div>
+      <div class="gb-scoreline">Risk score {{ overall_score }}/100 &mdash; higher is more exposed &middot; grade {{ grade.letter }} on the A&ndash;F scale below</div>
       <div class="grade-band-scale">
         <div class="grade-scale-track"></div>
         <div class="grade-scale-marks">
@@ -1410,7 +1422,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div style="display:flex;justify-content:space-between;font-size:9.5px;font-weight:700;color:var(--ink-4);letter-spacing:0.05em;padding:0 2px;">
         {% for L in ['A','B','C','D','E','F'] %}<span{% if L == grade.letter %} style="color:var(--ink);"{% endif %}>{{ L }}</span>{% endfor %}
       </div>
-      <div class="grade-band-text" style="margin-top:4px;">Most {{ grade.letter }}-grade organisations move up a band within a quarter by completing section 07. The grade weighs platform exposure, brand exposure and outbound posture.</div>
+      <div class="grade-band-text" style="margin-top:4px;">Most organisations at this level move down a band within a quarter by completing section {{ section_no.roadmap }}. The score weighs platform exposure, brand exposure and outbound posture.</div>
     </div>
   </div>
   <div class="scorecards">
@@ -1484,10 +1496,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 02 · How the attack economy works<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.attack_economy }} · How the attack economy works<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 02</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.attack_economy }}</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">How the cyber attack economy works.</h1>
     <p class="section-headline">Platform impersonation is an industry with business models. How it operates explains why every organisation on {{ top_platform }} sits in its path.</p>
   </div>
@@ -1517,7 +1529,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   {% if vendors %}
-  <p class="economy-lead"><b>The platforms that put you in the target set</b> &mdash; read from your mail and DNS configuration, not guessed. Section 03 shows who is currently imitating them.</p>
+  <p class="economy-lead"><b>The platforms that put you in the target set</b> &mdash; read from your mail and DNS configuration, not guessed. Section {{ section_no.external_summary }} shows who is currently imitating them.</p>
   <div class="es-block">
     <table class="vendor-table">
       <tbody>
@@ -1540,12 +1552,21 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 03 · External threat<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.external_summary }} · External threat<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 03</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.external_summary }}</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Who is impersonating {{ org_name }}.</h1>
     <p class="section-headline">Lookalikes observed in certificate-transparency logs over the last 7 and 30 days &mdash; against the platforms <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain }}</code> uses, and the <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,0.05);padding:1px 5px;border-radius:3px;">{{ domain_root }}</code> brand itself.</p>
+  </div>
+
+  {# The full attack-economy page still runs on the FREE tier, where a lead magnet
+     can afford to argue the general case. Here it is a paragraph: the paid report
+     is strongest telling a reader about their own estate, and the tables below
+     already show "you use this / we observed that". #}
+  <div class="economy-note">
+    <div class="economy-note-h">Why you are exposed even if nobody targeted you</div>
+    <p>Credential phishing is industrialised. Attackers build Microsoft, Google and Okta lookalikes and distribute them at scale, to whoever they reach. If your organisation uses those platforms &mdash; and the stack below is read from your own DNS &mdash; your staff are in the target population. Nobody decided on you.</p>
   </div>
 
   <div class="footprint-summary">
@@ -1642,10 +1663,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 04 · Defensive controls<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.controls }} · Defensive controls<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 04</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.controls }}</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Defensive controls — what we can see externally.</h1>
     <p class="section-headline">Every control here is <strong>directly observable</strong> from DNS, SSL or RDAP &mdash; no tenant access required. <strong>Deployed</strong> is credit for work done; <strong>partial</strong> and <strong>missing</strong> each carry the exact fix underneath.</p>
   </div>
@@ -1756,7 +1777,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
-    <h1 class="section-title-h1">The quality of the ground you're built on.</h1>
+    <h1 class="section-title-h1">The infrastructure your domain is hosted on.</h1>
     <p class="section-headline">Your domain inherits the reputation of the IP, prefix and ASN hosting it &mdash; routing integrity, threat-feed listings, and whether you share space with known-malicious domains.</p>
   </div>
 
@@ -1827,10 +1848,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 05 · Hidden infrastructure<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.hidden_infra }} · Hidden infrastructure<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 05</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.hidden_infra }}</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">The assets attackers find that you may not know exist.</h1>
     <p class="section-headline">Domain registration, subdomains, dormant services, and certificate hygiene. The foundational facts about your estate — discovered through DNS enumeration, SSL transparency logs, and RDAP. <strong>{{ subdomain_count }} live subdomains observed</strong> for {{ domain }}.</p>
   </div>
@@ -1929,10 +1950,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 06 · Twelve-month timeline<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.timeline }} · Twelve-month timeline<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 06</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.timeline }}</span><span class="section-rule"></span><span class="section-tag" style="color:var(--cyan-deep);border-color:rgba(0,150,204,0.32);background:rgba(0,150,204,0.06);">● Findings</span></div>
     <h1 class="section-title-h1">Infrastructure changes worth knowing.</h1>
     <p class="section-headline">Every change Datazag has observed in your DNS and infrastructure over the past twelve months — flagged where it deviates from the baseline pattern for an estate of your shape.</p>
   </div>
@@ -1963,10 +1984,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 07 · Implementation-changes roadmap<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.roadmap }} · Implementation-changes roadmap<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 07</span><span class="section-rule"></span><span class="section-tag" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.roadmap }}</span><span class="section-rule"></span><span class="section-tag" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
     <h1 class="section-title-h1">The implementation changes that close the gaps.</h1>
     <p class="section-headline">The weaknesses you can fix from the outside, sequenced by impact &mdash; the DNS, certificate and email-auth controls that govern whether your own domain can be spoofed, hijacked or mis-issued against. Platform phishing is defended inside your tenants, which this report cannot see.</p>
   </div>
@@ -2056,10 +2077,10 @@ HEALTH_REPORT_TEMPLATE = r"""
 <div class="page light">
   <div class="topbar">
     {{ brand_block(light=True) }}
-    <div class="topbar-right"><div class="topbar-id">Section 08 · Glossary &amp; methodology<strong>{{ domain }}</strong></div></div>
+    <div class="topbar-right"><div class="topbar-id">Section {{ section_no.glossary }} · Glossary &amp; methodology<strong>{{ domain }}</strong></div></div>
   </div>
   <div class="section-id-bar">
-    <div class="section-num-row"><span class="section-num">Section 08</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
+    <div class="section-num-row"><span class="section-num">Section {{ section_no.glossary }}</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">Plain-English definitions.</h1>
     <p class="section-headline">Every technical term used in this report, in one line each. Methodology below.</p>
   </div>
@@ -2308,7 +2329,7 @@ class HealthReportRenderer:
         A("## The attacker problem — platform impersonation")
         A("")
         A(f"Grade {self._platform_grade.letter} ({self._platform_score}/100). "
-          "Platform impersonation is the on-ramp to brand impersonation.")
+          "Platform impersonation is usually how brand impersonation starts.")
         A("")
         actives = self._active_impersonations()
         if actives:
@@ -2789,6 +2810,7 @@ class HealthReportRenderer:
             "impersonation_lookup_ok": ext.lookup_ok,
             # The external page's action block — the platform/brand priorities only,
             # so it never repeats the infrastructure items the roadmap owns.
+            "section_no":        self._section_numbers(),
             "cover_hook":        self._cover_hook(),
             "exec_summary":      self._executive_summary(),
             "external_actions":  [p for p in self._build_priorities()
@@ -2815,6 +2837,10 @@ class HealthReportRenderer:
             "threat_pillar":     self.vm.threat,
             # Trust grade
             "grade":             self._grade,
+            # The overall 0-100 (higher = more exposed). The scorelines print it
+            # beside the band; an undefined name here renders as empty in Jinja and
+            # ships "Risk score /100", so it is passed explicitly.
+            "overall_score":     self.display_score,
             "platform_grade":    self._platform_grade,
             "infra_grade":       self._infrastructure_grade,
             "platform_score":    self._platform_score,
@@ -3367,6 +3393,28 @@ class HealthReportRenderer:
         return (f"You do not publish DMARC, and neither does {without}% of the "
                 f"{stat.denominator_label or 'corpus'} Datazag tracks ({stat.as_of}) "
                 "\u2014 which is why mail claiming to be from you is so rarely challenged.")
+
+    # Sections that carry a printed number, in page order. Anything not listed
+    # renders unnumbered (DNS records, infra/routing, the remediation tear-off).
+    NUMBERED_SECTIONS = ("glance", "attack_economy", "external_summary", "controls",
+                         "hidden_infra", "timeline", "roadmap", "glossary")
+
+    def _section_numbers(self) -> dict[str, str]:
+        """Number the sections THIS audience actually renders.
+
+        The numbers used to be hardcoded in the template, which broke every time a
+        page moved: the report has jumped 01 to 06, renumbered twice more since,
+        and the free tier — which renders a subset — had gaps all along that nobody
+        was checking. Deriving them from the enabled set makes those bugs
+        unrepresentable rather than merely fixed.
+        """
+        enabled = set(self.audience.sections)
+        out, n = {}, 0
+        for key in self.NUMBERED_SECTIONS:
+            if key in enabled:
+                n += 1
+                out[key] = f"{n:02d}"
+        return out
 
     def _cover_hook(self) -> dict[str, str]:
         """The cover headline, built from THIS domain's numbers.

@@ -77,10 +77,11 @@ def test_flagship_full_renders():
     assert SENSITIVE_OWN_BRAND in html
     assert "41" in html                       # microsoft365 count_30d
     assert "Platforms targeted" in html
-    # 13 pages: the four-page external arc became one, plus the attack-economy page
-    assert "Page 1 of 13" in html
-    assert "Page 13 of 13" in html
-    assert html.count('class="page') == 13
+    # 12 pages: the four-page external arc became one, and the attack-economy page
+    # is now a paragraph here (it stays a full page on the free tier)
+    assert "Page 1 of 12" in html
+    assert "Page 12 of 12" in html
+    assert html.count('class="page') == 12
     # medallion findings drive the priorities/infra side
     assert "Trust Grade" in html or "trust grade" in html.lower()
 
@@ -222,7 +223,10 @@ def test_external_threat_is_a_single_page_with_the_data_and_actions():
     brand exposure) is one page. Three of those pages argued the general case and
     carried no domain-specific action, so they read the same for most domains."""
     html = HealthReportRenderer(_sample_vm()).to_html()
-    assert html.count("Section 03 · External threat") == 1
+    # numbered from the enabled set, so this follows the renderer rather than a
+    # constant that goes stale the next time a page moves
+    n = HealthReportRenderer(_sample_vm())._section_numbers()["external_summary"]
+    assert html.count(f"Section {n} · External threat") == 1
     # the removed pages' headline copy is gone
     for gone in ("Why attackers prefer trusted platforms",
                  "Your stack, ordered by attacker preference",
@@ -382,11 +386,17 @@ def test_executive_summary_omits_the_benchmark_when_unreachable():
     assert "Datazag tracks" not in html      # no invented corpus figure
 
 
-def test_attack_economy_page_is_present_and_honest():
-    """The free report's strongest context page, ported. Industry figures must stay
-    labelled as industry figures — this page is the one place the report cites
+def test_attack_economy_is_a_page_on_the_free_tier_and_a_paragraph_on_the_paid_one():
+    """It argues the general case, which earns a page in a lead magnet and a
+    paragraph in a report a customer paid for. Industry figures must stay labelled
+    as industry figures wherever it runs — this is the one place the report cites
     numbers it did not measure."""
-    html = HealthReportRenderer(_sample_vm()).to_html()
+    paid = HealthReportRenderer(_sample_vm()).to_html()
+    assert "How the cyber attack economy works." not in paid
+    assert "Why you are exposed even if nobody targeted you" in paid
+    assert "Nobody decided on you." in paid
+
+    html = HealthReportRenderer(_sample_vm(), audience="health").to_html()
     assert "How the cyber attack economy works." in html
     assert "spray and pray" in html
     assert "$10.5 trillion" in html

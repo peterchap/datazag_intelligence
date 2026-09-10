@@ -27,6 +27,13 @@ class TrustGrade:
     description: str      # one-sentence sub-line
     scale_position: float # 0.0–1.0 for the horizontal A→F scale on page 3
     arc_fill: float       # 0.0–1.0 for the dial ring on the cover
+    # The word an executive reads first. "F · 88/100" asks a reader to hold two
+    # inverted scales at once: a lifetime of 88/100 meaning good, against a letter
+    # meaning the opposite — and "Trust Grade" made it worse, because a high trust
+    # score sounds like a compliment. The band is the primary reading now; the
+    # letter and the number are shown behind it, and the number always states its
+    # direction.
+    band: str = ""        # Low | Moderate | Elevated | High | Critical
 
 
 # Lower = better posture. Bands chosen so:
@@ -39,22 +46,22 @@ class TrustGrade:
 _BANDS = [
     (15, TrustGrade("A", "Strong posture",
                     "Exposure addressable through ongoing maintenance.",
-                    0.08, 0.92)),
+                    0.08, 0.92, "Low")),
     (30, TrustGrade("B", "Solid posture",
                     "Addressable in a quarter through routine improvements.",
-                    0.25, 0.75)),
+                    0.25, 0.75, "Low")),
     (50, TrustGrade("C", "Moderate exposure",
                     "Addressable in 90 days.",
-                    0.42, 0.60)),
+                    0.42, 0.60, "Moderate")),
     (70, TrustGrade("D", "Meaningful exposure",
                     "Several material gaps; quarter of focused work needed.",
-                    0.58, 0.40)),
+                    0.58, 0.40, "Elevated")),
     (85, TrustGrade("E", "High exposure",
                     "Multiple material risks; immediate prioritisation needed.",
-                    0.75, 0.22)),
+                    0.75, 0.22, "High")),
     (101, TrustGrade("F", "Critical exposure",
                      "Immediate action required across multiple surfaces.",
-                     0.92, 0.10)),
+                     0.92, 0.10, "Critical")),
 ]
 
 
@@ -63,7 +70,7 @@ def score_to_grade(score: int | float | None) -> TrustGrade:
     if score is None:
         return TrustGrade("?", "Not yet assessed",
                           "First assessment in progress.",
-                          0.50, 0.50)
+                          0.50, 0.50, "Not assessed")
     s = max(0, min(100, int(score)))
     for cutoff, grade in _BANDS:
         if s < cutoff:

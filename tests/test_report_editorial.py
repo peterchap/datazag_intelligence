@@ -105,6 +105,21 @@ def test_no_raw_internal_tokens_as_copy():
     assert "some_new_unmapped_code" in evidence
 
 
+def test_no_empty_template_variables_reach_the_reader():
+    """Jinja renders an undefined name as an empty string, so a typo ships as a
+    hole rather than an error: "Risk score /100" was live until this test existed."""
+    text = _visible(_render())
+    text = re.sub(r"\s+", " ", text)
+    holes = []
+    for pattern, what in ((r"\bscore\s*/\s*100", "a score with no number"),
+                          (r"\b\w+\s*:\s*(?:·|\||$)", "a label with no value"),
+                          (r"\(\s*\)", "an empty parenthetical"),
+                          (r"\bof\s+/", "a fraction with no numerator")):
+        for m in re.finditer(pattern, text):
+            holes.append(f"{what}: ...{text[max(0, m.start()-45):m.end()+25].strip()}...")
+    assert not holes, "empty template variables in the rendered report:\n  " + "\n  ".join(holes[:6])
+
+
 def test_timeline_does_not_assert_health_it_never_measured():
     """The contradiction a reader spotted: the DNS page reported no MX records while
     the timeline reported "MX configuration — Healthy". `changes` is empty on the
