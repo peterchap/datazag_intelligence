@@ -268,12 +268,44 @@ def test_every_section_reference_resolves():
 # Cover headline
 # ---------------------------------------------------------------------------
 
-def _hook(imps=None, own=None, lookup_ok=True, platforms=("microsoft365",), audience="flagship"):
-    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+def _clean_medallion() -> dict:
+    """The sample domain is on a C2 feed, which now (correctly) leads the cover. To
+    exercise the other branches the infrastructure has to be clean."""
+    d = _load("medallion_sample.json")
+    d["threat_feeds"] = {}
+    d["routing"] = {**d.get("routing", {}), "rpki_state": "valid", "moas_detected": False}
+    d["risk_assessment"] = {**d.get("risk_assessment", {}), "reason_codes": []}
+    d["domain_dns_facts"] = {**d.get("domain_dns_facts", {}), "is_dangling_cname": False}
+    d["certstream"] = {"hits": 0}
+    d["concentration"] = {"pivot_findings": []}
+    return d
+
+
+def _hook(imps=None, own=None, lookup_ok=True, platforms=("microsoft365",), audience="flagship",
+          medallion=None):
+    di = DomainIntelligence.model_validate(medallion or _clean_medallion())
     vm = build_view_models(di, detected_platforms=list(platforms), impersonations=imps or [],
                            own_brand=own or BrandExposure(), findings=derive_findings(di, imps or []),
                            lookup_ok=lookup_ok)
     return HealthReportRenderer(vm, audience=audience)._cover_hook()
+
+
+def test_cover_leads_with_the_most_serious_finding_not_the_most_marketable():
+    """A domain on an active command-and-control feed has a bigger problem than
+    lookalike domains. Leading with the impersonation count would bury it."""
+    imps = [PlatformImpersonation(platform="microsoft365", count_7d=14, count_30d=41)]
+    h = _hook(imps=imps, medallion=_load("medallion_sample.json"))   # C2-listed sample
+    assert "Immediate investigation" in h["title"]
+    assert "Feodo" in h["title"] or "Feodo" in h["deck"]
+    # the impersonation is still reported, as secondary
+    assert "41" in h["deck"] or "lookalike" in h["deck"]
+
+
+def test_cover_lead_does_not_lowercase_an_acronym():
+    d = _load("medallion_sample.json")
+    d["threat_feeds"] = {}                      # leave RPKI invalid as the top finding
+    h = _hook(medallion=d)
+    assert "rPKI" not in h["title"], "acronym mangled by the lowercasing rule"
 
 
 def test_cover_headline_leads_with_this_domains_numbers():

@@ -55,6 +55,34 @@ from .grade import score_to_grade, TrustGrade
 # The IT tear-off caps here: past ten items a work list stops being actioned.
 REMEDIATION_PLAN_MAX = 10
 
+# How much the ABSENCE of each control actually costs you. This is a SEPARATE
+# dimension from whether it is deployed: "missing" is a maturity state, not a
+# severity. Rating every gap High put security.txt and BIMI beside DMARC and an
+# active C2 listing, which is the fastest way to lose a security reader — the one
+# most likely to check whether the severities mean anything.
+#
+#   high    — your domain can be spoofed, hijacked, or silently mis-issued against
+#   medium  — a real hardening gap, but it needs another failure to matter
+#   low     — reporting, disclosure or brand-visibility value; not a vulnerability
+CONTROL_IMPACT: dict[str, str] = {
+    "DMARC enforcement":       "high",     # anyone can send as you; deliverability
+    "SPF strict mode":         "high",
+    "Registrar locks":         "high",     # domain hijack / transfer-out
+    "DNSSEC":                  "medium",
+    "CAA records":             "medium",   # mis-issuance barrier
+    "MTA-STS":                 "medium",
+    "DKIM signing":            "medium",
+    "HSTS deployment":         "medium",
+    "TLS-RPT":                 "low",      # reporting channel only
+    "BIMI":                    "low",      # brand visibility, not a security control
+    "security.txt":            "low",      # disclosure convenience
+    "Abuse contact published": "low",
+}
+
+
+def control_impact(name: str) -> str:
+    return CONTROL_IMPACT.get((name or "").strip(), "medium")
+
 PLATFORM_DESIRABILITY: dict[str, dict[str, Any]] = {
     # name (lowercase substring match)        rank weight, role, reason
     "microsoft 365":      {"weight": 100, "tier": "high",
@@ -959,6 +987,12 @@ HEALTH_REPORT_TEMPLATE = r"""
   .remediation-item.critical { border-left-color: #B91C1C; }
   .remediation-item.high { border-left-color: #EF4444; }
   .remediation-item.medium { border-left-color: var(--warn); }
+  .remediation-item.low { border-left-color: var(--ink-4); }
+  .rem-sev.low { background: rgba(100,116,139,0.10); color: var(--ink-3); }
+  .control-impact { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 100px; margin-left: 7px; }
+  .control-impact.high { background: rgba(255,107,107,0.12); color: #B91C1C; }
+  .control-impact.medium { background: rgba(244,184,96,0.16); color: #B45309; }
+  .control-impact.low { background: rgba(100,116,139,0.10); color: var(--ink-3); }
   .rem-rank { font-size: 14px; font-weight: 900; color: var(--ink-4); font-variant-numeric: tabular-nums; }
   .rem-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .rem-sev { font-size: 8.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 7px; border-radius: 100px; }
@@ -1127,7 +1161,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           <span class="dsc-grade-ref">{{ infra_grade.letter }} &middot; {{ infra_score }}/100</span>
         </div>
         <div class="dsc-state">{{ infra_grade.headline }}</div>
-        <p class="dsc-qualifier">The gaps in your public DNS &mdash; DMARC, SPF, DNSSEC, CAA, certificates, routing &mdash; that decide <strong>how far a campaign travels</strong> once it starts.</p>
+        <p class="dsc-qualifier">The gaps in your public DNS &mdash; DMARC, SPF, DNSSEC, CAA, certificates, routing &mdash; that decide <strong>how easily your own domain can be spoofed, hijacked or mis-issued against</strong>. A separate surface from the platform lures above.</p>
         <div class="dsc-actions">
           <div class="dsc-actions-label">Open gaps</div>
           <ul class="dsc-actions-list compact">
@@ -1149,7 +1183,7 @@ HEALTH_REPORT_TEMPLATE = r"""
         <div class="ogb-headline">{{ grade.headline }}.</div>
         <div class="ogb-detail">
           {% if driving_surface == 'platform' %}
-          The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. Section 07 sequences the defence-side fixes that limit how far it reaches.
+          The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. That is defended inside your tenants (MFA, Conditional Access), which this report cannot see; section 07 sequences what you can fix from the outside.
           {% elif driving_surface == 'infrastructure' %}
           The bigger driver is your defence weaknesses &mdash; short-effort DNS, certificate and email-auth gaps that let a campaign travel further than it should. Section 07 prioritises them.
           {% else %}
@@ -1307,7 +1341,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 01</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">At a glance.</h1>
-    <p class="section-headline"><strong>{{ org_name }}&rsquo;s exposure is at {{ grade.headline | lower }}.</strong> First the <strong>attacker problem</strong> &mdash; impersonation already aimed at your platforms and brand. Then the <strong>defence weaknesses</strong> that decide how far a campaign travels.</p>
+    <p class="section-headline">Three separate questions, answered separately: <strong>what is targeting your people</strong> (impersonation of the platforms they use), <strong>what is targeting your company</strong> (lookalikes of your own brand), and <strong>what an attacker can exploit</strong> (the domain, email and infrastructure controls you own).</p>
   </div>
   <div class="grade-band">
     <div class="grade-band-letter">{{ grade.letter }}</div>
@@ -1599,6 +1633,7 @@ HEALTH_REPORT_TEMPLATE = r"""
           {% if c.state == 'deployed' %}✓ Deployed{% elif c.state == 'partial' %}◐ Partial{% elif c.state == 'limited' %}◯ Limited visibility{% else %}✗ Missing{% endif %}
         </span>
         <span class="control-evidence">{{ c.evidence }}</span>
+        {% if c.state != 'deployed' %}<span class="control-impact {{ c.impact }}">{{ c.impact }} impact</span>{% endif %}
       </div>
       {% if c.action %}
       <div class="control-action">→ {{ c.action }}</div>
@@ -1885,7 +1920,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 07</span><span class="section-rule"></span><span class="section-tag" style="color:var(--tag-action);border-color:rgba(194,65,12,0.32);background:rgba(194,65,12,0.06);">● Action</span></div>
     <h1 class="section-title-h1">The implementation changes that close the gaps.</h1>
-    <p class="section-headline">Your defence weaknesses, sequenced by impact &mdash; the DNS, certificate and email-auth changes that limit how far the attacker problem can travel. <strong>This</strong> is structural improvement.</p>
+    <p class="section-headline">The weaknesses you can fix from the outside, sequenced by impact &mdash; the DNS, certificate and email-auth controls that govern whether your own domain can be spoofed, hijacked or mis-issued against. Platform phishing is defended inside your tenants, which this report cannot see.</p>
   </div>
 
   <div class="roadmap-grid">
@@ -3227,11 +3262,41 @@ class HealthReportRenderer:
         platform_counts_ok = ext.lookup_ok and not self._suppress_platform_counts
         gaps = sum(max(0, c["total"] - c["deployed"]) for c in self._controls_categories())
         gap_clause = (f"the <strong>{gaps}</strong> fixable gap{'s' if gaps != 1 else ''} in your "
-                      "defences that decide how far they get" if gaps else
-                      "the defensive posture that decides how far they get")
+                      "defences that govern whether your own domain can be spoofed or "
+                      "hijacked" if gaps else
+                      "the controls that govern whether your own domain can be spoofed")
 
         # Most-targeted platform, for the deck.
         top = max(ext.impersonations, key=lambda i: i.count_30d, default=None)
+
+        # ── The lead is whatever is most serious, not whatever is most marketable.
+        # A domain whose infrastructure sits on an active command-and-control feed
+        # has a bigger problem than lookalike domains, and leading with the
+        # impersonation count there would bury it. Platform impersonation leads only
+        # when nothing outranks it.
+        critical = [f for f in (self.findings or []) if f.get("severity") == "critical"]
+        if critical:
+            lead = critical[0]
+            others = []
+            if platform_counts_ok and ext.total_30d:
+                others.append(f"{ext.total_30d} lookalike domains imitating your platforms")
+            if ext.own_brand.count_30d:
+                others.append(f"{ext.own_brand.count_30d} targeting your brand")
+            if gaps:
+                others.append(f"{gaps} fixable gaps in your own controls")
+            also = ("Also on this report: " + ", ".join(others) + "." ) if others else ""
+            head = lead["title"].rstrip(".")
+            # Don't lowercase an acronym: "RPKI state INVALID" must not become "rPKI".
+            if not (len(head) > 1 and head[1].isupper()):
+                head = head[0].lower() + head[1:]
+            # `detail` is written for a reader; `evidence` is a log line.
+            why = (lead.get("detail") or "").split(". ")[0].rstrip(".")
+            return {
+                "title": f"<strong>Immediate investigation:</strong> {head}.",
+                "deck":  (f"{why}. " if why else "")
+                         + "Act on this first &mdash; it concerns the infrastructure "
+                           "serving your domain, not a lookalike of it. " + also,
+            }
 
         if platform_counts_ok and ext.total_30d > 0:
             return {
@@ -3291,9 +3356,15 @@ class HealthReportRenderer:
                     if key in seen:
                         continue
                     seen.add(key)
+                    # Severity follows the IMPACT of the gap, not the fact of it.
+                    impact = control_impact(c["name"])
+                    severity = {"high": "high", "medium": "medium", "low": "low"}[impact]
+                    if c["state"] == "partial" and severity == "high":
+                        severity = "medium"        # half-deployed beats absent
                     actions.append({
                         "title": c["name"],
-                        "severity": "high" if c["state"] == "missing" else "medium",
+                        "severity": severity,
+                        "impact": impact,
                         "area": cat["name"],
                         "current": c.get("evidence", ""),
                         "step": c["action"],
@@ -3320,8 +3391,8 @@ class HealthReportRenderer:
                 "step": step,
             })
 
-        rank = {"critical": 0, "high": 1, "medium": 2}
-        actions.sort(key=lambda a: rank.get(a["severity"], 3))
+        rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        actions.sort(key=lambda a: rank.get(a["severity"], 4))
         # The tear-off is a work list, not an inventory: the ten most severe fit on
         # the page and get done. The rest stay on the contract for the next snapshot.
         return actions[:REMEDIATION_PLAN_MAX]
@@ -4322,6 +4393,8 @@ class HealthReportRenderer:
         audit = self._defensive_controls_audit()
         out = []
         for category, ctrls in audit.items():
+            for c in ctrls:
+                c["impact"] = control_impact(c["name"])
             verifiable = [c for c in ctrls if c["state"] != "limited"]
             deployed = sum(1 for c in verifiable if c["state"] == "deployed")
             total = len(verifiable)
@@ -4718,7 +4791,7 @@ class HealthReportRenderer:
             {"title": "External threat", "kind": "findings", "section": "external_summary",
              "desc": "Who is imitating your platforms and your brand, from this domain\u2019s own observations."},
             {"title": "Outbound posture", "kind": "findings", "section": "controls",
-             "desc": "DMARC, SPF, BIMI, CAA, MTA-STS &mdash; the defences that constrain how far a campaign travels."},
+             "desc": "DMARC, SPF, CAA, MTA-STS &mdash; whether your own domain can be spoofed, hijacked or mis-issued against."},
             {"title": "Full DNS records", "kind": "findings", "section": "dns_records",
              "desc": "Every record we captured, with the defensive weaknesses called out inline."},
             {"title": "Infrastructure & routing intelligence", "kind": "findings", "section": "infra_routing",
