@@ -144,23 +144,21 @@ class EmailSecurity(_Base):
         return None if v is None else _clamp01(v)
 
 
-class FeedFlag(_Base):
-    listed: bool = False
-
-
-class ThreatFeeds(_Base):
-    feodo: FeedFlag = Field(default_factory=FeedFlag)
-    urlhaus: FeedFlag = Field(default_factory=FeedFlag)
-    sslbl: FeedFlag = Field(default_factory=FeedFlag)
-    threatfox: FeedFlag = Field(default_factory=FeedFlag)
-    spamhaus: FeedFlag = Field(default_factory=FeedFlag)
-
-    def listed_feeds(self) -> list[str]:
-        out = []
-        for name in ("feodo", "urlhaus", "sslbl", "threatfox", "spamhaus"):
-            if getattr(self, name).listed:
-                out.append(name)
-        return out
+# ---------------------------------------------------------------------------
+# NO THIRD-PARTY LICENSED FEEDS
+# ---------------------------------------------------------------------------
+# There was a ThreatFeeds model here (Feodo, URLhaus, SSLBL, ThreatFox, Spamhaus)
+# whose listings drove findings, floored the threat score, and were printed by
+# name in customer reports. Datazag does not license those feeds, so they must
+# not appear in capture, in scoring, or in a report — a licence we do not hold is
+# not a finding we can sell.
+#
+# The medallion may still carry a `threat_feeds` key; `extra="ignore"` on _Base
+# drops it, and nothing downstream reads it. Do not reintroduce it: everything the
+# report asserts about infrastructure now comes from Datazag's own observation —
+# RPKI validity and MOAS from the routing table, certificate issuance from the CT
+# pipeline, co-tenancy and DGA/fast-flux from the corpus. tests/test_no_licensed_
+# feeds.py fails if any feed name reappears in a rendered report.
 
 
 class Certstream(_Base):
@@ -275,7 +273,6 @@ class DomainIntelligence(_Base):
     facts: Facts = Field(default_factory=Facts)
     routing: Routing = Field(default_factory=Routing)
     email_security: EmailSecurity = Field(default_factory=EmailSecurity)
-    threat_feeds: ThreatFeeds = Field(default_factory=ThreatFeeds)
     certstream: Certstream = Field(default_factory=Certstream)
     concentration: Concentration = Field(default_factory=Concentration)
     domain_dns_facts: DomainDnsFacts = Field(default_factory=DomainDnsFacts)
@@ -513,7 +510,6 @@ class ThreatSurface(BaseModel):
     is_dangling_cname: bool = False
     cname_target: Optional[str] = None
     certstream_hits: int = 0
-    listed_feeds: list[str] = Field(default_factory=list)
     pivot_findings: list[PivotFinding] = Field(default_factory=list)
     historical_velocity: HistoricalVelocity = Field(default_factory=HistoricalVelocity)
     reason_codes: list[str] = Field(default_factory=list)
@@ -699,11 +695,12 @@ def _trust_penalty(di: DomainIntelligence) -> float:
 
 
 def _threat_score01(di: DomainIntelligence) -> float:
-    """Worst-of the infra sub-scores, floored when active threat-feed listings or
-    live malicious certificate issuance are present (those are categorical, severe)."""
+    """Worst-of the infra sub-scores, floored when live malicious certificate
+    issuance or a dangling CNAME is present (those are categorical, severe).
+
+    The old threat-feed floor is gone with the feeds themselves: it raised the
+    score on a third-party listing Datazag does not license."""
     base = di.risk_assessment.worst_subscore()
-    if di.threat_feeds.listed_feeds():
-        base = max(base, 0.85)
     if di.certstream.hits > 0:
         base = max(base, 0.70)
     if di.domain_dns_facts.is_dangling_cname:
@@ -880,7 +877,6 @@ def build_view_models(
         is_dangling_cname=di.domain_dns_facts.is_dangling_cname,
         cname_target=di.domain_dns_facts.cname_target,
         certstream_hits=di.certstream.hits,
-        listed_feeds=di.threat_feeds.listed_feeds(),
         pivot_findings=di.concentration.pivot_findings,
         historical_velocity=di.historical_velocity,
         reason_codes=di.risk_assessment.reason_codes,

@@ -70,8 +70,8 @@ def test_prompt_reads_medallion_from_output_dict():
     # reason codes bulleted, nothing dropped
     assert "HIGH_BGP_CHURN" in p
     assert "SOME_NEW_UNMAPPED_CODE" in p
-    # threat feeds / routing / email / velocity
-    assert "feodo" in p
+    # routing / email / velocity (threat feeds removed — not licensed)
+    assert "feodo" not in p.lower()
     assert "RPKI invalid" in p
     assert "MOAS DETECTED" in p
     assert "18 IP changes" in p

@@ -56,8 +56,9 @@ def test_parse_sample():
     di = _sample()
     assert di.has_intelligence
     assert di.domain == "riskyexample.com"
-    assert di.threat_feeds.feodo.listed is True
-    assert di.threat_feeds.listed_feeds() == ["feodo"]
+    # threat_feeds is gone: Datazag does not license those feeds, so the medallion's
+    # key is ignored and nothing downstream can read it back.
+    assert not hasattr(di, "threat_feeds")
     assert di.risk_assessment.worst_subscore() == 0.8  # dangling_cname_risk
 
 
@@ -158,8 +159,6 @@ READ_PATHS = [
     "routing.moas_detected", "routing.prefixes_churn_total", "routing.rpki_state",
     "email_security.mx_type", "email_security.mx_risk_score", "email_security.dmarc_risk",
     "email_security.spf_risk", "email_security.modern_security_present",
-    "threat_feeds.feodo.listed", "threat_feeds.urlhaus.listed", "threat_feeds.sslbl.listed",
-    "threat_feeds.threatfox.listed", "threat_feeds.spamhaus.listed",
     "certstream.hits",
     "concentration.pivot_findings",
     "domain_dns_facts.lowest_ttl", "domain_dns_facts.a_record_count",
@@ -203,7 +202,7 @@ def test_findings_thresholds():
     assert "malicious_concentration" in by_key                         # 0.75
     assert "certstream_domain_risk" in by_key                          # 0.6
     assert by_key["corpus_dangling_cname_risk"]["severity"] == "high"
-    assert by_key["threat_feed_feodo"]["severity"] == "critical"
+    assert "threat_feed_feodo" not in by_key      # licensed feeds no longer drive findings
     assert "certstream_infra_hit" in by_key
     assert by_key["cotenancy_asn_64500"]["severity"] == "high"         # 30 >= 25
     assert "high_ip_churn" in by_key                                   # 0.7
@@ -225,18 +224,25 @@ def test_findings_thresholds():
 
 def test_reason_code_copy_and_positive_skip():
     from findings_rules import REASON_CODE_COPY, REASON_CODE_SKIP
-    # the handover-named codes have presentable copy
-    for code in ("SPAMHAUS_PREFIX_OVERLAP", "FEODO_INFRA_OVERLAP", "HIGH_BGP_CHURN"):
+    # codes we can present have presentable copy
+    for code in ("CERTSTREAM_ANOMALY", "HIGH_BGP_CHURN"):
         assert code in REASON_CODE_COPY
     # positive signals never become negative findings
     assert "MANRS_MEMBER" in REASON_CODE_SKIP
+    # ...nor do codes derived from feeds Datazag does not license: they are skipped
+    # outright, so they cannot arrive under the generic "infrastructure signal" title
+    for code in ("SPAMHAUS_PREFIX_OVERLAP", "FEODO_INFRA_OVERLAP"):
+        assert code in REASON_CODE_SKIP
+        assert code not in REASON_CODE_COPY
     di = DomainIntelligence.model_validate({
         "schema_version": "1.0", "domain": "x.test",
-        "risk_assessment": {"reason_codes": ["MANRS_MEMBER", "SPAMHAUS_PREFIX_OVERLAP"]},
+        "risk_assessment": {"reason_codes": ["MANRS_MEMBER", "SPAMHAUS_PREFIX_OVERLAP",
+                                             "HIGH_BGP_CHURN"]},
     })
     keys = {f["finding"] for f in derive_findings(di, [])}
     assert "reason_manrs_member" not in keys
-    assert "reason_spamhaus_prefix_overlap" in keys
+    assert "reason_spamhaus_prefix_overlap" not in keys
+    assert "reason_high_bgp_churn" in keys          # our own routing observation stays
 
 
 def test_findings_empty_on_nxdomain():
@@ -258,7 +264,7 @@ def test_view_model_scoring():
     assert vm.composite_score >= 80
     assert vm.grade.letter in ("E", "F")
     assert vm.trust.score > 0 and vm.threat.score > 0
-    assert vm.threat.listed_feeds == ["feodo"]
+    assert not hasattr(vm.threat, "listed_feeds")
     # platform impersonations only — own-brand is reported separately
     assert vm.external_threat.total_30d == 41 + 25 + 4
     assert vm.external_threat.own_brand.count_30d == 3

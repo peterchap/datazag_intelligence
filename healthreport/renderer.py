@@ -1740,12 +1740,6 @@ HEALTH_REPORT_TEMPLATE = r"""
     </div>
   </div>
 
-  {% if infra_routing.listed_feeds %}
-  <div class="infra-feeds">
-    <span class="infra-feeds-label">Active threat-feed listings on this infrastructure:</span>
-    {% for f in infra_routing.listed_feeds %}<span class="infra-pill bad">{{ f }}</span>{% endfor %}
-  </div>
-  {% endif %}
 
   {% if infra_routing.cotenancy %}
   <div class="infra-cotenancy">
@@ -2296,8 +2290,6 @@ class HealthReportRenderer:
           f"modern email controls {'incomplete' if not t.modern_security_present else 'present'}")
         A(f"- Routing: RPKI {t.rpki_state}; MOAS {'**detected**' if t.moas_detected else 'none'}; "
           f"MANRS member {'yes' if t.is_manrs_member else 'no'}")
-        if th.listed_feeds:
-            A(f"- **Active threat-feed listings:** {', '.join(th.listed_feeds)}")
         if th.is_dangling_cname:
             A(f"- **Dangling CNAME** → {th.cname_target or 'unknown'} (subdomain-takeover exposure)")
         A("")
@@ -2392,8 +2384,6 @@ class HealthReportRenderer:
               + ("· **MANRS culprit**" if ir['manrs_culprit'] else ""))
             for r in ir["reputation"]:
                 A(f"- {r['label']}: {r['val']}")
-            if ir["listed_feeds"]:
-                A(f"- **Active threat-feed listings:** {', '.join(ir['listed_feeds'])}")
             for c in ir["cotenancy"]:
                 A(f"- **{c['count']}** malicious domains share this {c['dimension']} ({c['value']})"
                   + (f" — e.g. {c['examples']}" if c['examples'] else ""))
@@ -3011,10 +3001,7 @@ class HealthReportRenderer:
                 bits.append("RPKI invalid — hijack exposure")
             elif t.rpki_state == "unknown":
                 bits.append("RPKI not deployed")
-            if th.listed_feeds:
-                n = len(th.listed_feeds)
-                bits.append(f"{n} threat-feed listing{'s' if n != 1 else ''}")
-            elif th.is_dangling_cname:
+            if th.is_dangling_cname:
                 bits.append("dangling CNAME — takeover risk")
             elif t.moas_detected:
                 bits.append("MOAS routing anomaly")
@@ -3235,7 +3222,6 @@ class HealthReportRenderer:
                 {"label": "Concentration risk",      "val": f2(th.concentration_risk),      "cls": self._risk_class01(th.concentration_risk)},
                 {"label": "CertStream hits",         "val": str(th.certstream_hits),        "cls": "bad" if th.certstream_hits > 0 else "good"},
             ],
-            "listed_feeds":   th.listed_feeds,
             "reason_codes":   th.reason_codes,
             "cotenancy":      cotenancy,
         }

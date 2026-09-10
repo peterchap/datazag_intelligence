@@ -314,11 +314,14 @@ def _strengths(vm) -> list[dict]:
         rg = vm.registration.registrar or "an enterprise registrar"
         out.append({"plain": f"an enterprise registrar ({rg}) with domain locks",
                     "html": f"Enterprise registrar ({rg}) with server-side locks that reduce the risk of domain hijack"})
-    if not vm.threat.listed_feeds:
+    # Strengths are only claimable from data Datazag measures itself: the corpus
+    # threat score for the hosting IP, not a licensed blocklist.
+    ip_threat = vm.threat.ip_direct_threat_score
+    if ip_threat is not None and ip_threat < 0.3:
         host = vm.annotation.hosting_provider
-        out.append({"plain": "clean hosting with no threat-feed hits",
-                    "html": (f"Clean hosting{' on ' + host if host else ''} — no malicious-IP, "
-                             "fast-flux or threat-feed hits")})
+        out.append({"plain": "clean hosting in the Datazag corpus",
+                    "html": (f"Clean hosting{' on ' + host if host else ''} — no malicious-IP or "
+                             "fast-flux signal in the Datazag corpus")})
     return out
 
 
@@ -432,10 +435,17 @@ def surfaces(vm, now: datetime) -> list[dict]:
     gw = next((p["name"] for p in confirmed_platforms(vm) if p["name"] != mail), None)
     mail_line = (mail + (f" via {gw}" if gw else "")) if mail else "not determined"
     host.append({"b": "ok" if mail else "na", "html": f"<b style='color:var(--ink)'>Mail:</b>&nbsp;{mail_line}"})
-    if vm.threat.listed_feeds:
-        host.append({"b": "bad", "html": "Threat-feed: listed on " + ", ".join(vm.threat.listed_feeds)})
+    # Was "Clean — no threat-feed or malicious-IP hits", which rested on blocklists
+    # Datazag does not license. The equivalent claim from our own data is the corpus
+    # threat score for the hosting IP — and when that was never measured, absence is
+    # reported as absence rather than as "clean".
+    ip_threat = vm.threat.ip_direct_threat_score
+    if ip_threat is None:
+        host.append({"b": "na", "html": "Hosting reputation not assessed for this domain"})
+    elif ip_threat < 0.3:
+        host.append({"b": "ok", "html": "No malicious-infrastructure signal in the Datazag corpus"})
     else:
-        host.append({"b": "ok", "html": "Clean — no threat-feed or malicious-IP hits"})
+        host.append({"b": "bad", "html": "Hosting infrastructure carries a Datazag threat signal"})
 
     return [
         {"n": "01", "name": "Communication", "items": comm,

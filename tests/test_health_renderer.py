@@ -291,12 +291,15 @@ def _hook(imps=None, own=None, lookup_ok=True, platforms=("microsoft365",), audi
 
 
 def test_cover_leads_with_the_most_serious_finding_not_the_most_marketable():
-    """A domain on an active command-and-control feed has a bigger problem than
-    lookalike domains. Leading with the impersonation count would bury it."""
+    """A domain whose routing is hijackable has a bigger problem than lookalike
+    domains. Leading with the impersonation count would bury it.
+
+    (This used to lead on a Feodo C2 listing. That signal is gone with the licensed
+    feeds; the lead now comes from Datazag's own routing observation.)"""
     imps = [PlatformImpersonation(platform="microsoft365", count_7d=14, count_30d=41)]
-    h = _hook(imps=imps, medallion=_load("medallion_sample.json"))   # C2-listed sample
+    h = _hook(imps=imps, medallion=_load("medallion_sample.json"))
     assert "Immediate investigation" in h["title"]
-    assert "Feodo" in h["title"] or "Feodo" in h["deck"]
+    assert "RPKI" in h["title"] or "RPKI" in h["deck"]
     # the impersonation is still reported, as secondary
     assert "41" in h["deck"] or "lookalike" in h["deck"]
 
@@ -791,7 +794,7 @@ def test_legacy_dict_enriches_render():
     assert "DMARC at p=none" in html
     # legacy findings merged in alongside medallion findings
     assert any(f["finding"] == "legacy_only" for f in r.findings)
-    assert any(f["finding"] == "threat_feed_feodo" for f in r.findings)
+    assert not any(f["finding"].startswith("threat_feed_") for f in r.findings)
     # CNAME vendor detection from legacy subdomains
     assert "Zoho" in html
 
@@ -824,7 +827,7 @@ def test_markdown_is_full_report():
     assert "micros0ft-365-login.com" in md
     assert "vpn.riskyexample.com" in md           # subdomain table populated
     assert "threat_feed_feodo" not in md          # findings shown by title, not key
-    assert "Listed on Feodo C2 tracker" in md
+    assert "Feodo" not in md                      # licensed feed, never named in a report
 
 
 def test_dict_external_threat_totals():

@@ -74,7 +74,6 @@ def _medallion_block(vm: Optional[ReportViewModel]) -> str:
     hv = th.historical_velocity
 
     reason_lines = "\n".join(f"  - {c}" for c in th.reason_codes) or "  (none)"
-    feed_line = ", ".join(th.listed_feeds) if th.listed_feeds else "none"
     pivot_lines = "\n".join(
         f"  - {pf.malicious_count} malicious domains share this {pf.dimension} "
         f"({pf.value})" + (f" — e.g. {', '.join(pf.examples[:3])}" if pf.examples else "")
@@ -95,7 +94,6 @@ Risk assessment:
   Dangling-CNAME risk: {_score(th.dangling_cname_risk)}{f" (target: {th.cname_target})" if th.is_dangling_cname and th.cname_target else ""}
 Corpus reason codes:
 {reason_lines}
-Active threat-feed listings: {feed_line}
 CertStream hits on serving infrastructure: {th.certstream_hits}
 Routing integrity: RPKI {t.rpki_state}; MOAS {"DETECTED" if t.moas_detected else "none"}; \
 prefix churn {t.prefixes_churn_total}; MANRS member: {"yes" if t.is_manrs_member else "no"}\
