@@ -80,6 +80,31 @@ CONTROL_IMPACT: dict[str, str] = {
 }
 
 
+_OBSERVATORY_CACHE: "Observatory | None" = None
+
+
+def _load_observatory() -> "Observatory":
+    """One load per process. A report run renders many domains; the corpus figures
+    are the same for all of them."""
+    global _OBSERVATORY_CACHE
+    if _OBSERVATORY_CACHE is None:
+        try:
+            from observatory import load as _obs_load
+            _OBSERVATORY_CACHE = _obs_load()
+        except Exception as e:      # never fatal: the benchmark line is optional
+            print(f"  observatory unavailable ({type(e).__name__}) — benchmark line omitted")
+            from observatory import Observatory as _Obs
+            _OBSERVATORY_CACHE = _Obs.unavailable()
+    return _OBSERVATORY_CACHE
+
+
+def _join_clauses(parts: list[str]) -> str:
+    """a, b and c — the Oxford-free join an executive line wants."""
+    if len(parts) <= 1:
+        return parts[0] if parts else ""
+    return ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
 def control_impact(name: str) -> str:
     return CONTROL_IMPACT.get((name or "").strip(), "medium")
 
@@ -736,6 +761,16 @@ HEALTH_REPORT_TEMPLATE = r"""
   .mstep .mbody b { color: var(--ink); font-weight: 600; }
   .mech-punch { margin: 6px 18px 15px; background: var(--rule-lighter); border-left: 3px solid var(--cyan); border-radius: 0 7px 7px 0; padding: 11px 15px; font-size: 12px; line-height: 1.55; color: var(--ink); font-weight: 500; }
   .mech-punch b { color: var(--cyan-deep); font-weight: 700; }
+  /* Executive summary — the "so what", before any security vocabulary. */
+  .exec-summary { margin: 0 56px 16px; background: var(--white); border: 1px solid var(--rule-light); border-left: 3px solid var(--cyan); border-radius: 0 12px 12px 0; padding: 16px 20px 14px; }
+  .exec-verdict { font-size: 17px; font-weight: 800; letter-spacing: -0.015em; color: var(--ink); margin-bottom: 7px; }
+  .exec-headline { font-size: 12.5px; line-height: 1.6; color: var(--ink-2); margin-bottom: 12px; }
+  .exec-triage { display: flex; flex-direction: column; gap: 7px; }
+  .et-row { display: grid; grid-template-columns: 108px 1fr; gap: 12px; align-items: baseline; }
+  .et-key { font-size: 9.5px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--cyan-deep); }
+  .et-val { font-size: 11.5px; line-height: 1.55; color: var(--ink-2); }
+  .et-val b { color: var(--ink); font-weight: 600; }
+  .exec-benchmark { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule-lighter); font-size: 11px; line-height: 1.55; color: var(--ink-3); }
   /* Attack-economy primer — ported with the mechanism from the free report. */
   .primer { margin: 0 56px 14px; background: var(--white); border: 1px solid var(--rule-light); border-radius: 12px; padding: 16px 20px 12px; }
   .primer-scale { display: flex; gap: 18px; align-items: center; }
@@ -1341,7 +1376,26 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section 01</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">At a glance.</h1>
-    <p class="section-headline">Three separate questions, answered separately: <strong>what is targeting your people</strong> (impersonation of the platforms they use), <strong>what is targeting your company</strong> (lookalikes of your own brand), and <strong>what an attacker can exploit</strong> (the domain, email and infrastructure controls you own).</p>
+    <p class="section-headline">Three separate questions, answered separately: <strong>what is targeting your people</strong>, <strong>what is targeting your company</strong>, and <strong>what an attacker can exploit</strong>.</p>
+  </div>
+
+  <div class="exec-summary">
+    <div class="exec-verdict">Your external security posture {{ exec_summary.verdict }}.</div>
+    <p class="exec-headline">{{ exec_summary.headline }}</p>
+    <div class="exec-triage">
+      {% if exec_summary.immediate %}
+      <div class="et-row"><span class="et-key">Most important</span><span class="et-val"><b>{{ exec_summary.immediate }}.</b> {{ exec_summary.immediate_detail }}. This is infrastructure serving your domain, not a lookalike of it.</span></div>
+      {% endif %}
+      {% if exec_summary.fixable %}
+      <div class="et-row"><span class="et-key">Most fixable</span><span class="et-val"><b>{{ exec_summary.fixable }}</b>{% if exec_summary.fixable_count > 1 %} and {{ exec_summary.fixable_count - 1 }} other control{{ 's' if exec_summary.fixable_count > 2 else '' }}{% endif %} &mdash; changes you make yourself, in DNS. Section 07 sequences them.</span></div>
+      {% endif %}
+      {% if exec_summary.monitor %}
+      <div class="et-row"><span class="et-key">Ongoing</span><span class="et-val"><b>{{ exec_summary.monitor }}</b>. Not aimed at you specifically &mdash; aimed at everyone using those platforms, which includes you.</span></div>
+      {% endif %}
+    </div>
+    {% if exec_summary.benchmark %}
+    <p class="exec-benchmark">{{ exec_summary.benchmark }}</p>
+    {% endif %}
   </div>
   <div class="grade-band">
     <div class="grade-band-letter">{{ grade.letter }}</div>
@@ -2109,11 +2163,15 @@ class HealthReportRenderer:
         audience: str = "flagship",
         tier: str = "full",
         legacy: dict | None = None,
+        observatory: "Observatory | None" = None,
     ):
         if tier not in TIERS:
             raise ValueError(f"Unknown tier {tier!r}; expected one of {TIERS}")
         self.audience: AudienceConfig = get_audience(audience)
         self.tier = tier
+        # Daily corpus measurements, for the "where you sit" line. Loading is
+        # best-effort and cached per render; unreachable simply means no benchmark.
+        self._observatory = observatory if observatory is not None else _load_observatory()
 
         legacy = legacy or {}
         self.o = legacy
@@ -2732,6 +2790,7 @@ class HealthReportRenderer:
             # The external page's action block — the platform/brand priorities only,
             # so it never repeats the infrastructure items the roadmap owns.
             "cover_hook":        self._cover_hook(),
+            "exec_summary":      self._executive_summary(),
             "external_actions":  [p for p in self._build_priorities()
                                   if p.get("surface") in ("vendor", "brand")],
             "own_brand":               own,
@@ -3227,6 +3286,87 @@ class HealthReportRenderer:
         }
 
     # ----- Section: IT remediation tear-off (back of report) ---------------
+
+    def _executive_summary(self) -> dict[str, Any]:
+        """The answer to "so what?", before any security vocabulary.
+
+        Three questions, kept apart because they have different answers and
+        different owners: what needs investigating, what can be fixed, what has to
+        be watched. The old opening ("riskyexample.com's exposure is at critical
+        exposure") named a grade band and told a reader nothing they could act on.
+
+        The benchmark line is the part only Datazag can write: where this domain
+        sits against the daily corpus measurement. It carries its denominator,
+        because `dmarc_enforced` is 49.6% of DMARC-publishing domains and 11.5% of
+        all resolving ones, and a share without its population is a wrong number.
+        """
+        findings = self.findings or []
+        ext = self.vm.external_threat
+        crit = [f for f in findings if f.get("severity") == "critical"]
+        actions = self._build_remediation_actions()
+        fixable = [a for a in actions if a.get("impact") in ("high", "medium")]
+
+        counts_ok = ext.lookup_ok and not self._suppress_platform_counts
+        monitor = None
+        if counts_ok and ext.total_30d:
+            names = [self._display_name(self._normalise_vendor_name(i.platform))
+                     for i in sorted(ext.impersonations, key=lambda i: -i.count_30d)[:3]]
+            monitor = (f"{ext.total_30d} lookalike domains imitating "
+                       + ", ".join(names) if names else f"{ext.total_30d} lookalike domains")
+        elif not ext.lookup_ok:
+            monitor = "impersonation monitoring could not run for this report"
+        elif ext.own_brand.count_30d:
+            monitor = f"{ext.own_brand.count_30d} lookalike domains targeting your brand"
+
+        # Verdict in plain words, driven by what was actually found.
+        if crit:
+            verdict = "needs immediate attention"
+        elif fixable:
+            verdict = "needs attention"
+        else:
+            verdict = "is broadly sound on what we can see"
+
+        parts = []
+        if crit:
+            parts.append(f"{len(crit)} issue{'s' if len(crit) != 1 else ''} requiring "
+                         "immediate investigation")
+        if fixable:
+            parts.append(f"{len(fixable)} weakness{'es' if len(fixable) != 1 else ''} that make"
+                         f"{'' if len(fixable) != 1 else 's'} your domain easier to abuse")
+        if counts_ok and ext.total_30d:
+            parts.append("active impersonation of the platforms your staff rely on")
+        headline = ("We found " + _join_clauses(parts) + ".") if parts else (
+            "We found nothing requiring investigation on the surfaces we can see from outside.")
+
+        return {
+            "verdict": verdict,
+            "headline": headline,
+            "immediate": crit[0]["title"] if crit else None,
+            "immediate_detail": (crit[0].get("detail") or "").split(". ")[0] if crit else None,
+            "fixable": fixable[0]["title"] if fixable else None,
+            "fixable_count": len(fixable),
+            "monitor": monitor,
+            "benchmark": self._benchmark_line(),
+        }
+
+    def _benchmark_line(self) -> Optional[str]:
+        """Where this domain sits against the daily corpus measurement. Returns None
+        when the observatory is unreachable — the report never guesses a corpus
+        figure, and no line is better than an invented one."""
+        obs = self._observatory
+        if not obs.available:
+            return None
+        publishes_dmarc = not self.vm.trust.dmarc_risk
+        stat = obs.get("dmarc_present")
+        if stat is None:
+            return None
+        if publishes_dmarc:
+            return (f"You publish DMARC. So does {stat.sentence()} "
+                    f"(Datazag corpus, {stat.as_of}).")
+        without = obs.share_without("dmarc_present")
+        return (f"You do not publish DMARC, and neither does {without}% of the "
+                f"{stat.denominator_label or 'corpus'} Datazag tracks ({stat.as_of}) "
+                "\u2014 which is why mail claiming to be from you is so rarely challenged.")
 
     def _cover_hook(self) -> dict[str, str]:
         """The cover headline, built from THIS domain's numbers.

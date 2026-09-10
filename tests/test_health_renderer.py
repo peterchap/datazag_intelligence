@@ -341,6 +341,47 @@ def test_cover_headline_free_tier_never_cites_a_platform_global_count():
     assert "157" not in h["title"] and "157" not in h["deck"]
 
 
+# ---------------------------------------------------------------------------
+# Executive summary
+# ---------------------------------------------------------------------------
+
+def _obs():
+    import observatory, os
+    os.environ["OBSERVATORY_DATE"] = "20260908"
+    return observatory.load(os.path.join(_FIX, "observatory") + "/")
+
+
+def test_executive_summary_answers_so_what_in_business_language():
+    """The old opening named a grade band ("exposure is at critical exposure").
+    This one leads with what was found and what to do about it."""
+    es = HealthReportRenderer(_sample_vm(), observatory=_obs())._executive_summary()
+    assert es["verdict"] in ("needs immediate attention", "needs attention",
+                             "is broadly sound on what we can see")
+    assert es["headline"].startswith("We found ")
+    # the three classes are kept apart, each with its own answer
+    assert es["immediate"] and es["fixable"] and es["monitor"]
+    # and the ongoing one does not claim the reader was singled out
+    html = HealthReportRenderer(_sample_vm(), observatory=_obs()).to_html()
+    assert "Not aimed at you specifically" in html
+
+
+def test_executive_summary_benchmark_carries_its_denominator():
+    """A corpus share quoted without its population is a wrong number."""
+    es = HealthReportRenderer(_sample_vm(), observatory=_obs())._executive_summary()
+    assert es["benchmark"] and "Datazag tracks" in es["benchmark"]
+    assert "resolving domains" in es["benchmark"]
+
+
+def test_executive_summary_omits_the_benchmark_when_unreachable():
+    import observatory
+    es = HealthReportRenderer(_sample_vm(),
+                              observatory=observatory.Observatory.unavailable())._executive_summary()
+    assert es["benchmark"] is None
+    html = HealthReportRenderer(_sample_vm(),
+                                observatory=observatory.Observatory.unavailable()).to_html()
+    assert "Datazag tracks" not in html      # no invented corpus figure
+
+
 def test_attack_economy_page_is_present_and_honest():
     """The free report's strongest context page, ported. Industry figures must stay
     labelled as industry figures — this page is the one place the report cites
