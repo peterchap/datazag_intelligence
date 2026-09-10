@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -76,9 +77,10 @@ def test_flagship_full_renders():
     assert SENSITIVE_OWN_BRAND in html
     assert "41" in html                       # microsoft365 count_30d
     assert "Platforms targeted" in html
-    # all 15 pages (incl. DNS records, infra/routing, IT remediation), numbering intact
-    assert "Page 1 of 15" in html
-    assert "Page 15 of 15" in html
+    # 12 pages since the four-page external arc became one page; numbering intact
+    assert "Page 1 of 12" in html
+    assert "Page 12 of 12" in html
+    assert html.count('class="page') == 12
     # medallion findings drive the priorities/infra side
     assert "Trust Grade" in html or "trust grade" in html.lower()
 
@@ -209,6 +211,50 @@ def test_failed_lookup_priority_makes_no_claim():
     plat = next(p for p in r._build_priorities() if p["surface"] == "vendor")
     assert "No live impersonation" not in plat["action"]
     assert "not checked" in plat["title"].lower()
+
+
+# ---------------------------------------------------------------------------
+# External threat: one page, and it carries actions
+# ---------------------------------------------------------------------------
+
+def test_external_threat_is_a_single_page_with_the_data_and_actions():
+    """The four-page external arc (why / vendor footprint / platform exposure /
+    brand exposure) is one page. Three of those pages argued the general case and
+    carried no domain-specific action, so they read the same for most domains."""
+    html = HealthReportRenderer(_sample_vm()).to_html()
+    assert html.count("Section 02 · External threat") == 1
+    # the removed pages' headline copy is gone
+    for gone in ("Why attackers prefer trusted platforms",
+                 "Your stack, ordered by attacker preference",
+                 "Active campaigns against your platforms",
+                 "Attacks aimed at your customers"):
+        assert gone not in html, f"four-page arc survives: {gone!r}"
+    # but every piece of DATA those pages carried is still on the one page
+    for kept in ("micros0ft-365-login.com",     # exact-match lure sample
+                 "rnicrosoft365.com",           # fuzzy candidate sample
+                 "riskyexample-support.com",    # own-brand lookalike
+                 "41", "Platforms targeted", "Microsoft 365", "Okta", "Mailchimp"):
+        assert kept in html, f"data lost in the merge: {kept!r}"
+    # and it now tells the reader what to do, which the four pages never did
+    assert "What to do" in html
+    assert "Brief staff who use Microsoft 365" in html
+
+
+def test_section_numbering_has_no_gaps():
+    """Renumbering after the merge: a reader must not see 01 jump to 06."""
+    import re
+    html = HealthReportRenderer(_sample_vm()).to_html()
+    nums = [int(n) for n in re.findall(r'class="section-num">Section (\d\d)<', html)]
+    assert nums == sorted(nums), f"sections out of order: {nums}"
+    assert nums == list(range(1, len(nums) + 1)), f"gap in section numbers: {nums}"
+
+
+def test_no_references_to_removed_sections():
+    html = HealthReportRenderer(_sample_vm()).to_html()
+    body = re.sub(r"<style.*?</style>", "", html, flags=re.S)   # CSS comments aren't copy
+    assert "brand-exposure section" not in body
+    for stale in ("section 09", "Section 09", "Section 08"):
+        assert stale not in body, f"points at a section that no longer exists: {stale!r}"
 
 
 def test_teaser_masks_lookalike_domains():
