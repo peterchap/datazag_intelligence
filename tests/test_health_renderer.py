@@ -264,6 +264,48 @@ def test_every_section_reference_resolves():
     assert "brand-exposure section" not in body
 
 
+# ---------------------------------------------------------------------------
+# Cover headline
+# ---------------------------------------------------------------------------
+
+def _hook(imps=None, own=None, lookup_ok=True, platforms=("microsoft365",), audience="flagship"):
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    vm = build_view_models(di, detected_platforms=list(platforms), impersonations=imps or [],
+                           own_brand=own or BrandExposure(), findings=derive_findings(di, imps or []),
+                           lookup_ok=lookup_ok)
+    return HealthReportRenderer(vm, audience=audience)._cover_hook()
+
+
+def test_cover_headline_leads_with_this_domains_numbers():
+    """A cover that could sit on any report is a weak cover. It leads with a count."""
+    imps = [PlatformImpersonation(platform="microsoft365", count_7d=14, count_30d=41)]
+    h = _hook(imps=imps)
+    assert "41" in h["title"] or "41" in h["deck"]
+    assert "Microsoft 365" in h["deck"]          # display name, not the raw key
+    assert "microsoft365" not in h["deck"]
+
+
+def test_cover_headline_claims_nothing_when_the_lookup_failed():
+    """The cover is the most-read line in the report; a failed lookup must not
+    become a quiet all-clear there either."""
+    h = _hook(imps=[], lookup_ok=False, platforms=("microsoft365", "okta"))
+    assert "could not run" in h["deck"]
+    for claim in ("None are being imitated", "no active", "No active"):
+        assert claim not in h["deck"] and claim not in h["title"]
+
+
+def test_cover_headline_all_clear_only_when_checked():
+    h = _hook(imps=[], lookup_ok=True, platforms=("microsoft365", "okta"))
+    assert "None are being imitated today" in h["deck"]
+
+
+def test_cover_headline_free_tier_never_cites_a_platform_global_count():
+    """The '157' must not reach the free cover, even as a headline number."""
+    imps = [PlatformImpersonation(platform="Google Workspace", count_7d=20, count_30d=157)]
+    h = _hook(imps=imps, audience="health")
+    assert "157" not in h["title"] and "157" not in h["deck"]
+
+
 def test_attack_economy_page_is_present_and_honest():
     """The free report's strongest context page, ported. Industry figures must stay
     labelled as industry figures — this page is the one place the report cites

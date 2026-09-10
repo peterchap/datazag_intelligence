@@ -1068,15 +1068,15 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="cover">
     <span class="eyebrow">
       <span class="dot"></span>
-      {{ quarter_label }} &middot; Attack surface assessment
+      {{ quarter_label }} &middot; Attack surface assessment &middot; {{ domain }}
     </span>
 
     <h1 class="cover-title">
-      The attacker problem facing <span class="cover-domain">{{ domain }}</span> &mdash; and the defence gaps that let it through.
+      {{ cover_hook.title|safe }}
     </h1>
 
     <p class="cover-deck">
-      Attackers imitate the platforms your staff trust, then use that access to reach <strong>your customers</strong>. This report measures both: the impersonation already aimed at you, and the gaps in your public DNS that decide how far it travels.
+      {{ cover_hook.deck|safe }}
     </p>
 
     <div class="dual-score">
@@ -2706,6 +2706,7 @@ class HealthReportRenderer:
             "impersonation_lookup_ok": ext.lookup_ok,
             # The external page's action block — the platform/brand priorities only,
             # so it never repeats the infrastructure items the roadmap owns.
+            "cover_hook":        self._cover_hook(),
             "external_actions":  [p for p in self._build_priorities()
                                   if p.get("surface") in ("vendor", "brand")],
             "own_brand":               own,
@@ -3205,6 +3206,74 @@ class HealthReportRenderer:
         }
 
     # ----- Section: IT remediation tear-off (back of report) ---------------
+
+    def _cover_hook(self) -> dict[str, str]:
+        """The cover headline, built from THIS domain's numbers.
+
+        A cover that says "the attacker problem facing example.com" could sit on any
+        report. A count could not: it is the one line that proves the report is about
+        the reader before they have read anything.
+
+        The branches are the same honesty rule the rest of the report follows — a
+        failed impersonation lookup gets a headline that claims nothing either way,
+        never the quiet all-clear that a zero would otherwise imply.
+        """
+        ext = self.vm.external_threat
+        vendors = self._build_vendor_list()
+        n_platforms = len(vendors)
+        # The free tier must never bind a platform-GLOBAL count to this domain (the
+        # "157" conflation — brand_page_data_contract.md). Its headline is built from
+        # the stack size and brand-scoped counts only.
+        platform_counts_ok = ext.lookup_ok and not self._suppress_platform_counts
+        gaps = sum(max(0, c["total"] - c["deployed"]) for c in self._controls_categories())
+        gap_clause = (f"the <strong>{gaps}</strong> fixable gap{'s' if gaps != 1 else ''} in your "
+                      "defences that decide how far they get" if gaps else
+                      "the defensive posture that decides how far they get")
+
+        # Most-targeted platform, for the deck.
+        top = max(ext.impersonations, key=lambda i: i.count_30d, default=None)
+
+        if platform_counts_ok and ext.total_30d > 0:
+            return {
+                "title": f"<strong>{ext.total_30d} lookalike domains</strong> are imitating "
+                         "the platforms your staff log into.",
+                "deck":  (f"{self._display_name(self._normalise_vendor_name(top.platform))} is the "
+                          f"most-targeted, with {top.count_30d} in the last 30 days. "
+                          if top and top.count_30d else "")
+                         + f"This report shows who is imitating you, and {gap_clause}.",
+            }
+        if ext.lookup_ok and ext.own_brand.count_30d > 0:   # brand-scoped: safe on every tier
+            return {
+                "title": f"<strong>{ext.own_brand.count_30d} lookalike domain"
+                         f"{'s' if ext.own_brand.count_30d != 1 else ''}</strong> "
+                         f"{'are' if ext.own_brand.count_30d != 1 else 'is'} targeting "
+                         f"<span class=\"cover-domain\">{self.domain}</span>.",
+                "deck":  f"Your customers are the target. This report shows the campaigns aimed "
+                         f"at your brand, and {gap_clause}.",
+            }
+        if n_platforms:
+            head = (f"Your staff log into <strong>{n_platforms} platform"
+                    f"{'s' if n_platforms != 1 else ''}</strong> an attacker can imitate.")
+            if not ext.lookup_ok:
+                # Nothing was checked: say so on the cover rather than imply calm.
+                return {"title": head,
+                        "deck": "Impersonation monitoring could not run for this report, so "
+                                f"nothing is claimed either way. What follows is {gap_clause}."}
+            if platform_counts_ok:
+                return {"title": head,
+                        "deck": "None are being imitated today &mdash; but campaigns are "
+                                f"intermittent, and this report shows {gap_clause} "
+                                "when that changes."}
+            # Free tier: state the surface, claim nothing about current activity.
+            return {"title": head,
+                    "deck": f"Each one is a lure an attacker can deploy against your staff. "
+                            f"This report shows {gap_clause}."}
+        return {
+            "title": f"What an attacker sees when they look up "
+                     f"<span class=\"cover-domain\">{self.domain}</span>.",
+            "deck":  f"Everything here is read from public DNS, certificates and routing &mdash; "
+                     f"the same data an attacker reads first. It shows {gap_clause}.",
+        }
 
     def _build_remediation_actions(self) -> list[dict[str, Any]]:
         """Consolidated, de-duplicated, severity-sorted list of concrete fixes
