@@ -117,6 +117,10 @@ class Exposure(_Base):
     top_share: float = 0.0
     rows: list[ImpRow] = Field(default_factory=list)
     lookalike_total: int = 0           # parallel, never summed into total_exact
+    # Domains whose impersonation lookup could not RUN. total_exact excludes them
+    # entirely, so with this non-empty a 0 is "not checked", not "none found", and a
+    # non-zero total is a floor. Carried from ExposureRollup.unchecked_domains.
+    unchecked_domains: list[str] = Field(default_factory=list)
     provenance: str = 'external_threat.impersonations · confidence = "exact"'
 
 

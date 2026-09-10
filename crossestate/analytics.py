@@ -390,9 +390,14 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
     plat_samples: dict[str, list[str]] = {}
     by_segment: dict[str, int] = {}
     lookalike_30d = 0
+    unchecked: list[str] = []
 
     for r in assessed:
         ext = r.vm.external_threat
+        if not ext.lookup_ok:
+            # Counted nowhere below: its impersonation numbers were never fetched, so
+            # adding its zeros would silently understate the estate total.
+            unchecked.append(r.domain)
         # EXACT only — lookalike_candidates are carried parallel, never summed.
         for imp in ext.impersonations:
             if getattr(imp, "confidence", "exact") != "exact":
@@ -438,6 +443,7 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
         targeting_concentration=round(top_share, 3),
         lookalike_total_30d=lookalike_30d,
         stack_matched_30d=stack_matched_30d,
+        unchecked_domains=unchecked,
     )
 
 

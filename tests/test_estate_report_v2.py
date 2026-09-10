@@ -168,6 +168,16 @@ def test_render_six_core_plus_appendix_pages_and_verbatim_tokens():
     assert "resolved through vanity MX" in html             # vanity-MX methodology sentence
 
 
+def test_v2_all_clear_gated_on_the_lookup_having_run():
+    r = _report()
+    r.exposure.total_exact = 0
+    r.exposure.top_platform = None
+    r.exposure.unchecked_domains = ["a.com", "b.com"]
+    html = EstateReportRenderer(r).to_html()
+    assert "No exact-match impersonation" not in html
+    assert "Not checked" in html
+
+
 def test_severity_pill_carries_colour_not_the_bar():
     # concentration bars stay neutral (no hot/warm class); the severity pill colours.
     html = EstateReportRenderer(_report()).to_html()

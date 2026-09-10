@@ -144,6 +144,7 @@ def exposure(mvp) -> Exposure:
         total_exact=e.total_30d, top_platform=(top.platform if top else None),
         top_share=e.targeting_concentration, rows=rows[:12],
         lookalike_total=e.lookalike_total_30d,
+        unchecked_domains=list(e.unchecked_domains),
     )
 
 

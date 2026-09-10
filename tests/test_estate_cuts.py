@@ -19,6 +19,35 @@ def _renderers():
     return CrossEstateRenderer(e, cut="operator"), CrossEstateRenderer(e, cut="oversight")
 
 
+def _unchecked_renderer(cut="operator"):
+    """An estate where every impersonation lookup failed: totals are 0 because
+    nothing was fetched, not because nothing was found."""
+    e = build_estate_from_manifest(ESTATE_MANIFEST, now=NOW)
+    e.exposure.total_7d = 0
+    e.exposure.total_30d = 0
+    e.exposure.by_platform = []
+    e.exposure.unchecked_domains = ["acme.com", "acmeshop.com"]
+    return CrossEstateRenderer(e, cut=cut)
+
+
+def test_estate_all_clear_gated_on_the_lookup_having_run():
+    md = _unchecked_renderer().to_markdown()
+    assert "No active EXACT impersonation" not in md
+    assert "Not checked" in md
+    html = _unchecked_renderer().to_html()
+    assert "No active EXACT impersonation" not in html
+    assert "Not checked" in html
+
+
+def test_estate_all_clear_survives_when_every_lookup_ran():
+    """The counterpart: a fully-checked estate with no matches keeps its all-clear."""
+    e = build_estate_from_manifest(ESTATE_MANIFEST, now=NOW)
+    e.exposure.total_30d = 0
+    e.exposure.by_platform = []
+    e.exposure.unchecked_domains = []
+    assert "No active EXACT impersonation" in CrossEstateRenderer(e, cut="operator").to_markdown()
+
+
 def test_cut_config():
     assert get_cut("operator").show_per_domain_fixes is True
     assert get_cut("oversight").show_per_domain_fixes is False

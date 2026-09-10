@@ -34,6 +34,8 @@ from typing import Any, Optional
 
 import duckdb
 
+from secret_redaction import redact, redacted_error
+
 LAKE = "datazag_lake2"
 
 # Shared enrichment core (the common thread): ONE persistent, cached, hub-backed
@@ -167,9 +169,25 @@ def lake_connect():
     # Belt-and-suspenders: also resolve any s3://<bucket>/... path to the R2 endpoint.
     _add_s3_over_r2_secret(con)
 
-    con.execute(f"ATTACH 'ducklake:postgres:{dsn}' AS {LAKE} (DATA_PATH '{data_path}');")
-    con.execute(f"USE {LAKE};")
+    # The DSN is interpolated into the statement, so DuckDB echoes it — password and
+    # all — inside any connection error. Re-raise with it masked: this is the point
+    # every caller's log line ultimately quotes, including loggers outside this repo.
+    try:
+        con.execute(f"ATTACH 'ducklake:postgres:{dsn}' AS {LAKE} (DATA_PATH '{data_path}');")
+        con.execute(f"USE {LAKE};")
+    except Exception as e:
+        raise _redacted_exc(e) from None
     return con
+
+
+def _redacted_exc(e: BaseException) -> BaseException:
+    """Same exception class where the class can be rebuilt from a message (callers
+    that catch duckdb.IOException keep catching it), carrying redacted text."""
+    msg = redacted_error(e)
+    try:
+        return type(e)(msg)
+    except Exception:
+        return RuntimeError(msg)
 
 
 def _one(con, sql: str, params: list) -> Optional[dict]:
@@ -195,7 +213,7 @@ def _safe(label: str, fn, default=None):
     try:
         return fn()
     except Exception as e:
-        msg = str(e).splitlines()[0] if str(e) else e.__class__.__name__
+        msg = redacted_error(e).splitlines()[0] if str(e) else e.__class__.__name__
         print(f"  lake: '{label}' unavailable - {e.__class__.__name__}: {msg}")
         return default
 
@@ -498,7 +516,7 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
         try:
             return fn()
         except Exception as e:
-            print(f"  enrich view-model '{label}' failed - {e.__class__.__name__}: {e}")
+            print(f"  enrich view-model '{label}' failed - {e.__class__.__name__}: {redacted_error(e)}")
             return default
 
     rec = rec or {}

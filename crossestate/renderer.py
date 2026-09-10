@@ -150,11 +150,18 @@ class CrossEstateRenderer:
         self._A("## Active exposure", "",
                 "*Standing impersonation snapshot (EXACT matches). The live feed (SKU-2) "
                 "delivers these as events; this report is the map.*", "")
-        if e.total_30d == 0:
+        if e.total_30d == 0 and not e.fully_checked:
+            self._A(f"**Not checked** — the impersonation rollup was unreachable for "
+                    f"{len(e.unchecked_domains)} of the estate's domains, and no other domain "
+                    "returned a match. No conclusion either way; this is not an all-clear.", "")
+        elif e.total_30d == 0:
             self._A("No active EXACT impersonation of the estate's platforms in the last 30 days.", "")
         else:
             self._A(f"**{e.total_30d} active impersonations (30d)**, "
                     f"targeting concentration {self._pct(e.targeting_concentration)} on the top platform.", "")
+            if not e.fully_checked:
+                self._A(f"*Understated: {len(e.unchecked_domains)} domain(s) could not be checked "
+                        "(rollup unreachable), so the totals below are a floor, not a count.*", "")
             self._A("| Platform | 7d | 30d | Domains targeted | Samples |", "|---|---|---|---|---|")
             for p in e.by_platform:
                 self._A(f"| {p.platform} | {p.count_7d} | {p.count_30d} | {p.targeted_domains} | "
@@ -384,11 +391,13 @@ CROSS_ESTATE_TEMPLATE = r"""<!DOCTYPE html>
   {% if e.exposure.total_30d %}
     <p><strong>{{ e.exposure.total_30d }} active impersonations (30d)</strong>,
        targeting concentration {{ pct(e.exposure.targeting_concentration) }} on the top platform.</p>
+    {% if not e.exposure.fully_checked %}<p><em>Understated: {{ e.exposure.unchecked_domains|length }} domain(s) could not be checked (rollup unreachable), so these totals are a floor, not a count.</em></p>{% endif %}
     <table><tr><th>Platform</th><th>7d</th><th>30d</th><th>Domains</th><th>Samples</th></tr>
     {% for p in e.exposure.by_platform %}<tr><td>{{ p.platform }}</td><td>{{ p.count_7d }}</td>
       <td>{{ p.count_30d }}</td><td>{{ p.targeted_domains }}</td>
       <td>{{ p.sample_domains[:3]|join(', ') or '—' }}</td></tr>{% endfor %}
     </table>
+  {% elif not e.exposure.fully_checked %}<p><strong>Not checked</strong> — the impersonation rollup was unreachable for {{ e.exposure.unchecked_domains|length }} of the estate's domains and no other domain matched. Not an all-clear.</p>
   {% else %}<p>No active EXACT impersonation in the last 30 days.</p>{% endif %}
 {% elif section == 'calendar' %}
   <h2>Operational calendar</h2>
