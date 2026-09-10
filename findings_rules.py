@@ -445,7 +445,10 @@ def _reason_code_findings(di: DomainIntelligence, already: set[str]) -> list[dic
         out.append({
             "finding": key,
             "severity": copy["severity"] if copy else "medium",
-            "title": copy["title"] if copy else _humanise(code),
+            # An unmapped code must not become the finding's TITLE: a raw internal
+            # token reads as placeholder text in a customer-facing report. The signal
+            # is kept — the code itself is carried in the evidence line below.
+            "title": copy["title"] if copy else "Infrastructure signal flagged by the Datazag corpus",
             "evidence": f"Datazag corpus reason code: {code}",
             "detail": copy["detail"] if copy else
                       f"The Datazag corpus flagged this domain's infrastructure with reason "

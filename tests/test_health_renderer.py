@@ -361,8 +361,11 @@ def test_it_remediation_tearoff():
     # body and immediately before the glossary section)
     rem = html.index("Remediation plan — hand this to your team.")
     roadmap = html.index("The implementation changes that close the gaps.")
-    glossary = html.index("Glossary &amp; methodology") if "Glossary &amp; methodology" in html else html.rindex("Glossary")
-    assert roadmap < rem < glossary
+    # Landmark on each PAGE's own h1: the contents lists these titles too, so a
+    # plain index() can match the table of contents instead of the section.
+    glossary = html.index("Plain-English definitions.")
+    assert roadmap < rem < glossary, (
+        f"pages out of order: roadmap@{roadmap} remediation@{rem} glossary@{glossary}")
     assert "## IT remediation plan" in r.to_markdown()
 
     # audience scoping: in flagship/advisory/remediation, not insurer/external_threat

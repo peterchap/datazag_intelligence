@@ -1266,7 +1266,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
   <div class="toc-header">
     <div class="toc-eyebrow">A guided tour</div>
-    <h2 class="toc-title">Mapping your attack surface, in ten sections.</h2>
+    <h2 class="toc-title">Mapping your attack surface, in {{ toc_items | length }} sections.</h2>
     <p class="toc-lede">This report maps your attack surface and gives you a roadmap to reduce it. Every section is <strong>Context</strong>, <strong>Findings</strong> or <strong>Action</strong>. Read it in order, or take sections 01, 03 and 07 as the spine.</p>
   </div>
   <ol class="toc-list">
@@ -4631,9 +4631,17 @@ class HealthReportRenderer:
             ("Dynamic DNS",     "is_dynamic_dns",    "Active",  "Not used"),
             ("MX configuration","mx_misconfigured",  "Issue",   "Healthy"),
         ]
+        # ⚠️ `changes` is EMPTY on the live path (no contract field yet). Reading a
+        # missing key as the stable label meant every card asserted "Stable" /
+        # "Healthy" from data we never had — which is how the timeline came to report
+        # "MX configuration — Healthy" for a domain the DNS page reports as having no
+        # MX records at all. With no baseline there is nothing to compare against, so
+        # the honest state is "not assessed". Same rule as the nullable scores.
+        assessed = bool(ch)
         return [
-            {"label": label, "changed": bool(ch.get(key)),
-             "state": active_label if ch.get(key) else stable_label}
+            {"label": label, "changed": bool(ch.get(key)), "assessed": assessed,
+             "state": (active_label if ch.get(key) else stable_label) if assessed
+                      else "Not assessed"}
             for label, key, active_label, stable_label in signals
         ]
 
@@ -4713,7 +4721,7 @@ class HealthReportRenderer:
              "desc": "DMARC, SPF, BIMI, CAA, MTA-STS &mdash; the defences that constrain how far a campaign travels."},
             {"title": "Full DNS records", "kind": "findings", "section": "dns_records",
              "desc": "Every record we captured, with the defensive weaknesses called out inline."},
-            {"title": "Infrastructure &amp; routing intelligence", "kind": "findings", "section": "infra_routing",
+            {"title": "Infrastructure & routing intelligence", "kind": "findings", "section": "infra_routing",
              "desc": "The quality of the IP, prefix and ASN hosting you &mdash; routing integrity, reputation, co-tenancy."},
             {"title": "Hidden infrastructure", "kind": "findings", "section": "hidden_infra",
              "desc": "Forgotten subdomains and dormant services &mdash; the assets attackers find that you may not know exist."},
@@ -4723,6 +4731,7 @@ class HealthReportRenderer:
              "desc": "The fixes sequenced by impact &mdash; fortnight, quarter, year &mdash; with effort and ownership."},
             {"title": "IT remediation plan", "kind": "action", "section": "remediation_plan",
              "desc": "Every fix with its current state and exact step. Detachable, for whoever owns the changes."},
-            {"title": "Glossary &amp; methodology", "kind": "context", "section": "glossary",
+            # Plain "&": the toc template escapes it. Pre-encoding double-encodes.
+            {"title": "Glossary & methodology", "kind": "context", "section": "glossary",
              "desc": "Definitions of every technical term, plus how the evidence was gathered."},
         ]
