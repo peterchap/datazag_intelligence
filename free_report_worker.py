@@ -92,6 +92,20 @@ def claim_one(conn):
     return row
 
 
+def _teaser_score(vm):
+    """The teaser's numeric score, or None when there is no intelligence to score.
+
+    composite_score is 0 when `not vm.has_intelligence`, and 0 on this higher-is-worse scale
+    is the BEST possible result — so writing it put "score 0" on the public report page for
+    domains we had never assessed. The portal already hides a null score
+    (`score != null` in report-progress.tsx / threat-report-form.tsx) and free_reports.score
+    is a nullable integer, so None is the honest value and needs nothing downstream.
+    """
+    if not getattr(vm, "has_intelligence", False):
+        return None
+    return int(vm.composite_score)
+
+
 async def _collect(domain: str):
     """Live scan + medallion view-model. Returns (vm, legacy_output, teaser)."""
     output = await canonical_collect.collect(domain)
@@ -100,7 +114,7 @@ async def _collect(domain: str):
     ext = vm.external_threat
     teaser = {
         "grade": getattr(vm.grade, "letter", None),
-        "score": int(vm.composite_score or 0),
+        "score": _teaser_score(vm),
         "summary": getattr(vm.grade, "headline", None),
         "platforms": list(ext.detected_platforms or []),
         "impersonation": {

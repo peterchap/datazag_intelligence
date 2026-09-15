@@ -1172,7 +1172,7 @@ HEALTH_REPORT_TEMPLATE = r"""
         <div class="dsc-label">
           <span class="dsc-icon">▲</span>
           The attacker problem &mdash; platform impersonation
-          <span class="dsc-grade-ref">{{ platform_grade.band }} &middot; {{ platform_score }}/100 exposure</span>
+          <span class="dsc-grade-ref">{{ platform_grade.band }}{% if platform_score is not none %} &middot; {{ platform_score }}/100 exposure{% endif %}</span>
         </div>
         {% if suppress_platform_counts %}
         <div class="dsc-state">{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }} detected in your stack &mdash; each an impersonation lure</div>
@@ -1212,7 +1212,7 @@ HEALTH_REPORT_TEMPLATE = r"""
         <div class="dsc-label">
           <span class="dsc-icon">◉</span>
           Your defence weaknesses &mdash; trust &amp; infrastructure
-          <span class="dsc-grade-ref">{{ infra_grade.band }} &middot; {{ infra_score }}/100 exposure</span>
+          <span class="dsc-grade-ref">{{ infra_grade.band }}{% if infra_score is not none %} &middot; {{ infra_score }}/100 exposure{% endif %}</span>
         </div>
         <div class="dsc-state">{{ infra_grade.headline }}</div>
         <p class="dsc-qualifier">The gaps in your public DNS &mdash; DMARC, SPF, DNSSEC, CAA, certificates, routing &mdash; that decide <strong>how easily your own domain can be spoofed, hijacked or mis-issued against</strong>. A separate surface from the platform lures above.</p>
@@ -1235,7 +1235,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div class="ogb-body">
         <div class="ogb-label">External exposure &middot; the attacker problem and your defences, combined</div>
         <div class="ogb-band">{{ grade.band }}</div>
-        <div class="ogb-scoreline">Risk score {{ overall_score }}/100 &mdash; higher is more exposed &middot; grade {{ grade.letter }}</div>
+        <div class="ogb-scoreline">{% if overall_score is not none %}Risk score {{ overall_score }}/100 &mdash; higher is more exposed &middot; grade {{ grade.letter }}{% else %}Risk not yet assessed &mdash; no Datazag intelligence for this domain yet{% endif %}</div>
         <div class="ogb-detail">
           {% if driving_surface == 'platform' %}
           The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. That is defended inside your tenants (MFA, Conditional Access), which this report cannot see; section 07 sequences what you can fix from the outside.
@@ -1421,7 +1421,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="grade-band-letter">{{ grade.letter }}</div>
     <div class="grade-band-body">
       <div class="gb-band">{{ grade.band }} exposure</div>
-      <div class="gb-scoreline">Risk score {{ overall_score }}/100 &mdash; higher is more exposed &middot; grade {{ grade.letter }} on the A&ndash;F scale below</div>
+      <div class="gb-scoreline">{% if overall_score is not none %}Risk score {{ overall_score }}/100 &mdash; higher is more exposed &middot; grade {{ grade.letter }} on the A&ndash;F scale below{% else %}Risk not yet assessed &mdash; no Datazag intelligence for this domain yet{% endif %}</div>
       <div class="grade-band-scale">
         <div class="grade-scale-track"></div>
         <div class="grade-scale-marks">
@@ -2280,11 +2280,15 @@ class HealthReportRenderer:
                 "letter":      self._grade.letter,
                 "headline":    self._grade.headline,
                 "description": self._grade.description,
-                "score":       self.display_score,
+                # None, not 0, when unassessed — same reason as overall_score in the template.
+                "score":       self.display_score if self._assessed else None,
             },
             "pillars": {
-                "trust":  {"score": self.vm.trust.score,  "grade": self.vm.trust.grade.letter},
-                "threat": {"score": self.vm.threat.score, "grade": self.vm.threat.grade.letter},
+                # None without intelligence: these surfaces are score=0/grade=unknown then.
+                "trust":  {"score": self.vm.trust.score if self.vm.has_intelligence else None,
+                           "grade": self.vm.trust.grade.letter},
+                "threat": {"score": self.vm.threat.score if self.vm.has_intelligence else None,
+                           "grade": self.vm.threat.grade.letter},
             },
             "platform_footprint": self._build_vendor_list(),
             "external_threat": {
@@ -2328,8 +2332,9 @@ class HealthReportRenderer:
         A("")
         A(f"*{self.tier.title()} edition · snapshot {(self.generated_at or '')[:10]}*")
         A("")
-        A(f"**Overall Trust Grade: {self._grade.letter} — {self._grade.headline}** "
-          f"({self.display_score}/100)")
+        # No "(0/100)" for an unassessed domain — see overall_score in _build_context.
+        A(f"**Overall Trust Grade: {self._grade.letter} — {self._grade.headline}**"
+          + (f" ({self.display_score}/100)" if self._assessed else ""))
         if not vm.has_intelligence:
             A("")
             A("> Not yet assessed — no Datazag corpus intelligence for this domain yet.")
@@ -2338,8 +2343,9 @@ class HealthReportRenderer:
         # ── Act 1: the attacker problem ──────────────────────────────────
         A("## The attacker problem — platform impersonation")
         A("")
-        A(f"Grade {self._platform_grade.letter} ({self._platform_score}/100). "
-          "Platform impersonation is usually how brand impersonation starts.")
+        A(f"Grade {self._platform_grade.letter}"
+          + (f" ({self._platform_score}/100). " if self._assessed else ". ")
+          + "Platform impersonation is usually how brand impersonation starts.")
         A("")
         actives = self._active_impersonations()
         if actives:
@@ -2372,7 +2378,12 @@ class HealthReportRenderer:
         # ── Act 2: defence weaknesses ────────────────────────────────────
         A("## Your defence weaknesses — trust & infrastructure")
         A("")
-        A(f"Trust posture {t.score}/100 · infrastructure/threat {th.score}/100.")
+        # The trust/threat pillars exist only with medallion intelligence; without it they are
+        # score=0, grade=unknown, and "Trust posture 0/100" would claim a result we never had.
+        if vm.has_intelligence:
+            A(f"Trust posture {t.score}/100 · infrastructure/threat {th.score}/100.")
+        else:
+            A("Trust posture and infrastructure/threat: not yet assessed.")
         A("")
         A(f"- DMARC: {'**at risk** — not enforced' if t.dmarc_risk else 'enforced'}")
         A(f"- SPF: {'**not strict**' if t.spf_risk else 'strict'}; "
@@ -2850,11 +2861,18 @@ class HealthReportRenderer:
             # The overall 0-100 (higher = more exposed). The scorelines print it
             # beside the band; an undefined name here renders as empty in Jinja and
             # ships "Risk score /100", so it is passed explicitly.
-            "overall_score":     self.display_score,
+            #
+            # ⚠️ None when there is nothing to score (`not self._assessed`), and the template
+            # then says "not yet assessed". display_score falls back to 0 with no intelligence,
+            # and 0 on a higher-is-worse scale printed "Risk score 0/100 — higher is more
+            # exposed · grade ?" for domains we had never assessed: the best possible score,
+            # manufactured from missing data. The grades already refuse to grade this case
+            # (score_to_grade(None)); the numbers now agree with them.
+            "overall_score":     self.display_score if self._assessed else None,
             "platform_grade":    self._platform_grade,
             "infra_grade":       self._infrastructure_grade,
-            "platform_score":    self._platform_score,
-            "infra_score":       self._infrastructure_score,
+            "platform_score":    self._platform_score if self._assessed else None,
+            "infra_score":       self._infrastructure_score if self._assessed else None,
             "driving_surface":   self._driving_surface,
             "platform_state":    self._platform_state,
             "platform_actions":  self._platform_actions(),
