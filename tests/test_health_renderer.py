@@ -822,6 +822,39 @@ def test_nxdomain_renders_not_assessed():
     assert "Not yet assessed" in html
 
 
+def test_unassessed_report_never_prints_a_score():
+    """A domain with no intelligence must not carry a number on the higher-is-worse scale.
+
+    The headline used to read "Risk score 0/100 — higher is more exposed · grade ?": 0 is the
+    best possible result, manufactured from missing data, next to a grade that correctly
+    refused to grade. The grade refs, markdown and health.json repeated it.
+    """
+    import re
+    di = DomainIntelligence.model_validate(_load("medallion_nxdomain.json"))
+    r = HealthReportRenderer(build_view_models(di))
+    html = r.to_html()
+    assert not re.search(r"Risk score\s*\d+\s*/\s*100", html), "headline claims a score"
+    assert not re.search(r"\d+\s*/\s*100\s*exposure", html), "grade ref claims a score"
+    assert "Risk not yet assessed" in html
+    md = r.to_markdown()
+    hits = re.findall(r".{0,40}\d+\s*/\s*100.{0,15}", md)
+    assert not hits, f"markdown claims a score: {hits[:3]}"
+    d = r.to_dict()
+    assert d["trust_grade"]["score"] is None
+    assert d["pillars"]["trust"]["score"] is None
+    assert d["pillars"]["threat"]["score"] is None
+
+
+def test_assessed_report_still_prints_its_score():
+    """The guard above must not hide a real score."""
+    import re
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    r = HealthReportRenderer(build_view_models(di))
+    assert re.search(r"Risk score\s*\d+\s*/\s*100", r.to_html())
+    assert isinstance(r.to_dict()["trust_grade"]["score"], int)
+
+
+
 # ---------------------------------------------------------------------------
 # Legacy enrichment path
 # ---------------------------------------------------------------------------
