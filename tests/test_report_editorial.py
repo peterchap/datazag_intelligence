@@ -176,9 +176,16 @@ def _cybcube_like():
     imps = [PlatformImpersonation(platform="Google Workspace", count_7d=5100, count_30d=12800),
             PlatformImpersonation(platform="HubSpot", count_7d=1067, count_30d=2506),
             PlatformImpersonation(platform="Mandrill", count_7d=0, count_30d=0, measured=False)]
+    # The run also returned two fuzzy typosquat candidates (exact=3 lookalike=2).
+    # These are platform-scoped too — rollup kind `platform_typosquat`.
+    looks = [PlatformImpersonation(platform="Google Workspace", count_30d=4210,
+                                   confidence="lookalike"),
+             PlatformImpersonation(platform="HubSpot", count_30d=1380,
+                                   confidence="lookalike")]
     di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
     vm = build_view_models(di, detected_platforms=["Google Workspace", "HubSpot", "Mandrill"],
-                           impersonations=imps, own_brand=None, findings=[])
+                           impersonations=imps, lookalike_candidates=looks,
+                           own_brand=None, findings=[])
     return HealthReportRenderer(vm)
 
 
@@ -229,8 +236,10 @@ def test_large_counts_carry_thousands_separators():
     """"15306" on a cover reads as a typo, and the report's proposition is that its
     numbers can be trusted."""
     text = _visible(_cybcube_like().to_html())
-    assert "15,306" in text and "15306" not in text
-    assert "12,800" in text and "12800" not in text
+    for formatted, raw in (("15,306", "15306"), ("12,800", "12800"),
+                           ("4,210", "4210"), ("1,380", "1380")):
+        assert formatted in text, f"{formatted} missing — is the count rendered at all?"
+        assert raw not in text, f"{raw} rendered without a thousands separator"
 
 
 if __name__ == "__main__":

@@ -1667,8 +1667,8 @@ HEALTH_REPORT_TEMPLATE = r"""
   {% if platform_lookalikes %}
   <div class="es-block">
     <div class="es-label">Lookalike candidates <span class="es-note">Lower confidence &mdash; fuzzy, not exact matches</span></div>
-    <p class="es-line muted">{% for c in platform_lookalikes %}<span class="lure-chip">{{ c.platform }} &times;{{ c.count_30d }}</span>{% for d in c.sample_domains[:2] %}<span class="lure-chip">{{ d }}</span>{% endfor %}{% endfor %}</p>
-    <p class="es-foot">Short or dictionary-word brand names can produce false positives &mdash; a watchlist, not confirmed activity.</p>
+    <p class="es-line muted">{% for c in platform_lookalikes %}<span class="lure-chip">{{ c.platform }} &times;{{ c.count_30d | thousands }}</span>{% for d in c.sample_domains[:2] %}<span class="lure-chip">{{ d }}</span>{% endfor %}{% endfor %}</p>
+    <p class="es-foot">Fuzzy matches against the platform names above, counted across the internet &mdash; not domains registered against {{ domain }}. Short or dictionary-word brand names can produce false positives &mdash; a watchlist, not confirmed activity.</p>
   </div>
   {% endif %}
 
