@@ -314,6 +314,12 @@ class PlatformImpersonation(_Base):
     # "exact"   = certstream exact brand/platform match (rollup kind platform|brand)
     # "lookalike" = fuzzy typosquat candidate (kind *_typosquat) — lower confidence
     confidence: Literal["exact", "lookalike"] = "exact"
+    # False when the rollup held no entry for this platform at all. The counts are
+    # then 0 because nothing was measured, not because nothing was found — the same
+    # distinction `lookup_ok` draws for the lookup as a whole, drawn per platform.
+    # A platform detected in the stack but missing from the rollup must never be
+    # presented, or silently omitted, as though it came back clean.
+    measured: bool = True
 
     @property
     def trend(self) -> Literal["up", "down", "flat"]:
@@ -557,12 +563,30 @@ class ExternalThreat(BaseModel):
     lookup_ok: bool = True
 
     @property
+    def measured_impersonations(self) -> list["PlatformImpersonation"]:
+        return [i for i in self.impersonations if i.measured]
+
+    @property
+    def unmeasured_platforms(self) -> list[str]:
+        """Platforms in the stack the rollup had no entry for — checked-nothing,
+        not found-nothing. Named to the reader rather than dropped."""
+        return [i.platform for i in self.impersonations if not i.measured]
+
+    # ⚠️ PLATFORM-GLOBAL, NOT DOMAIN-SCOPED. These sum per-platform lookalike counts
+    # from the impersonation rollup, which is keyed by platform name alone — there is
+    # no domain in that join. A total of 15,306 means "15,306 lookalikes of Google
+    # Workspace and HubSpot exist", not "15,306 domains are targeting you"; every
+    # Google Workspace customer gets the identical number. Copy built on these MUST
+    # attribute them to the platform and never to the reader ("imitating you", "your
+    # platforms impersonated"). Brand-scoped targeting lives in `own_brand` and
+    # `brand_funnel` — see brand_page_data_contract.md §1/§7.
+    @property
     def total_7d(self) -> int:
-        return sum(i.count_7d for i in self.impersonations)
+        return sum(i.count_7d for i in self.measured_impersonations)
 
     @property
     def total_30d(self) -> int:
-        return sum(i.count_30d for i in self.impersonations)
+        return sum(i.count_30d for i in self.measured_impersonations)
 
     @property
     def lookalike_total_30d(self) -> int:

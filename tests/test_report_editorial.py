@@ -169,6 +169,79 @@ def test_zero_detected_platforms_is_not_an_impersonation_all_clear():
             "markdown edition still renders the all-clear"
 
 
+def _cybcube_like():
+    """A stack of three platforms where the rollup covers two — the shape the first
+    real multi-platform run produced (cybcube.com: Google Workspace, HubSpot,
+    Mandrill; no rollup entry for Mandrill; 6,167 / 15,306 totals)."""
+    imps = [PlatformImpersonation(platform="Google Workspace", count_7d=5100, count_30d=12800),
+            PlatformImpersonation(platform="HubSpot", count_7d=1067, count_30d=2506),
+            PlatformImpersonation(platform="Mandrill", count_7d=0, count_30d=0, measured=False)]
+    # The run also returned two fuzzy typosquat candidates (exact=3 lookalike=2).
+    # These are platform-scoped too — rollup kind `platform_typosquat`.
+    looks = [PlatformImpersonation(platform="Google Workspace", count_30d=4210,
+                                   confidence="lookalike"),
+             PlatformImpersonation(platform="HubSpot", count_30d=1380,
+                                   confidence="lookalike")]
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    vm = build_view_models(di, detected_platforms=["Google Workspace", "HubSpot", "Mandrill"],
+                           impersonations=imps, lookalike_candidates=looks,
+                           own_brand=None, findings=[])
+    return HealthReportRenderer(vm)
+
+
+def test_platform_global_counts_are_never_bound_to_this_domain():
+    """The impersonation rollup is keyed by platform name alone — there is no domain
+    in that join. 15,306 means "15,306 lookalikes of Google Workspace exist", which
+    is the same number for every Google Workspace customer. The cover led with it as
+    "15306 lookalike domains are imitating the platforms your staff log into… this
+    report shows who is imitating you", which reads as 15,306 domains aimed at the
+    reader. Same conflation brand_page_data_contract.md forbids on the free tier,
+    leading the paid report."""
+    r = _cybcube_like()
+    text = re.sub(r"\s+", " ", _visible(r.to_html()))
+
+    for claim in ("imitating you", "of your platforms impersonated",
+                  "actively impersonated"):
+        assert claim not in text, \
+            f"copy binds a platform-global count to this domain: {claim!r}"
+
+    # The number must still appear — with its scope attached, not suppressed.
+    assert "15,306" in text, "the platform-global total vanished entirely"
+    assert "internet" in text, "the total is shown without saying what it is a total of"
+
+    cover = r._cover_hook()
+    assert "15,306" not in cover["title"], \
+        "cover headline leads with a count that is identical for every customer of that platform"
+
+
+def test_a_platform_the_rollup_never_held_is_named_not_dropped():
+    """Mandrill was in the stack and absent from the rollup, so it scored 0 and
+    _active_impersonations filtered it out — leaving it visible in "Detected platform
+    stack" and absent from the impersonation table, which reads as cleared."""
+    r = _cybcube_like()
+    assert r.vm.external_threat.unmeasured_platforms == ["Mandrill"]
+    # Not counted as a measured zero in the totals.
+    assert r.vm.external_threat.total_30d == 15306
+
+    text = re.sub(r"\s+", " ", _visible(r.to_html()))
+    assert "Not checked:" in text and "Mandrill" in text, \
+        "a platform the rollup never held is dropped from the report without a word"
+
+    md = r.to_markdown() if hasattr(r, "to_markdown") else ""
+    if md:
+        assert "Not checked:" in md, "markdown edition drops the unchecked platform"
+
+
+def test_large_counts_carry_thousands_separators():
+    """"15306" on a cover reads as a typo, and the report's proposition is that its
+    numbers can be trusted."""
+    text = _visible(_cybcube_like().to_html())
+    for formatted, raw in (("15,306", "15306"), ("12,800", "12800"),
+                           ("4,210", "4210"), ("1,380", "1380")):
+        assert formatted in text, f"{formatted} missing — is the count rendered at all?"
+        assert raw not in text, f"{raw} rendered without a thousands separator"
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))

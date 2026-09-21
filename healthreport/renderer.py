@@ -402,6 +402,19 @@ _jinja_env = Environment(
 )
 
 
+def _thousands(n) -> str:
+    """15306 -> "15,306". A five-figure count without separators reads as a typo
+    on a cover, and this report's whole proposition is that its numbers are
+    trustworthy."""
+    try:
+        return f"{int(n):,}"
+    except (TypeError, ValueError):
+        return "" if n is None else str(n)
+
+
+_jinja_env.filters["thousands"] = _thousands
+
+
 HEALTH_REPORT_TEMPLATE = r"""
 <!DOCTYPE html>
 <html lang="en">
@@ -1178,8 +1191,8 @@ HEALTH_REPORT_TEMPLATE = r"""
         <div class="dsc-state">{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }} detected in your stack &mdash; each an impersonation lure</div>
         <p class="dsc-qualifier">Every platform your staff log into is a brand an attacker can imitate. <strong>Platform impersonation is usually how brand impersonation starts.</strong></p>
         {% elif impersonation_total_30d > 0 %}
-        <div class="dsc-state" style="color:var(--bad);">{{ impersonation_total_30d }} lookalike domains &mdash; {{ active_campaign_count }} of your platform{{ 's' if active_campaign_count != 1 else '' }} impersonated (30d)</div>
-        <p class="dsc-qualifier">Attackers are imitating the platforms your staff use daily. <strong>Platform impersonation is usually how brand impersonation starts</strong> &mdash; the same technique then targets your customers.</p>
+        <div class="dsc-state" style="color:var(--bad);">{{ impersonation_total_30d | thousands }} lookalike domains of {{ active_campaign_count }} platform{{ 's' if active_campaign_count != 1 else '' }} in your stack (30d)</div>
+        <p class="dsc-qualifier">Attackers are imitating the platforms your staff use daily. This is the volume against those platforms <strong>across the internet</strong>, not campaigns aimed at {{ domain }} &mdash; but the lures land in your staff's inboxes all the same. <strong>Platform impersonation is usually how brand impersonation starts</strong> &mdash; the same technique then targets your customers.</p>
         {% elif not impersonation_lookup_ok %}
         <div class="dsc-state">Impersonation check unavailable &mdash; {{ vendors | length }} trusted platforms in your stack</div>
         <p class="dsc-qualifier">Our certificate-log rollup was unreachable when this report ran, so platform impersonation was <strong>not checked</strong> &mdash; this is not an all-clear.</p>
@@ -1442,7 +1455,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="scorecard {% if not suppress_platform_counts and active_campaign_count > 0 %}bad{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">▲</span>Trusted platform impersonation</div>
       <div class="scorecard-state">{{ 'Detected' if suppress_platform_counts else platform_scorecard_state }}</div>
-      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> in your stack &mdash; each a lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your platforms</strong> actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains in 30 days. <em>The active risk.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the impersonation rollup was unreachable, so no conclusion either way. <em>The active risk.</em>{% elif not vendors %}<strong>No platforms detected</strong> in public DNS, so there was nothing to check for impersonation. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your platforms in the last 30 days. <em>The active risk.</em>{% endif %}</div>
+      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> in your stack &mdash; each a lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your platforms</strong> are being imitated &mdash; {{ impersonation_total_30d | thousands }} lookalike domains in 30 days, internet-wide. <em>The active risk.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the impersonation rollup was unreachable, so no conclusion either way. <em>The active risk.</em>{% elif not vendors %}<strong>No platforms detected</strong> in public DNS, so there was nothing to check for impersonation. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your platforms in the last 30 days. <em>The active risk.</em>{% endif %}</div>
     </div>
     <div class="scorecard {% if pill_brand_exposures >= 10 %}bad{% elif pill_brand_exposures > 0 %}warn{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">◆</span>Brand impersonation</div>
@@ -1583,8 +1596,8 @@ HEALTH_REPORT_TEMPLATE = r"""
   </div>
 
   <div class="footprint-summary">
-    <div class="footprint-stat"><div class="footprint-stat-num{% if impersonation_total_30d > 0 %} alert{% endif %}">{{ impersonation_total_30d }}</div><div class="footprint-stat-label">Platform lookalikes · 30d</div></div>
-    <div class="footprint-stat"><div class="footprint-stat-num">{{ impersonation_total_7d }}</div><div class="footprint-stat-label">· 7d</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num{% if impersonation_total_30d > 0 %} alert{% endif %}">{{ impersonation_total_30d | thousands }}</div><div class="footprint-stat-label">Platform lookalikes · 30d · internet-wide</div></div>
+    <div class="footprint-stat"><div class="footprint-stat-num">{{ impersonation_total_7d | thousands }}</div><div class="footprint-stat-label">· 7d</div></div>
     <div class="footprint-stat"><div class="footprint-stat-num">{{ active_campaign_count }}</div><div class="footprint-stat-label">Platforms targeted</div></div>
     <div class="footprint-stat"><div class="footprint-stat-num{% if own_brand.count_30d > 0 %} alert{% endif %}">{{ own_brand.count_30d }}</div><div class="footprint-stat-label">Own-brand · 30d</div></div>
   </div>
@@ -1616,14 +1629,18 @@ HEALTH_REPORT_TEMPLATE = r"""
         {% for imp in active_campaigns %}
         <tr>
           <td class="name-cell">{{ imp.platform }}</td>
-          <td class="rank-cell">{{ imp.count_7d }}</td>
-          <td class="rank-cell">{{ imp.count_30d }}</td>
+          <td class="rank-cell">{{ imp.count_7d | thousands }}</td>
+          <td class="rank-cell">{{ imp.count_30d | thousands }}</td>
           <td><span class="trend-pill {{ imp.trend }}">{% if imp.trend == 'up' %}↑{% elif imp.trend == 'down' %}↓{% else %}→{% endif %}</span></td>
           <td class="evi-cell">{% for d in imp.sample_domains[:3] %}<span class="lure-chip">{{ d }}</span>{% endfor %}{% if not imp.sample_domains %}&mdash;{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    <p class="es-foot">Counts are lookalikes of the platform itself, observed in certificate transparency logs across the whole internet &mdash; not domains registered to target {{ domain }}. They measure how heavily a lure your staff would recognise is being manufactured.</p>
+    {% if unmeasured_platforms %}
+    <p class="es-foot"><strong>Not checked:</strong> {{ unmeasured_platforms | join(', ') }} &mdash; the impersonation rollup holds no entry for {{ 'these platforms' if unmeasured_platforms | length != 1 else 'this platform' }}, so {{ 'they are' if unmeasured_platforms | length != 1 else 'it is' }} absent from this table for want of data, not for want of lookalikes.</p>
+    {% endif %}
     {% elif not impersonation_lookup_ok %}
     <p class="es-empty">Impersonation monitoring <strong>could not run</strong> &mdash; the certificate-log rollup was unreachable. Not an all-clear.</p>
     {% elif not vendors %}
@@ -1650,8 +1667,8 @@ HEALTH_REPORT_TEMPLATE = r"""
   {% if platform_lookalikes %}
   <div class="es-block">
     <div class="es-label">Lookalike candidates <span class="es-note">Lower confidence &mdash; fuzzy, not exact matches</span></div>
-    <p class="es-line muted">{% for c in platform_lookalikes %}<span class="lure-chip">{{ c.platform }} &times;{{ c.count_30d }}</span>{% for d in c.sample_domains[:2] %}<span class="lure-chip">{{ d }}</span>{% endfor %}{% endfor %}</p>
-    <p class="es-foot">Short or dictionary-word brand names can produce false positives &mdash; a watchlist, not confirmed activity.</p>
+    <p class="es-line muted">{% for c in platform_lookalikes %}<span class="lure-chip">{{ c.platform }} &times;{{ c.count_30d | thousands }}</span>{% for d in c.sample_domains[:2] %}<span class="lure-chip">{{ d }}</span>{% endfor %}{% endfor %}</p>
+    <p class="es-foot">Fuzzy matches against the platform names above, counted across the internet &mdash; not domains registered against {{ domain }}. Short or dictionary-word brand names can produce false positives &mdash; a watchlist, not confirmed activity.</p>
   </div>
   {% endif %}
 
@@ -2354,12 +2371,18 @@ class HealthReportRenderer:
         A("")
         actives = self._active_impersonations()
         if actives:
-            A(f"**{ext.total_30d} lookalike domains across {len(actives)} of your "
-              "platforms (last 30 days):**")
+            A(f"**{_thousands(ext.total_30d)} lookalike domains of {len(actives)} platform"
+              f"{'s' if len(actives) != 1 else ''} in your stack (last 30 days, "
+              "internet-wide \u2014 not campaigns aimed at this domain):**")
             for imp in actives:
                 ex = ", ".join(imp.sample_domains[:3]) if imp.sample_domains else "—"
-                A(f"- **{imp.platform}** — {imp.count_7d} in 7d / {imp.count_30d} in 30d "
-                  f"({imp.trend}) · {ex}")
+                A(f"- **{imp.platform}** — {_thousands(imp.count_7d)} in 7d / "
+                  f"{_thousands(imp.count_30d)} in 30d ({imp.trend}) · {ex}")
+            if ext.unmeasured_platforms:
+                A(f"- **Not checked:** {', '.join(ext.unmeasured_platforms)} — the "
+                  "impersonation rollup holds no entry for "
+                  f"{'these platforms' if len(ext.unmeasured_platforms) != 1 else 'this platform'}, "
+                  "so no conclusion either way.")
         elif not ext.lookup_ok:
             A("- Platform impersonation **not checked** — the certificate-log rollup "
               "was unreachable when this report ran. Not an all-clear.")
@@ -2373,15 +2396,16 @@ class HealthReportRenderer:
         if ext.own_brand.count_30d:
             ob = ext.own_brand
             ex = f" · {', '.join(ob.sample_domains[:3])}" if ob.sample_domains else ""
-            A(f"- Own-brand lookalikes — {ob.count_7d} in 7d / {ob.count_30d} in 30d{ex}")
+            A(f"- Own-brand lookalikes — {_thousands(ob.count_7d)} in 7d / "
+              f"{_thousands(ob.count_30d)} in 30d{ex}")
         if ext.lookalike_candidates or ext.own_brand_lookalikes.count_30d:
             A("")
             A("_Lookalike candidates (lower confidence — fuzzy typosquats, treat as a watchlist):_")
             for imp in ext.lookalike_candidates:
                 ex = ", ".join(imp.sample_domains[:3]) if imp.sample_domains else "—"
-                A(f"- {imp.platform}: {imp.count_30d} in 30d · {ex}")
+                A(f"- {imp.platform}: {_thousands(imp.count_30d)} in 30d · {ex}")
             if ext.own_brand_lookalikes.count_30d:
-                A(f"- Own brand: {ext.own_brand_lookalikes.count_30d} in 30d")
+                A(f"- Own brand: {_thousands(ext.own_brand_lookalikes.count_30d)} in 30d")
         A("")
 
         # ── Act 2: defence weaknesses ────────────────────────────────────
@@ -2833,6 +2857,7 @@ class HealthReportRenderer:
             # External threat / platform impersonation
             "active_campaigns":        actives,
             "active_campaign_count":   len(actives),
+            "unmeasured_platforms":    ext.unmeasured_platforms,
             "impersonation_total_7d":  ext.total_7d,
             "impersonation_total_30d": ext.total_30d,
             # False = the rollup could not be reached, so the zeros above mean NOT
@@ -3372,14 +3397,21 @@ class HealthReportRenderer:
         counts_ok = ext.lookup_ok and not self._suppress_platform_counts
         monitor = None
         if counts_ok and ext.total_30d:
+            # Measured platforms only: a platform the rollup never held contributed
+            # nothing to the total and must not be named as a source of it.
             names = [self._display_name(self._normalise_vendor_name(i.platform))
-                     for i in sorted(ext.impersonations, key=lambda i: -i.count_30d)[:3]]
-            monitor = (f"{ext.total_30d} lookalike domains imitating "
-                       + ", ".join(names) if names else f"{ext.total_30d} lookalike domains")
+                     for i in sorted(ext.measured_impersonations,
+                                     key=lambda i: -i.count_30d)[:3]]
+            # The scope caveat lives in the template row that renders this, so the
+            # string itself stays the bare fact.
+            monitor = ((f"{_thousands(ext.total_30d)} lookalike domains of "
+                        + _join_clauses(names) + " in circulation") if names else
+                       f"{_thousands(ext.total_30d)} platform lookalike domains in circulation")
         elif not ext.lookup_ok:
             monitor = "impersonation monitoring could not run for this report"
         elif ext.own_brand.count_30d:
-            monitor = f"{ext.own_brand.count_30d} lookalike domains targeting your brand"
+            monitor = (f"{_thousands(ext.own_brand.count_30d)} lookalike domains "
+                       "targeting your brand")
 
         # Verdict in plain words, driven by what was actually found.
         if crit:
@@ -3397,7 +3429,8 @@ class HealthReportRenderer:
             parts.append(f"{len(fixable)} weakness{'es' if len(fixable) != 1 else ''} that make"
                          f"{'' if len(fixable) != 1 else 's'} your domain easier to abuse")
         if counts_ok and ext.total_30d:
-            parts.append("active impersonation of the platforms your staff rely on")
+            parts.append("active impersonation campaigns against the platforms your "
+                         "staff rely on")
         headline = ("We found " + _join_clauses(parts) + ".") if parts else (
             "We found nothing requiring investigation on the surfaces we can see from outside.")
 
@@ -3490,9 +3523,10 @@ class HealthReportRenderer:
             lead = critical[0]
             others = []
             if platform_counts_ok and ext.total_30d:
-                others.append(f"{ext.total_30d} lookalike domains imitating your platforms")
+                others.append(f"{_thousands(ext.total_30d)} lookalike domains of the "
+                              "platforms you use (internet-wide)")
             if ext.own_brand.count_30d:
-                others.append(f"{ext.own_brand.count_30d} targeting your brand")
+                others.append(f"{_thousands(ext.own_brand.count_30d)} targeting your brand")
             if gaps:
                 others.append(f"{gaps} fixable gaps in your own controls")
             also = ("Also on this report: " + ", ".join(others) + "." ) if others else ""
@@ -3509,23 +3543,39 @@ class HealthReportRenderer:
                            "serving your domain, not a lookalike of it. " + also,
             }
 
-        if platform_counts_ok and ext.total_30d > 0:
-            return {
-                "title": f"<strong>{ext.total_30d} lookalike domains</strong> are imitating "
-                         "the platforms your staff log into.",
-                "deck":  (f"{self._display_name(self._normalise_vendor_name(top.platform))} is the "
-                          f"most-targeted, with {top.count_30d} in the last 30 days. "
-                          if top and top.count_30d else "")
-                         + f"This report shows who is imitating you, and {gap_clause}.",
-            }
+        # Brand-scoped counts outrank platform-global ones: a lookalike of THIS
+        # domain is this reader's problem, where a lookalike of Google Workspace
+        # is every Google Workspace customer's.
         if ext.lookup_ok and ext.own_brand.count_30d > 0:   # brand-scoped: safe on every tier
             return {
-                "title": f"<strong>{ext.own_brand.count_30d} lookalike domain"
+                "title": f"<strong>{_thousands(ext.own_brand.count_30d)} lookalike domain"
                          f"{'s' if ext.own_brand.count_30d != 1 else ''}</strong> "
                          f"{'are' if ext.own_brand.count_30d != 1 else 'is'} targeting "
                          f"<span class=\"cover-domain\">{self.domain}</span>.",
                 "deck":  f"Your customers are the target. This report shows the campaigns aimed "
                          f"at your brand, and {gap_clause}.",
+            }
+        if platform_counts_ok and ext.total_30d > 0:
+            # The count is platform-global (see ExternalThreat.total_30d). Leading
+            # with it read as "15,306 domains are after you" when it means "15,306
+            # lookalikes of Google Workspace exist" — a number identical for every
+            # Google Workspace customer, on a cover whose whole job is to prove the
+            # report is about THIS reader. So the count stays, with its scope
+            # attached, and the lead is the part that is theirs: their stack.
+            actives = self._active_impersonations()
+            named = _join_clauses([self._display_name(self._normalise_vendor_name(i.platform))
+                                   for i in actives[:2]])
+            return {
+                "title": f"Your staff log into <strong>{len(actives)} platform"
+                         f"{'s' if len(actives) != 1 else ''}</strong> attackers are "
+                         "actively imitating.",
+                "deck":  (f"{named} drew {_thousands(ext.total_30d)} lookalike domains in the "
+                          f"last 30 days &mdash; campaign volume against those platforms across "
+                          f"the internet, not against {self.domain}. " if named else
+                          f"{_thousands(ext.total_30d)} lookalike domains of those platforms "
+                          f"were registered in the last 30 days, across the internet. ")
+                         + f"What is specific to you: {gap_clause}, and how far such a "
+                           "campaign travels once a lure lands.",
             }
         if n_platforms:
             head = (f"Your staff log into <strong>{n_platforms} platform"
@@ -3654,12 +3704,12 @@ class HealthReportRenderer:
                 "surface": "vendor",
                 "surface_label": "Platform",
                 "surface_glyph": "▲",
-                "title": f"{top_imp.count_30d} lookalikes of {name} active in the last 30 days",
+                "title": f"{_thousands(top_imp.count_30d)} lookalikes of {name} active in the last 30 days",
                 "action": (f"Brief staff who use {name} on the active impersonation wave "
-                           f"({top_imp.count_7d} new lookalike domains this week); verify "
+                           f"({_thousands(top_imp.count_7d)} new lookalike domains this week); verify "
                            "phishing-resistant MFA on the tenant."),
                 "why": (f"Your organisation uses {name}; attackers have stood up "
-                        f"{top_imp.count_30d} lookalike domains imitating it in the last "
+                        f"{_thousands(top_imp.count_30d)} lookalike domains imitating it in the last "
                         f"30 days. {trend_note}"),
                 "owner": "IT ops / security",
                 "effort": "< 1 day",
@@ -3707,7 +3757,7 @@ class HealthReportRenderer:
                 "surface": "brand",
                 "surface_label": "Brand",
                 "surface_glyph": "◆",
-                "title": f"{own.count_30d} lookalike domain{'s' if own.count_30d != 1 else ''} "
+                "title": f"{_thousands(own.count_30d)} lookalike domain{'s' if own.count_30d != 1 else ''} "
                          f"targeting your brand (30 days)",
                 "action": ("Review the lookalike watchlist above; "
                            "initiate takedown for any serving content or mail."),
@@ -5004,7 +5054,7 @@ class HealthReportRenderer:
             {"title": "How the attack economy works", "kind": "context", "section": "attack_economy",
              "desc": "Why exposure has little to do with whether anyone singled you out."},
             {"title": "External threat", "kind": "findings", "section": "external_summary",
-             "desc": "Who is imitating your platforms and your brand, from this domain\u2019s own observations."},
+             "desc": "Lookalikes of the platforms you use, and of your own brand \u2014 what is aimed at you, and what is simply in circulation."},
             {"title": "Outbound posture", "kind": "findings", "section": "controls",
              "desc": "DMARC, SPF, CAA, MTA-STS &mdash; whether your own domain can be spoofed, hijacked or mis-issued against."},
             {"title": "Full DNS records", "kind": "findings", "section": "dns_records",
