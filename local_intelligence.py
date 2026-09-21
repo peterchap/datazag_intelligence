@@ -75,9 +75,13 @@ def _match_platform(rows: list, requested: str) -> dict:
         return {"platform": requested, "category": "", "count_7d": int(best[1] or 0),
                 "count_30d": int(best[2] or 0), "sample_domains": _samples(best[3])}
     if rq:
-        print(f"  [impersonation-lake] no rollup match for platform {requested!r} "
-              f"({len(rows)} rollup entries) — reporting zero")
-    return {"platform": requested, "category": "", "count_7d": 0, "count_30d": 0, "sample_domains": []}
+        print(f"  [impersonation-lake] no rollup entry for platform {requested!r} "
+              f"({len(rows)} entries) — NOT MEASURED, reported as such")
+    # measured=False: the rollup does not track this platform, so its zero is an
+    # absence of data, not an absence of lookalikes. Reporting it as a clean zero
+    # would let a platform we never checked read as one we cleared.
+    return {"platform": requested, "category": "", "count_7d": 0, "count_30d": 0,
+            "sample_domains": [], "measured": False}
 
 
 def _match_brand(rows: list, brand_key: str) -> dict:
