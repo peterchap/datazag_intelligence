@@ -1183,6 +1183,9 @@ HEALTH_REPORT_TEMPLATE = r"""
         {% elif not impersonation_lookup_ok %}
         <div class="dsc-state">Impersonation check unavailable &mdash; {{ vendors | length }} trusted platforms in your stack</div>
         <p class="dsc-qualifier">Our certificate-log rollup was unreachable when this report ran, so platform impersonation was <strong>not checked</strong> &mdash; this is not an all-clear.</p>
+        {% elif not vendors %}
+        <div class="dsc-state">No SaaS platforms surfaced from public DNS</div>
+        <p class="dsc-qualifier">{{ platform_state.qualifier }} That is not the same as none being in use &mdash; a platform reached only through a browser, or without a DNS record pointing at it, leaves no external trace. <strong>Nothing on this card is a statement about impersonation</strong>, because there was no platform to check one against.</p>
         {% else %}
         <div class="dsc-state">{{ platform_state.descriptor }} &mdash; {{ vendors | length }} trusted platforms in your stack</div>
         <p class="dsc-qualifier">No active impersonation of your platforms in the last 30 days &mdash; but every platform here is a lure. <strong>Platform impersonation is usually how brand impersonation starts.</strong></p>
@@ -1439,7 +1442,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="scorecard {% if not suppress_platform_counts and active_campaign_count > 0 %}bad{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">▲</span>Trusted platform impersonation</div>
       <div class="scorecard-state">{{ 'Detected' if suppress_platform_counts else platform_scorecard_state }}</div>
-      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> in your stack &mdash; each a lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your platforms</strong> actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains in 30 days. <em>The active risk.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the impersonation rollup was unreachable, so no conclusion either way. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your platforms in the last 30 days. <em>The active risk.</em>{% endif %}</div>
+      <div class="scorecard-text">{% if suppress_platform_counts %}<strong>{{ vendors | length }} platform{{ 's' if vendors | length != 1 else '' }}</strong> in your stack &mdash; each a lure an attacker can imitate. <em>The on-ramp.</em>{% elif active_campaign_count > 0 %}<strong>{{ pill_platforms_at_risk }} of your platforms</strong> actively impersonated &mdash; {{ impersonation_total_30d }} lookalike domains in 30 days. <em>The active risk.</em>{% elif not impersonation_lookup_ok %}<strong>Not checked</strong> &mdash; the impersonation rollup was unreachable, so no conclusion either way. <em>The active risk.</em>{% elif not vendors %}<strong>No platforms detected</strong> in public DNS, so there was nothing to check for impersonation. <em>The active risk.</em>{% else %}<strong>No active impersonation</strong> of your platforms in the last 30 days. <em>The active risk.</em>{% endif %}</div>
     </div>
     <div class="scorecard {% if pill_brand_exposures >= 10 %}bad{% elif pill_brand_exposures > 0 %}warn{% else %}neutral{% endif %}">
       <div class="scorecard-label"><span class="scorecard-icon">◆</span>Brand impersonation</div>
@@ -1623,6 +1626,8 @@ HEALTH_REPORT_TEMPLATE = r"""
     </table>
     {% elif not impersonation_lookup_ok %}
     <p class="es-empty">Impersonation monitoring <strong>could not run</strong> &mdash; the certificate-log rollup was unreachable. Not an all-clear.</p>
+    {% elif not vendors %}
+    <p class="es-empty">No SaaS platforms surfaced from this domain's public DNS, so there was no platform to check for impersonation. This row is empty because nothing was checked, not because nothing was found.</p>
     {% else %}
     <p class="es-empty">No active impersonation of your platforms observed in the last 30 days. Continuous watch in place.</p>
     {% endif %}
@@ -2358,6 +2363,10 @@ class HealthReportRenderer:
         elif not ext.lookup_ok:
             A("- Platform impersonation **not checked** — the certificate-log rollup "
               "was unreachable when this report ran. Not an all-clear.")
+        elif not self._build_vendor_list():
+            A("- No SaaS platforms surfaced from public DNS, so there was no platform "
+              "to check for impersonation \u2014 nothing was checked, rather than "
+              "nothing being found.")
         else:
             A("- No active impersonation of your platforms in the last 30 days "
               "(continuous watch in place).")

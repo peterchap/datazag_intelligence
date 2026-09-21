@@ -137,6 +137,38 @@ def test_timeline_does_not_assert_health_it_never_measured():
             f"{card['label']} claims {card['state']!r} with no change baseline"
 
 
+def test_zero_detected_platforms_is_not_an_impersonation_all_clear():
+    """Found on the first real-domain run: cybercube.com resolved with zero SaaS
+    platforms detected, and the report answered "No active impersonation of your
+    platforms in the last 30 days \u2014 but every platform here is a lure", pointing
+    at an empty list. The impersonation count is zero because there was nothing to
+    look up, which is not evidence of safety \u2014 the same absence-as-all-clear the
+    unreachable-rollup branch already guards against.
+
+    Covers all four sites that rendered the claim: the platform card, the scorecard
+    pill, the external-surface table, and the markdown edition.
+    """
+    di = DomainIntelligence.model_validate(_load("medallion_sample.json"))
+    vm = build_view_models(di, detected_platforms=[], impersonations=[],
+                           own_brand=None, findings=derive_findings(di, []))
+    r = HealthReportRenderer(vm)
+    text = re.sub(r"\s+", " ", _visible(r.to_html()))
+
+    assert "No active impersonation" not in text, \
+        "report claims no impersonation on a domain with no platforms to impersonate"
+    assert "every platform here is a lure" not in text, \
+        "report calls an empty platform list a set of lures"
+    assert "trusted platforms in your stack" not in text, \
+        "report describes a stack it did not detect"
+    assert "nothing was checked" in text or "nothing to check" in text, \
+        "report does not say that the impersonation check had no input"
+
+    md = r.to_markdown() if hasattr(r, "to_markdown") else ""
+    if md:
+        assert "No active impersonation of your platforms" not in md, \
+            "markdown edition still renders the all-clear"
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))
