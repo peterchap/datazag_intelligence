@@ -15,6 +15,8 @@ Then feed into LocalIntelligenceClient.fetch(domain, fallback_asn=asn,
 fallback_ip=ip, live_dns_report=ldr).
 
 Env:
+    REPORT_DNS_NAMESERVERS resolver(s) reports query, comma-separated (default 127.0.0.1,
+                           the resolver on .2). Forced into DNS_NAMESERVERS before import.
     CELERY_REALTIME_PATH   path to celery_app_realtime (default /root/celery_app_realtime)
     DNS_COLLECT_DUCKDB     optional DUCKDB_PATH for celery's LabelEnricher
     DNS_SCORE_CONFIG       optional score_config.yaml for celery's RiskScorer
@@ -32,6 +34,17 @@ from typing import Any, Optional
 # Set before the dns_module import below; `setdefault` lets an operator force
 # the cache back on (DNS_DISABLE_CACHE=0) for debugging.
 os.environ.setdefault("DNS_DISABLE_CACHE", "1")
+
+# THE REPORT RESOLVER (Peter, 2026-10-01). Reports keep the same, optimized
+# dns_module the corpus uses, but must not share the corpus's resolver: a report
+# would wait behind the batch queues. dns_module builds one process-wide resolver
+# from DNS_NAMESERVERS when it first resolves (config.py, dns_lookup.py), so set
+# it here, before the import, and set it outright rather than setdefault, so a
+# bulk value in the environment or in the collector's .env cannot win.
+# REPORT_DNS_NAMESERVERS overrides; the default is the resolver on .2, where the
+# report workers run.
+REPORT_DNS_NAMESERVERS = os.environ.get("REPORT_DNS_NAMESERVERS", "127.0.0.1")
+os.environ["DNS_NAMESERVERS"] = REPORT_DNS_NAMESERVERS
 
 # The real-time DNS collector (source repo celery_app_realtime; deployed on the
 # master as /root/dns_realtime). DNS_REALTIME_PATH preferred; CELERY_REALTIME_PATH
