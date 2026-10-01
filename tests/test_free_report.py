@@ -198,3 +198,34 @@ def _run_all():
 
 if __name__ == "__main__":
     _run_all()
+
+
+# --- 2026-10-01: the datazag.com report printed fixes for controls it publishes --
+
+def _fix_cmds(vm):
+    return "\n".join(f.get("cmd", "") for f in compose.fixes(vm, datetime(2026, 10, 1, tzinfo=timezone.utc)))
+
+
+def test_no_mail_transit_commands_when_all_published():
+    vm = _vm()
+    vm.hygiene.mta_sts_mode = "enforce"
+    vm.hygiene.tlsrpt_present = True
+    cmds = _fix_cmds(vm)
+    assert "_mta-sts." not in cmds and "_smtp._tls." not in cmds and "DNSSEC signing" not in cmds
+
+
+def test_only_the_missing_control_gets_a_command():
+    vm = _vm()
+    vm.hygiene.mta_sts_mode = "enforce"
+    vm.hygiene.tlsrpt_present = False
+    cmds = _fix_cmds(vm)
+    assert "_smtp._tls." in cmds
+    assert "_mta-sts." not in cmds and "DNSSEC signing" not in cmds
+
+
+def test_hosting_falls_back_to_network_operator():
+    vm = _vm(asn=16509)
+    vm.annotation.asn_name = "Amazon.com, Inc."
+    html = _render(vm)
+    assert "not determined" not in html.split("Hosting:")[1][:200]
+    assert "Amazon.com, Inc. network (AS16509)" in html
