@@ -140,7 +140,7 @@ async def _collect_contracts(domains: list[str], out_dir: Path) -> None:
 
     client = IntelligenceClient()
     for domain in domains:
-        output = await canonical_collect.collect(domain)
+        output = await canonical_collect.collect(domain, strict=False)
         vm = await build_view_model(domain, client, live_output=output)
         (out_dir / f"{domain}.json").write_text(
             json.dumps(vm.model_dump(mode="json"), default=str), encoding="utf-8")

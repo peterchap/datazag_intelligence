@@ -92,7 +92,7 @@ async def _load_refs(domains: list[str]):
     client = IntelligenceClient()
     refs = []
     for domain in domains:
-        output = await canonical_collect.collect(domain)
+        output = await canonical_collect.collect(domain, strict=False)
         vm = await build_view_model(domain, client, live_output=output)
         refs.append(SimpleNamespace(domain=domain, vm=vm))
     return refs

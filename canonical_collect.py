@@ -67,7 +67,12 @@ def _celery_dns_fetcher():
     return DNSFetcher
 
 
-async def collect(domain: str, *, timeout: float = 10.0, enrich: bool = True) -> dict:
+class LiveScanIncomplete(RuntimeError):
+    """The live DNS scan did not return. Callers mark the job failed rather than
+    render a report that reads every control as absent."""
+
+
+async def collect(domain: str, *, timeout: float = 10.0, enrich: bool = True, strict: bool = True) -> dict:
     """Run celery_app_realtime's collector for one domain; return a flat dict.
 
     `enrich=True` adds celery's DuckDB label enrichment (mx/ns provider, ASN) when
@@ -75,11 +80,26 @@ async def collect(domain: str, *, timeout: float = 10.0, enrich: bool = True) ->
     celery here — the report's risk comes from riskscore (one source of truth)."""
     DNSFetcher = _celery_dns_fetcher()
 
-    fetcher = DNSFetcher(domain=domain, domain_timeout_s=timeout,
-                         run_blocking_probes=True, fetch_mta_sts_policy=True)
-    records = await fetcher.fetch_records()
+    # fetch_records returns None on its overall timeout, not a partial result.
+    # Rendering that as an empty record told datazag.com (2026-10-01) it had no
+    # CAA, MTA-STS, TLS-RPT or DNSSEC, all of which it publishes. So retry once
+    # with a longer budget, and if the scan still does not finish, fail loudly:
+    # a report that cannot see the domain must not describe it.
+    records = None
+    for budget in (timeout, max(timeout * 3, 30.0)):
+        fetcher = DNSFetcher(domain=domain, domain_timeout_s=budget,
+                             run_blocking_probes=True, fetch_mta_sts_policy=True)
+        records = await fetcher.fetch_records()
+        if records is not None:
+            break
+        print(f"[canonical_collect] live DNS scan of {domain} did not finish in {budget:.0f}s")
     if records is None:
-        return {"domain": domain, "status": "error"}
+        if strict:
+            raise LiveScanIncomplete(f"live DNS scan of {domain} did not finish; not rendering a report from no data")
+        # Estate loops keep going on one slow domain. The record is flagged so a
+        # renderer can say "not assessed"; until one does, the log line above is
+        # the only signal. FOLLOW-UP: render scan_incomplete domains as not assessed.
+        return {"domain": domain, "status": "error", "scan_incomplete": True}
     rec = dataclasses.asdict(records) if dataclasses.is_dataclass(records) else dict(records)
 
     if enrich and os.environ.get("DNS_COLLECT_DUCKDB"):

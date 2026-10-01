@@ -421,10 +421,11 @@ def surfaces(vm, now: datetime) -> list[dict]:
 
     # -- Surface 03: Hosting & network --
     host: list[dict] = []
-    hp = ann.hosting_provider
+    asn = vm.trust.asn or ann.asn
+    hp = ann.hosting_provider or (
+        f"{ann.asn_name} network (AS{asn})" if getattr(ann, "asn_name", None) and asn else None)
     host.append({"b": "ok" if hp else "na", "html": f"<b style='color:var(--ink)'>Hosting:</b>&nbsp;"
                  + (hp or "not determined")})
-    asn = vm.trust.asn or ann.asn
     prefix = vm.trust.prefix or ann.prefix
     net = (f"AS{asn}" + (f" · <code>{prefix}</code>" if prefix else "")) if asn else "not determined"
     host.append({"b": "ok" if asn else "na", "html": f"<b style='color:var(--ink)'>Network:</b>&nbsp;{net}"})
@@ -540,19 +541,26 @@ def fixes(vm, now: datetime) -> list[dict]:
                     "max_age: 86400"),
         })
     adv_gold = maturity_note_controls(vm)
-    if any(c.key in ("mta_sts", "tls_rpt", "dnssec", "dane") and not (partial_sts and c.key == "mta_sts")
-           for c in adv_gold):
+    # Only controls that are actually absent get a command. DANE is never
+    # observable (maturity.py), so it must not trigger the block on its own.
+    absent = {c.key for c in adv_gold} - ({"mta_sts"} if partial_sts else set())
+    lines = []
+    if "mta_sts" in absent:
+        lines += [f"_mta-sts.{d}.   TXT  \"v=STSv1; id={now:%Y%m%d}\"",
+                  f"<span class=\"cm\"># MTA-STS also needs its policy file served at "
+                  f"https://mta-sts.{d}/.well-known/mta-sts.txt</span>"]
+    if "tls_rpt" in absent:
+        lines.append(f"_smtp._tls.{d}. TXT  \"v=TLSRPTv1; rua=mailto:tls@{d}\"")
+    if "dnssec" in absent:
+        lines.append("<span class=\"cm\"># gold standard: DNSSEC signing at your registrar, then DANE</span>")
+    if lines:
         out.append({
             "title": "Adopt advanced mail-in-transit controls", "priority": "plan",
             "why": ("<b>Good-to-have, not urgent.</b> MTA-STS enforces TLS on inbound mail and TLS-RPT "
                     "reports failures — the advanced tier above the baseline you already meet. "
                     "DNSSEC/DANE is the gold-standard layer. Plan these; their absence does not create "
                     "exploitable risk today."),
-            "cmd": (f"_mta-sts.{d}.   TXT  \"v=STSv1; id={now:%Y%m%d}\"\n"
-                    f"_smtp._tls.{d}. TXT  \"v=TLSRPTv1; rua=mailto:tls@{d}\"\n"
-                    f"<span class=\"cm\"># MTA-STS also needs its policy file served at "
-                    f"https://mta-sts.{d}/.well-known/mta-sts.txt</span>\n"
-                    "<span class=\"cm\"># gold standard: DNSSEC signing at your registrar, then DANE</span>"),
+            "cmd": "\n".join(lines),
         })
 
     for i, f in enumerate(out, 1):
