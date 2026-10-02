@@ -164,6 +164,27 @@ def _same_vendor(a: str, b: str) -> bool:
     return bool(fa and fb and fa[0].lower() == fb[0].lower())
 
 
+# The thresholds IP to ASN bands reputation_flag with (centralake 02_build_publish).
+_RANGE_WATCH_AT = 0.40
+_RANGE_RISKY_AT = 0.70
+
+
+def _range_reputation(ann, prefix) -> dict:
+    """Hosting reputation from abuse recorded on the range (Peter, 2026-10-02: say
+    "no abuse recorded", never "low risk" or "clean", when the range has no record)."""
+    rng = f" (<code>{prefix}</code>)" if prefix else ""
+    if not getattr(ann, "range_abuse_checked", False):
+        return {"b": "na", "html": "Hosting reputation not assessed for this domain"}
+    if not getattr(ann, "range_abuse_observed", False):
+        return {"b": "ok", "html": f"No abuse recorded for this range{rng} in the Datazag corpus"}
+    score = ann.range_abuse_score or 0.0
+    if getattr(ann, "range_abuse_corroborated", False) or score >= _RANGE_RISKY_AT:
+        return {"b": "bad", "html": f"Abuse recorded on this range{rng}, rated <b>risky</b> in the Datazag corpus"}
+    if score >= _RANGE_WATCH_AT:
+        return {"b": "warn", "html": f"Some abuse recorded on this range{rng}, rated <b>watch</b> in the Datazag corpus"}
+    return {"b": "ok", "html": f"Abuse on this range{rng} is below the watch level in the Datazag corpus"}
+
+
 def has_locks(vm) -> bool:
     status = _status_compact(vm.registration.status)
     return any(tok in status for tok in _LOCK_TOKENS)
@@ -479,13 +500,8 @@ def surfaces(vm, now: datetime) -> list[dict]:
     # threat score for the hosting IP — and when that was never measured, absence is
     # reported as absence rather than as "clean".
     ip_threat = vm.threat.ip_direct_threat_score
-    asn_level = (getattr(vm.trust, "asn_risk_level", None) or getattr(ann, "asn_risk_level", None) or "").lower()
-    if ip_threat is None and asn_level in ("low", "medium", "high", "critical") and asn:
-        b = {"low": "ok", "medium": "warn"}.get(asn_level, "bad")
-        host.append({"b": b, "html": f"Network reputation: AS{asn} rated <b>{asn_level}</b> risk in the "
-                                     "Datazag corpus (no score for this address on its own)"})
-    elif ip_threat is None:
-        host.append({"b": "na", "html": "Hosting reputation not assessed for this domain"})
+    if ip_threat is None:
+        host.append(_range_reputation(ann, prefix))
     elif ip_threat < 0.3:
         host.append({"b": "ok", "html": "No malicious-infrastructure signal in the Datazag corpus"})
     else:

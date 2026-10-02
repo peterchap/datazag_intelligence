@@ -256,10 +256,28 @@ def test_same_vendor_is_not_a_gateway():
     assert not compose._same_vendor("Mimecast", "Microsoft")
 
 
-def test_network_reputation_fallback_when_no_ip_score():
+def _range_vm(**kw):
     vm = _vm(asn=16509)
     vm.threat.ip_direct_threat_score = None
-    vm.trust.asn_risk_level = "low"
-    html = _render(vm)
-    assert "Network reputation: AS16509 rated <b>low</b> risk" in html
-    assert "Hosting reputation not assessed" not in html
+    vm.annotation.prefix = "216.150.1.0/24"
+    for k, v in kw.items():
+        setattr(vm.annotation, k, v)
+    return vm
+
+
+def test_range_with_no_abuse_record_says_so_not_low_risk():
+    html = _render(_range_vm(range_abuse_checked=True, range_abuse_observed=False))
+    assert "No abuse recorded for this range" in html and "216.150.1.0/24" in html
+    assert "low risk" not in html.lower() and "Hosting reputation not assessed" not in html
+
+
+def test_range_abuse_bands_match_ip_to_asn():
+    risky = _render(_range_vm(range_abuse_checked=True, range_abuse_observed=True, range_abuse_score=0.75))
+    watch = _render(_range_vm(range_abuse_checked=True, range_abuse_observed=True, range_abuse_score=0.45))
+    corro = _render(_range_vm(range_abuse_checked=True, range_abuse_observed=True, range_abuse_score=0.1,
+                              range_abuse_corroborated=True))
+    assert "rated <b>risky</b>" in risky and "rated <b>watch</b>" in watch and "rated <b>risky</b>" in corro
+
+
+def test_range_not_checked_stays_not_assessed():
+    assert "Hosting reputation not assessed" in _render(_range_vm())
