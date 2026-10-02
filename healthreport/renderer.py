@@ -43,6 +43,8 @@ from intelligence_contract import (
 
 from .audiences import AudienceConfig, TIERS, get_audience
 from .grade import score_to_grade, TrustGrade
+from freereport.compose import (_in_prefix, _issuer_label, _live_ip, _network_facts,
+                                _range_reputation)
 
 
 # ---------------------------------------------------------------------------
@@ -1228,7 +1230,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div class="dual-score-card infra">
         <div class="dsc-label">
           <span class="dsc-icon">◉</span>
-          Your defence weaknesses &mdash; trust &amp; infrastructure
+          Your defense weaknesses &mdash; trust &amp; infrastructure
           <span class="dsc-grade-ref">{{ infra_grade.band }}{% if infra_score is not none %} &middot; {{ infra_score }}/100 exposure{% endif %}</span>
         </div>
         <div class="dsc-state">{{ infra_grade.headline }}</div>
@@ -1250,14 +1252,14 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="overall-grade-band">
       <div class="ogb-letter">{{ grade.letter }}</div>
       <div class="ogb-body">
-        <div class="ogb-label">External exposure &middot; the attacker problem and your defences, combined</div>
+        <div class="ogb-label">External exposure &middot; the attacker problem and your defenses, combined</div>
         <div class="ogb-band">{{ grade.band }}</div>
         <div class="ogb-scoreline">{% if overall_score is not none %}Risk score {{ overall_score }}/100 &mdash; higher is more exposed &middot; grade {{ grade.letter }}{% else %}Risk not yet assessed &mdash; no Datazag intelligence for this domain yet{% endif %}</div>
         <div class="ogb-detail">
           {% if driving_surface == 'platform' %}
           The bigger driver is the attacker problem &mdash; active impersonation of the platforms your staff use. That is defended inside your tenants (MFA, Conditional Access), which this report cannot see; section 07 sequences what you can fix from the outside.
           {% elif driving_surface == 'infrastructure' %}
-          The bigger driver is your defence weaknesses &mdash; short-effort DNS, certificate and email-auth gaps that let a campaign travel further than it should. Section {{ section_no.roadmap }} prioritises them.
+          The bigger driver is your defense weaknesses &mdash; short-effort DNS, certificate and email-auth gaps that let a campaign travel further than it should. Section {{ section_no.roadmap }} prioritises them.
           {% else %}
           Both warrant attention. Section {{ section_no.roadmap }} sequences the changes by impact.
           {% endif %}
@@ -1449,7 +1451,7 @@ HEALTH_REPORT_TEMPLATE = r"""
       <div style="display:flex;justify-content:space-between;font-size:9.5px;font-weight:700;color:var(--ink-4);letter-spacing:0.05em;padding:0 2px;">
         {% for L in ['A','B','C','D','E','F'] %}<span{% if L == grade.letter %} style="color:var(--ink);"{% endif %}>{{ L }}</span>{% endfor %}
       </div>
-      <div class="grade-band-text" style="margin-top:4px;">Most organisations at this level move down a band within a quarter by completing section {{ section_no.roadmap }}. The score weighs platform exposure, brand exposure and outbound posture.</div>
+      <div class="grade-band-text" style="margin-top:4px;">Most organizations at this level move down a band within a quarter by completing section {{ section_no.roadmap }}. The score weighs platform exposure, brand exposure and outbound posture.</div>
     </div>
   </div>
   <div class="scorecards">
@@ -1528,7 +1530,7 @@ HEALTH_REPORT_TEMPLATE = r"""
   <div class="section-id-bar">
     <div class="section-num-row"><span class="section-num">Section {{ section_no.attack_economy }}</span><span class="section-rule"></span><span class="section-tag">● Context</span></div>
     <h1 class="section-title-h1">How the cyber attack economy works.</h1>
-    <p class="section-headline">Platform impersonation is an industry with business models. How it operates explains why every organisation on {{ top_platform }} sits in its path.</p>
+    <p class="section-headline">Platform impersonation is an industry with business models. How it operates explains why every organization on {{ top_platform }} sits in its path.</p>
   </div>
 
   <div class="primer">
@@ -1593,7 +1595,7 @@ HEALTH_REPORT_TEMPLATE = r"""
      already show "you use this / we observed that". #}
   <div class="economy-note">
     <div class="economy-note-h">Why you are exposed even if nobody targeted you</div>
-    <p>Credential phishing is industrialised. Attackers build Microsoft, Google and Okta lookalikes and distribute them at scale, to whoever they reach. If your organisation uses those platforms &mdash; and the stack below is read from your own DNS &mdash; your staff are in the target population. Nobody decided on you.</p>
+    <p>Credential phishing is industrialized. Attackers build Microsoft, Google and Okta lookalikes and distribute them at scale, to whoever they reach. If your organization uses those platforms &mdash; and the stack below is read from your own DNS &mdash; your staff are in the target population. Nobody decided on you.</p>
   </div>
 
   <div class="footprint-summary">
@@ -1719,7 +1721,7 @@ HEALTH_REPORT_TEMPLATE = r"""
     <div class="mandate-callout-body">
       <div class="mandate-callout-title">DMARC has moved from best practice to operational requirement.</div>
       <div class="mandate-callout-text">
-        Google and Yahoo have required DMARC for bulk senders since <strong>February 2024</strong>, Microsoft since <strong>May 2025</strong>. Non-compliant senders now face permanent rejections &mdash; deliverability problems arrive regardless of the impersonation-defence value.
+        Google and Yahoo have required DMARC for bulk senders since <strong>February 2024</strong>, Microsoft since <strong>May 2025</strong>. Non-compliant senders now face permanent rejections &mdash; deliverability problems arrive regardless of the impersonation-defense value.
       </div>
     </div>
   </div>
@@ -1816,7 +1818,7 @@ HEALTH_REPORT_TEMPLATE = r"""
 
   <div class="infra-overview">
     <div class="infra-cell"><div class="infra-cell-label">Hosting network (ASN)</div><div class="infra-cell-value">{{ infra_routing.asn }}</div><div class="infra-cell-sub">{{ infra_routing.isp }}</div></div>
-    <div class="infra-cell"><div class="infra-cell-label">Country</div><div class="infra-cell-value">{{ infra_routing.country }}</div><div class="infra-cell-sub">ASN risk: <span class="infra-pill {{ infra_routing.asn_risk_class }}">{{ infra_routing.asn_risk }}</span></div></div>
+    <div class="infra-cell"><div class="infra-cell-label">Country</div><div class="infra-cell-value">{{ infra_routing.country }}</div><div class="infra-cell-sub">Range reputation: <span class="infra-pill {{ infra_routing.asn_risk_class }}">{{ infra_routing.asn_risk }}</span></div></div>
     <div class="infra-cell"><div class="infra-cell-label">Announced prefix</div><div class="infra-cell-value mono">{{ infra_routing.prefix }}</div><div class="infra-cell-sub">RPKI <span class="infra-pill {{ infra_routing.rpki_class }}">{{ infra_routing.rpki_state }}</span></div></div>
   </div>
 
@@ -2264,6 +2266,8 @@ class HealthReportRenderer:
                 seen.add(key)
                 merged.append(f)
         vm = vm.model_copy(deep=True)
+        if self._is_stale(vm):
+            merged = [f for f in merged if f.get("category") != "routing_security"]
         vm.findings = merged
         if tier == "teaser":
             vm = redact_for_teaser(vm)
@@ -2357,7 +2361,7 @@ class HealthReportRenderer:
         A("")
         # No "(0/100)" for an unassessed domain — see overall_score in _build_context.
         A(f"**Overall Trust Grade: {self._grade.letter} — {self._grade.headline}**"
-          + (f" ({self.display_score}/100)" if self._assessed else ""))
+          + (f" ({self._overall_score}/100)" if self._assessed else ""))
         if not vm.has_intelligence:
             A("")
             A("> Not yet assessed — no Datazag corpus intelligence for this domain yet.")
@@ -2409,8 +2413,8 @@ class HealthReportRenderer:
                 A(f"- Own brand: {_thousands(ext.own_brand_lookalikes.count_30d)} in 30d")
         A("")
 
-        # ── Act 2: defence weaknesses ────────────────────────────────────
-        A("## Your defence weaknesses — trust & infrastructure")
+        # ── Act 2: defense weaknesses ────────────────────────────────────
+        A("## Your defense weaknesses — trust & infrastructure")
         A("")
         # The trust/threat pillars exist only with medallion intelligence; without it they are
         # score=0, grade=unknown, and "Trust posture 0/100" would claim a result we never had.
@@ -2422,8 +2426,12 @@ class HealthReportRenderer:
         A(f"- DMARC: {'**at risk** — not enforced' if t.dmarc_risk else 'enforced'}")
         A(f"- SPF: {'**not strict**' if t.spf_risk else 'strict'}; "
           f"modern email controls {'incomplete' if not t.modern_security_present else 'present'}")
-        A(f"- Routing: RPKI {t.rpki_state}; MOAS {'**detected**' if t.moas_detected else 'none'}; "
-          f"MANRS member {'yes' if t.is_manrs_member else 'no'}")
+        if self._network_stale:
+            A(f"- Routing: not assessed for {_live_ip(self.vm)} (the corpus record is for a different address); "
+              f"MANRS member {'yes' if t.is_manrs_member else 'no'}")
+        else:
+            A(f"- Routing: RPKI {t.rpki_state}; MOAS {'**detected**' if t.moas_detected else 'none'}; "
+              f"MANRS member {'yes' if t.is_manrs_member else 'no'}")
         if th.is_dangling_cname:
             A(f"- **Dangling CNAME** → {th.cname_target or 'unknown'} (subdomain-takeover exposure)")
         A("")
@@ -2502,7 +2510,7 @@ class HealthReportRenderer:
             A("## Infrastructure & routing intelligence")
             A("")
             A(f"- Hosting network **{ir['asn']}** ({ir['isp']}) · {ir['country']} · "
-              f"ASN risk **{ir['asn_risk']}** · prefix `{ir['prefix']}` · RPKI **{ir['rpki_state']}**")
+              f"range reputation **{ir['asn_risk']}** · prefix `{ir['prefix']}` · RPKI **{ir['rpki_state']}**")
             A(f"- Mailbox provider: {ir['mx_provider']}"
               + (f" ({ir['mx_category']})" if ir['mx_category'] else "")
               + f" · Nameserver provider: {ir['ns_provider']}"
@@ -2620,6 +2628,17 @@ class HealthReportRenderer:
     def _impersonation_for(self, name_key: str) -> PlatformImpersonation | None:
         return self._impersonations_by_key.get(self._norm_platform_key(name_key))
 
+    @staticmethod
+    def _is_stale(vm) -> bool:
+        """The corpus record's prefix does not contain the address the domain
+        resolves to now, so its routing facts describe a previous host."""
+        ip, prefix = _live_ip(vm), vm.trust.prefix
+        return bool(ip and prefix) and not _in_prefix(ip, prefix)
+
+    @property
+    def _network_stale(self) -> bool:
+        return self._is_stale(self.vm)
+
     def _active_impersonations(self) -> list[PlatformImpersonation]:
         """Platforms with observed impersonation activity in the 30-day window,
         highest volume first."""
@@ -2643,19 +2662,16 @@ class HealthReportRenderer:
             +5 per med-high-desirability platform (Mailchimp, ...)
             +3 per med-desirability platform      (Zoho, Citrix, ...)
             +1 per low-desirability platform      (Mailgun, Email Signatures, ...)
-            +4 per platform with active impersonation in the last 30 days,
-            +8 instead when that platform saw >= 20 lookalikes (capped +24 total)
             capped at 100
+
+        No uplift for observed impersonation volume: that count is internet-wide
+        for the platform, the same for every customer on it, so it says nothing
+        about this domain. It is reported, not scored (2026-10-02).
         """
         if not hasattr(self, "_platform_score_cache"):
             vendors = self._build_vendor_list()
             weights = {"high": 8, "med-high": 5, "med": 3, "low": 1}
             score = 15 + sum(weights.get(v["tier"], 3) for v in vendors)
-            campaign_uplift = sum(
-                8 if imp.count_30d >= 20 else 4
-                for imp in self._active_impersonations()
-            )
-            score += min(24, campaign_uplift)
             self._platform_score_cache = min(100, score)
         return self._platform_score_cache
 
@@ -3306,11 +3322,36 @@ class HealthReportRenderer:
         # medallion (riskscore single source of truth) → live-scan technographics.
         isp = ann.hosting_provider or ann.cloud_provider \
             or t.isp or tech.get("isp_name") or ann.asn_name or "—"
-        country = t.isp_country or tech.get("isp_country") or ann.isp_country or "—"
-        asn_risk = (ann.asn_risk_level
-                    or (t.asn_risk_level if t.asn_risk_level and t.asn_risk_level != "unknown" else None)
-                    or tech.get("asn_risk_level") or "unknown")
-        asn_num = t.asn or tech.get("asn") or ann.asn or 0
+        live_asn, live_prefix, live_country = _network_facts(self.vm)
+        stale = self._network_stale
+        country = live_country or (None if stale else tech.get("isp_country")) or "—"
+        asn_num = live_asn or (0 if stale else tech.get("asn")) or 0
+        # Range reputation, the rule IP to ASN uses (large networks are rated range
+        # by range). Replaces the network-wide "ASN risk", which read "critical" for
+        # Amazon (2026-10-02).
+        rep_html = _range_reputation(self.vm.annotation, live_prefix)["html"]
+        if "No abuse recorded" in rep_html:
+            asn_risk, asn_risk_class = "no abuse recorded", "good"
+        elif "below the watch level" in rep_html:
+            asn_risk, asn_risk_class = "below watch level", "good"
+        elif "<b>risky</b>" in rep_html:
+            asn_risk, asn_risk_class = "risky", "bad"
+        elif "<b>watch</b>" in rep_html:
+            asn_risk, asn_risk_class = "watch", "warn"
+        else:
+            # Range not checked: fall back to the whole-network rating, the basis IP to
+            # ASN uses for SMALL networks, labelled as such. Never for a stale record,
+            # which may name a different network.
+            level = None if stale else (
+                ann.asn_risk_level
+                or (t.asn_risk_level if t.asn_risk_level and t.asn_risk_level != "unknown" else None)
+                or tech.get("asn_risk_level"))
+            if level and level != "unknown":
+                asn_risk = f"{level} (whole network)"
+                asn_risk_class = ("bad" if level in ("high", "critical")
+                                  else "warn" if level in ("medium", "elevated") else "good")
+            else:
+                asn_risk, asn_risk_class = "not assessed", "warn"
         # mailbox provider: annotation lake first (resolves MX-over-TXT at source),
         # then live-scan technographics, then the medallion mx_type.
         mx_type = t.mx_type if t.mx_type and t.mx_type != "unknown" else None
@@ -3342,11 +3383,11 @@ class HealthReportRenderer:
 
         return {
             "asn":            f"AS{asn_num}" if asn_num else "—",
-            "prefix":         t.prefix or ann.prefix or "—",
+            "prefix":         live_prefix or "—",
             "isp":            isp,
             "country":        country,
             "asn_risk":       asn_risk,
-            "asn_risk_class": "bad" if asn_risk in ("high", "critical") else "warn" if asn_risk in ("medium", "elevated") else "good",
+            "asn_risk_class": asn_risk_class,
             "mx_provider":    mx_provider,
             "mx_category":    mx_category,
             "ns_provider":    ns_provider,
@@ -3355,10 +3396,10 @@ class HealthReportRenderer:
             "tld_risk_class": "bad" if tld_risk in ("high", "critical") else "warn" if tld_risk in ("medium", "elevated") else "good",
             "trust_label":    trust_label,
             "is_parked":      ann.is_parked,
-            "rpki_state":     t.rpki_state.upper(),
-            "rpki_class":     "good" if t.rpki_state == "valid" else "bad" if t.rpki_state == "invalid" else "warn",
-            "moas":           t.moas_detected,
-            "churn":          t.prefixes_churn_total,
+            "rpki_state":     "NOT ASSESSED" if stale else t.rpki_state.upper(),
+            "rpki_class":     "warn" if stale else ("good" if t.rpki_state == "valid" else "bad" if t.rpki_state == "invalid" else "warn"),
+            "moas":           False if stale else t.moas_detected,
+            "churn":          None if stale else t.prefixes_churn_total,
             "manrs_member":   t.is_manrs_member,
             "manrs_status":   t.manrs_status,
             "manrs_culprit":  t.is_manrs_culprit,
@@ -3370,7 +3411,7 @@ class HealthReportRenderer:
                 {"label": "Concentration risk",      "val": f2(th.concentration_risk),      "cls": self._risk_class01(th.concentration_risk)},
                 {"label": "CertStream hits",         "val": str(th.certstream_hits),        "cls": "bad" if th.certstream_hits > 0 else "good"},
             ],
-            "reason_codes":   th.reason_codes,
+            "reason_codes":   [] if stale else th.reason_codes,
             "cotenancy":      cotenancy,
         }
 
@@ -3507,7 +3548,7 @@ class HealthReportRenderer:
         platform_counts_ok = ext.lookup_ok and not self._suppress_platform_counts
         gaps = sum(max(0, c["total"] - c["deployed"]) for c in self._controls_categories())
         gap_clause = (f"the <strong>{gaps}</strong> fixable gap{'s' if gaps != 1 else ''} in your "
-                      "defences that govern whether your own domain can be spoofed or "
+                      "defenses that govern whether your own domain can be spoofed or "
                       "hijacked" if gaps else
                       "the controls that govern whether your own domain can be spoofed")
 
@@ -3700,22 +3741,23 @@ class HealthReportRenderer:
                 "flat": "Volume is steady.",
             }[top_imp.trend]
             priorities.append({
-                "severity": "crit",
-                "severity_label": "Critical",
+                "severity": "high",
+                "severity_label": "High",
                 "surface": "vendor",
                 "surface_label": "Platform",
                 "surface_glyph": "▲",
-                "title": f"{_thousands(top_imp.count_30d)} lookalikes of {name} active in the last 30 days",
-                "action": (f"Brief staff who use {name} on the active impersonation wave "
+                "title": f"{_thousands(top_imp.count_30d)} new {name} lookalikes internet-wide (30 days)",
+                "action": (f"Brief staff who use {name} on the current impersonation wave "
                            f"({_thousands(top_imp.count_7d)} new lookalike domains this week); verify "
                            "phishing-resistant MFA on the tenant."),
-                "why": (f"Your organisation uses {name}; attackers have stood up "
-                        f"{_thousands(top_imp.count_30d)} lookalike domains imitating it in the last "
-                        f"30 days. {trend_note}"),
+                "why": (f"Your organization uses {name}. {_thousands(top_imp.count_30d)} new domains "
+                        f"imitated it across the internet in the last 30 days. They target every {name} "
+                        f"customer, not {self.domain} specifically. {trend_note}"),
                 "owner": "IT ops / security",
                 "effort": "< 1 day",
                 "when": "Fortnight",
             })
+            used_findings.add(f"platform_impersonation_{top_imp.platform}")
         elif vendors:
             # No impersonation observed in the window — do NOT claim an active
             # campaign (that contradicts the "Monitoring / no matches" state shown
@@ -4278,7 +4320,7 @@ class HealthReportRenderer:
         # and Yahoo have required it for bulk senders since Feb 2024; Microsoft
         # since May 2025; Apple and Comcast are aligned. The action text reflects
         # this — the deliverability angle matters even before the impersonation
-        # defence side.
+        # defense side.
         dmarc_mandate_note = (" Increasingly required by Google, Yahoo, Microsoft, "
                               "Apple, and Comcast for bulk-sender deliverability.")
         dmarc = ea.get("dmarc_policy") or ""
@@ -4521,7 +4563,7 @@ class HealthReportRenderer:
         if https_ok is None and https_days is None:
             pass  # field not populated — skip the row entirely
         elif https_ok and isinstance(https_days, int) and https_days >= 14:
-            issuer_clause = f", issued by {https_issuer}" if https_issuer else ""
+            issuer_clause = f", issued by {_issuer_label(https_issuer)}" if https_issuer else ""
             controls["Certificate & web"].append({
                 "name": "HTTPS certificate health", "state": "deployed",
                 "evidence": f"Certificate valid, {https_days} days remaining{issuer_clause}",
@@ -4675,7 +4717,7 @@ class HealthReportRenderer:
     # ----- Section 06: Outbound posture (legacy v8.6 helper, retained) -----
 
     def _build_posture_layers(self) -> list[dict[str, Any]]:
-        """Six-layer posture grid. Each entry covers one defence layer with its
+        """Six-layer posture grid. Each entry covers one defense layer with its
         current state, severity, and a short technical detail line."""
         ea = self.ea or {}
         flags = self.flags or {}
@@ -5010,6 +5052,10 @@ class HealthReportRenderer:
             sev = f.get("severity", "")
             title = (f.get("title") or f.get("finding") or "Untitled finding")[:80]
             if title in priority_titles:
+                continue
+            # Platform impersonation is internet-wide awareness, already carried by the
+            # Platform priority; as a roadmap item it was listed twice (2026-10-02).
+            if f.get("category") == "external_threat":
                 continue
             if bucket == "fortnight" and sev == "critical":
                 out.append({"title": title, "surface": "Infra", "effort": "varies"})
