@@ -2239,7 +2239,7 @@ class HealthReportRenderer:
         self.txt_intel     = legacy.get("txt_intelligence") or {}
         self.dns           = legacy.get("dns_records") or _dns_from_contract(getattr(vm, "dns_records", None))
         self.subdomains    = legacy.get("subdomains") or list(getattr(vm, "subdomains", None) or [])
-        self.cert_analysis = legacy.get("cert_analysis") or {}
+        self.cert_analysis = legacy.get("cert_analysis") or dict(getattr(vm, "cert_analysis", None) or {})
         self.rdap          = legacy.get("rdap") or {}
         self.flags         = legacy.get("threat_flags") or {}
         self.changes       = legacy.get("change_signals") or {}

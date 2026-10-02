@@ -75,9 +75,7 @@ def load_domain_list(path: str) -> list[tuple[str, str | None]]:
 
 
 def disable_cert_intel() -> None:
-    """Stub out the CT-log pull. CertSpotter's free tier rate-limits by SLEEPING
-    (observed: 321s, 359s per domain), so it blocks rather than degrading — an
-    estate-sized run would take hours. Cost of skipping: no `cert_analysis`, so
+    """Stub out the CT-log pull (--no-certs). Cost of skipping: no `cert_analysis`, so
     the CA-issuer concentration dimension, certificate expiry in the calendar
     block, and cross-domain-SAN discovery all go quiet. They render as
     unavailable rather than as false negatives."""
@@ -174,10 +172,21 @@ async def run(domains_path: str, group: str, out_dir: str, concurrency: int,
     print(f"  Collecting {len(pairs)} domains -> {contracts}")
     print(f"  live-dns={live} certs={certs} concurrency={concurrency} "
           f"client={'local' if local else 'http'}")
-    # Phase 1: one batched DNS pass over every domain still to collect.
+    todo = [d for d, _ in pairs if not (resume and (contracts / f"{d}.json").exists())]
+    # Phase 1a: every domain's certificates in one CT-archive query. Each per-domain
+    # build then reads from memory. A failure here only costs the cert sections:
+    # each domain retries its own lookup and degrades to empty.
+    if certs and todo:
+        try:
+            import cert_stream
+            await asyncio.to_thread(cert_stream.prefetch, todo)
+        except Exception as e:  # noqa: BLE001
+            print(f"  cert-intel: estate prefetch failed: {str(e).splitlines()[0] if str(e) else e!r}",
+                  flush=True)
+
+    # Phase 1b: one batched DNS pass over every domain still to collect.
     dns: dict[str, dict] = {}
     if live:
-        todo = [d for d, _ in pairs if not (resume and (contracts / f"{d}.json").exists())]
         if todo:
             dns_conc = int(os.environ.get("DNS_CONCURRENCY", "20"))
             print(f"  DNS: scanning {len(todo)} domains in one batch (concurrency {dns_conc})", flush=True)
@@ -243,8 +252,8 @@ def main():
                     help="Live DNS scan (default on). Without it, hygiene and provider "
                          "labels are absent and grades read falsely well.")
     ap.add_argument("--certs", action=argparse.BooleanOptionalAction, default=True,
-                    help="CT-log cert intel (default on). --no-certs to skip when "
-                         "CertSpotter is rate-limiting.")
+                    help="CT-log cert intel from the Datazag CT archive (default on). "
+                         "--no-certs skips it.")
     args = ap.parse_args()
 
     group = args.group or Path(args.out).name
