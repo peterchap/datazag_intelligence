@@ -82,14 +82,16 @@ def test_variance_excludes_unassessed_from_baseline():
     assert v.estate_baseline_score == 20.0            # the 0-score unassessed excluded
 
 
-def test_exposure_sums_exact_only_and_keeps_lookalikes_separate():
+def test_exposure_counts_each_platform_once_and_keeps_lookalikes_separate():
     refs = [
         make_ref("a.com", "s", imps=[imp("microsoft365", 2, 6, ["m1.com"])],
                  lookalikes=[imp("google", 0, 4, ["g1.com"], confidence="lookalike")]),
         make_ref("b.com", "s", imps=[imp("microsoft365", 1, 3, ["m2.com"])]),
     ]
     e = compute_exposure(refs, TH)
-    assert e.total_30d == 9                            # 6 + 3, EXACT only
+    # A platform's count is internet-wide and the same on every domain that uses it:
+    # taken once (max), not summed per domain (2026-10-02: 172,437 "hitting the estate").
+    assert e.total_30d == 6                            # max(6, 3), EXACT only
     assert e.lookalike_total_30d == 4                  # parallel, not summed in
     top = e.by_platform[0]
     assert top.platform == "microsoft365" and top.targeted_domains == 2
@@ -146,3 +148,17 @@ def _run_all():
 
 if __name__ == "__main__":
     _run_all()
+
+
+def test_asn_concentration_uses_the_live_network_not_a_stale_record():
+    """refute.com, 2026-10-02: the corpus record said AS7018 AT&T (63.246.144.0/24);
+    the domain resolves to Cloudflare. A stale record must not count toward AT&T."""
+    from crossestate.analytics import _dim_value
+    ref = make_ref("refute.com", "s", asn=7018, isp="AT&T US - 7018")
+    ref.vm.trust.prefix = "63.246.144.0/24"
+    ref.vm.dns_records.a = ["104.26.3.24"]
+    assert _dim_value("asn", ref) is None              # no live network facts: unknown, not AT&T
+    ref.vm.annotation.prefix = "104.26.0.0/20"
+    ref.vm.annotation.asn = 13335
+    ref.vm.annotation.asn_name = "Cloudflare"
+    assert _dim_value("asn", ref) == "AS13335 Cloudflare"

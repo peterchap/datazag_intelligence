@@ -87,13 +87,14 @@ def _synthesis(mvp, disc, grade, exp) -> str:
     else:
         lead = (f"Across <b>{disc.declared_count} declared domains</b> (undeclared-domain discovery "
                 "not enabled for this run),")
-    tail = f" the estate grades <b>{grade.grade}</b> ({grade.score:.0f}/100)."
+    tail = f" The estate grades <b>{grade.grade}</b> ({grade.score:.0f}/100)."
     flagged = [c for c in mvp.concentration if c.flagged]
     if flagged:
         tail += (f" It is single-threaded on <b>{flagged[0].top_provider}</b> for "
                  f"{flagged[0].label.lower()} ({_pct(flagged[0].top_pct)}).")
     if exp.total_exact:
-        tail += f" {exp.total_exact} active impersonations are hitting the estate."
+        tail += (f" {exp.total_exact:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide): they target every organization on those "
+                 "platforms, not this estate specifically.")
     return lead + tail
 
 
@@ -109,7 +110,7 @@ def _dash(mvp, disc, grade, exp) -> list[dict]:
         {"cls": grade_cls(grade.grade), "key": "Estate grade", "state": grade.grade,
          "note": f"{grade.score:.0f}/100 across {grade.domain_count} graded domains"},
         {"cls": "warn" if exp.total_exact else "ok", "key": "Active exposure",
-         "state": str(exp.total_exact), "note": "exact impersonations (30d)"},
+         "state": f"{exp.total_exact:,}", "note": "platform lookalikes (30d, internet-wide)"},
         {"cls": "bad" if overdue else ("warn" if soon else "ok"), "key": "Live lapses",
          "state": str(overdue + soon), "note": f"{overdue} overdue · {soon} due ≤30d"},
     ]
@@ -126,7 +127,7 @@ def _lens(mvp, conc, var, exp) -> str:
     if outliers:
         parts.append(f"a below-baseline segment (<b>{outliers[0].segment}</b>)")
     if exp.total_exact:
-        parts.append(f"<b>{exp.total_exact}</b> active impersonations")
+        parts.append(f"<b>{exp.total_exact:,}</b> internet-wide lookalikes of the estate's platforms")
     body = "On the externally observable evidence, an underwriter would weigh " + (
         "; ".join(parts) if parts else "a broadly consistent estate") + "."
     return body

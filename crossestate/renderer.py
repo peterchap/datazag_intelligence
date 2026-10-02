@@ -157,7 +157,7 @@ class CrossEstateRenderer:
         elif e.total_30d == 0:
             self._A("No active EXACT impersonation of the estate's platforms in the last 30 days.", "")
         else:
-            self._A(f"**{e.total_30d} active impersonations (30d)**, "
+            self._A(f"**{e.total_30d:,} new lookalikes of the estate's platforms (30d, internet-wide)**, "
                     f"targeting concentration {self._pct(e.targeting_concentration)} on the top platform.", "")
             if not e.fully_checked:
                 self._A(f"*Understated: {len(e.unchecked_domains)} domain(s) could not be checked "
@@ -389,7 +389,7 @@ CROSS_ESTATE_TEMPLATE = r"""<!DOCTYPE html>
   <h2>Active exposure</h2>
   <div class="sub">Standing impersonation snapshot (EXACT). The live feed delivers events; this is the map.</div>
   {% if e.exposure.total_30d %}
-    <p><strong>{{ e.exposure.total_30d }} active impersonations (30d)</strong>,
+    <p><strong>{{ "{:,}".format(e.exposure.total_30d) }} new lookalikes of the estate's platforms (30d, internet-wide)</strong>,
        targeting concentration {{ pct(e.exposure.targeting_concentration) }} on the top platform.</p>
     {% if not e.exposure.fully_checked %}<p><em>Understated: {{ e.exposure.unchecked_domains|length }} domain(s) could not be checked (rollup unreachable), so these totals are a floor, not a count.</em></p>{% endif %}
     <table><tr><th>Platform</th><th>7d</th><th>30d</th><th>Domains</th><th>Samples</th></tr>

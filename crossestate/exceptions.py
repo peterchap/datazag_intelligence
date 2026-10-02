@@ -202,12 +202,12 @@ def derive_estate_exceptions(estate: EstateViewModel) -> list[EstateException]:
         out.append(EstateException(
             finding="active_impersonation",
             severity="high",
-            title=f"{exp.total_30d} active impersonations across the estate (30d), "
-                  f"{len(exp.by_platform)} platform(s) targeted",
+            title=f"{exp.total_30d:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide), "
+                  f"{len(exp.by_platform)} platform(s)",
             evidence=(f"Top target: {top.platform} ({top.count_30d} in 30d)." if top else ""),
             detail="Standing exposure snapshot (EXACT matches). The live feed (SKU-2) "
                    "delivers these as events; this report is the map.",
-            remediation="Prioritise takedowns for the most-targeted platforms/brands; "
+            remediation="Brief staff on the most-imitated platforms and enforce phishing-resistant MFA; "
                         "wire the live impersonation feed for continuous alerting.",
             category="active_exposure",
             scope="estate",

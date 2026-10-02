@@ -59,7 +59,7 @@ class EstateReportRenderer:
             A(f"- {c.label}: {c.affected}/{c.estate_size} ({round(c.pct*100)}%)"
               + (f" — clustered in {', '.join(c.segments)}" if c.segment_isolated else ""))
         unchecked = len(r.exposure.unchecked_domains)
-        A(f"\n**Active exposure:** {r.exposure.total_exact} exact impersonations "
+        A(f"\n**Platform exposure:** {r.exposure.total_exact:,} new lookalikes of the estate's platforms, internet-wide "
           f"({r.exposure.provenance})."
           + (f" **{unchecked} domain(s) could not be checked** — the rollup was unreachable, "
              "so this is a floor, not a count." if unchecked else "") + "\n")
@@ -465,7 +465,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         <div class="cw-pct">{{ (c.pct*100)|round|int }}%<span class="of">{{ c.affected }} / {{ c.estate_size }} domains</span></div></div>
     {% endfor %}
     <div class="scale" style="margin-top:16px">
-      <div class="sbig"><div class="snum">{{ r.exposure.total_exact }}</div><div class="slab">active impersonations across the estate (30d)</div><div class="sprov">{{ r.exposure.provenance }}</div></div>
+      <div class="sbig"><div class="snum">{{ "{:,}".format(r.exposure.total_exact) }}</div><div class="slab">new lookalike domains impersonating the estate's platforms (30d, internet-wide)</div><div class="sprov">{{ r.exposure.provenance }}</div></div>
       <div class="stext">{% if r.exposure.top_platform %}The concentration is the finding: <b>{{ (r.exposure.top_share*100)|round|int }}% targeting {{ r.exposure.top_platform }}</b>. Exact-match certificates only; lower-confidence candidates are excluded.{% elif r.exposure.unchecked_domains %}<b>Not checked</b> — the impersonation rollup was unreachable for {{ r.exposure.unchecked_domains|length }} of the estate's domains and no other domain matched. Not an all-clear.{% else %}No exact-match impersonation of the estate's platforms in the last 30 days.{% endif %}</div>
     </div>
     {% if r.exposure.rows %}

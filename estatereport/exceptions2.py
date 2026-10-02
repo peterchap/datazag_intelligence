@@ -96,7 +96,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
     if report.exposure.total_exact > 0:
         ex.append(Exception_(
             rank=0, severity="high",
-            title=f"{report.exposure.total_exact} active impersonations across the estate (30d)",
+            title=f"{report.exposure.total_exact:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide)",
             body_html=f"Concentrated on {report.exposure.top_platform} "
                       f"({_pct(report.exposure.top_share)} of targeting). The live feed delivers these as "
                       "events; this report is the map.",
