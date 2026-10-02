@@ -8,7 +8,13 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# estate_collect loads .env at import. CI runs a minimal venv without python-dotenv;
+# skip there rather than break collection (same pattern as test_free_report_teaser_score).
+pytest.importorskip("dotenv", reason="estate_collect imports python-dotenv at module level")
 
 import estate_collect  # noqa: E402
 import report_pipeline  # noqa: E402
