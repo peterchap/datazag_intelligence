@@ -80,10 +80,14 @@ class FreeReportRenderer:
         A("\n**Genuine weaknesses:**")
         for w in c["weaknesses"]:
             A(f"- {_strip(w['html'])}")
+        if not c["weaknesses"]:
+            A("- No material externally observable weaknesses were found on the covered surfaces.")
         if c["maturity_controls"]:
             A("\n_Maturity opportunities (not weaknesses): "
               + ", ".join(f"{x.label} ({x.note})" for x in c["maturity_controls"]) + "._")
         A("\n## What to do\n")
+        if not c["fixes"]:
+            A("No changes are needed on the surfaces this report covers.\n")
         for f in c["fixes"]:
             A(f"### {f['num']}. {f['title']} — {_PRI_LABEL[f['priority']]}")
             A(_strip(f["why"]))
@@ -338,7 +342,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
   <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ domain }}</div></div>
   <div class="body">
     <div class="shead">
-      <div><div class="stitle">How the cyber attack economy works.</div><div class="ssub">Platform impersonation is an industry with business models. Understanding how it operates explains why every organisation on {{ top_platform }} sits in its path.</div></div>
+      <div><div class="stitle">How the cyber attack economy works.</div><div class="ssub">Platform impersonation is an industry with business models. Understanding how it operates explains why every organization on {{ top_platform }} sits in its path.</div></div>
     </div>
     <div class="primer">
       <div class="primer-scale">
@@ -357,7 +361,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
       </div>
       <div class="mech-escalate">
         <div class="me-icon">⚠</div>
-        <div class="me-body"><b>It often takes only one — and you may never know it happened.</b> A single working credential moves the organisation off the anonymous spray-and-pray list and onto a <b>curated target list</b>. Because a credential is data, the same access is often <b>resold to multiple buyers at once</b>. And <b>a captured login is usually silent</b> — no outage, no alert; the gap between compromise and discovery is often weeks.</div>
+        <div class="me-body"><b>It often takes only one — and you may never know it happened.</b> A single working credential moves the organization off the anonymous spray-and-pray list and onto a <b>curated target list</b>. Because a credential is data, the same access is often <b>resold to multiple buyers at once</b>. And <b>a captured login is usually silent</b> — no outage, no alert; the gap between compromise and discovery is often weeks.</div>
       </div>
       <div class="mech-punch">The attacker never decided to target {{ org }}. The attacker decided to target <b>everyone who uses {{ top_platform }}</b> — and you do. That is the logic of your exposure.</div>
     </div>
@@ -448,6 +452,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
       <div><div class="stitle">What to do.</div><div class="ssub">Exact changes, ranked by exploitability first, then effort. Hand straight to your DNS or platform team.</div></div>
       <div class="smeta"><div class="sm-k">Priority actions</div><div class="sm-v">{{ fix_count }}</div></div>
     </div>
+    {% if not fixes %}<p class="lead">No changes are needed on the surfaces this report covers.</p>{% endif %}
     {% for f in fixes %}
     <div class="fix">
       <div class="fx-head"><div class="fx-num">{{ f.num }}</div><div class="fx-t">{{ f.title }}</div><span class="fx-pri {{ f.priority }}">{{ pri_label[f.priority] }}</span></div>
@@ -512,7 +517,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
           <div class="sys"><div class="sys-i">◆</div><div class="sys-t"><b>Correlated weakness.</b> "DMARC unenforced on 44% of domains, clustered in acquired and retail" — a pattern, not isolated tickets.</div></div>
           <div class="sys"><div class="sys-i">◆</div><div class="sys-t"><b>Operational calendar.</b> Expired registrations, lapsed certificates and unlocked domains across the estate — the live outages and takeover windows.</div></div>
         </div>
-        <div class="seam-note"><b>What the Cross-Estate Report delivers:</b> an estate grade and grade distribution, the concentration map, posture variance by segment, the correlated-weakness rollup, a prioritised exception register, and a full remediation plan — for every domain you own, declared and discovered.</div>
+        <div class="seam-note"><b>What the Cross-Estate Report delivers:</b> an estate grade and grade distribution, the concentration map, posture variance by segment, the correlated-weakness rollup, a prioritized exception register, and a full remediation plan — for every domain you own, declared and discovered.</div>
       </div>
     </div>
     <div class="upgrade-cta">

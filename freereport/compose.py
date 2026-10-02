@@ -16,6 +16,7 @@ House style enforced here:
 """
 
 from __future__ import annotations
+import re
 
 from datetime import datetime, timezone
 from typing import Optional
@@ -49,7 +50,7 @@ def org_name(vm) -> str:
         return org
     d = (vm.domain or "").strip().lower()
     if not d:
-        return "this organisation"
+        return "this organization"
     stem = d.split(".")[0]
     return stem.replace("-", " ").title() if stem else d
 
@@ -140,8 +141,31 @@ def exact_count_30d(vm) -> int:
 _LOCK_TOKENS = ("transferprohibited", "deleteprohibited", "updateprohibited")
 
 
+def _status_compact(status) -> str:
+    """RDAP writes "client transfer prohibited"; EPP data "clientTransferProhibited".
+    Matching the compact form treats both the same (2026-10-02: datazag.com, locked,
+    was reported as having no registrar locks)."""
+    return re.sub(r"[\s_-]", "", (status or "").lower())
+
+
+def _issuer_label(raw: str) -> str:
+    """'countryName=US, organizationName=Let's Encrypt, commonName=YR1' -> "Let's Encrypt (YR1)".
+    Anything not in that shape is returned unchanged."""
+    parts = dict(p.split("=", 1) for p in str(raw or "").split(", ") if "=" in p)
+    org, cn = parts.get("organizationName"), parts.get("commonName")
+    if org and cn and cn != org:
+        return f"{org} ({cn})"
+    return org or cn or str(raw or "")
+
+
+def _same_vendor(a: str, b: str) -> bool:
+    """"Microsoft 365" and "Microsoft" are one vendor, not a gateway in front of a mailbox."""
+    fa, fb = (a or "").split(), (b or "").split()
+    return bool(fa and fb and fa[0].lower() == fb[0].lower())
+
+
 def has_locks(vm) -> bool:
-    status = (vm.registration.status or "").lower()
+    status = _status_compact(vm.registration.status)
     return any(tok in status for tok in _LOCK_TOKENS)
 
 
@@ -192,13 +216,20 @@ def _email_state(vm) -> tuple[str, str, str]:
     h = vm.hygiene
     pol = (h.dmarc_policy or "").lower()
     if pol == "reject" and h.spf_record:
-        return ("ok", "Strong", "DMARC at reject with SPF in place — ahead of most organisations.")
+        return ("ok", "Strong", "DMARC at reject with SPF in place — ahead of most organizations.")
     if not pol or pol == "none":
         return ("bad", "Exposed", "DMARC is absent or monitor-only — mail can be spoofed as your domain.")
     return ("warn", "Adequate", "Core email authentication is present but not yet at full enforcement.")
 
 
+def _lookup_ok(vm) -> bool:
+    return bool(getattr(vm.external_threat, "lookup_ok", True))
+
+
 def _external_state(vm) -> tuple[str, str, str]:
+    if not _lookup_ok(vm):
+        return ("warn", "Not checked",
+                "Impersonation data could not be retrieved for this report, so it makes no claim either way.")
     if exact_count_30d(vm) > 0:
         return ("warn", "Elevated",
                 "Impersonation activity against your platform stack was observed in the last 30 days.")
@@ -306,7 +337,7 @@ def _strengths(vm) -> list[dict]:
     mbp = mailbox_provider(vm)[0]
     if mbp:
         gw = next((p["name"] for p in confirmed_platforms(vm)
-                   if p["name"] != mbp), None)
+                   if not _same_vendor(p["name"], mbp)), None)
         if gw:
             out.append({"plain": f"an enterprise mail path ({gw} in front of {mbp})",
                         "html": f"Enterprise mail security: {gw} gateway in front of {mbp}"})
@@ -351,6 +382,10 @@ def _weaknesses(vm) -> list[dict]:
 def observed_event_line(vm) -> str:
     n = exact_count_30d(vm)
     plat = top_platform(vm)
+    if not _lookup_ok(vm):
+        return ("We could not retrieve impersonation data for this report, so this page makes no "
+                "claim about recent activity against your platforms. The economics above apply "
+                "either way.")
     if n <= 0:
         return ("In the last 30 days we observed <b>no confirmed impersonation</b> against your "
                 "platform stack. The economics above still apply — the absence of an observed "
@@ -381,7 +416,9 @@ def surfaces(vm, now: datetime) -> list[dict]:
         comm.append({"b": "warn", "html": f"<b style='color:var(--ink)'>Baseline:</b>&nbsp;DMARC at "
                      f"<code>{h.dmarc_policy}</code> — not yet at full enforcement"})
     n = exact_count_30d(vm)
-    if n > 0:
+    if not _lookup_ok(vm):
+        comm.append({"b": "na", "html": "Platform impersonation not checked in this run"})
+    elif n > 0:
         comm.append({"b": "warn", "html": f"{n} confirmed {top_platform(vm)} impersonation (30d)"})
     else:
         comm.append({"b": "ok", "html": "No confirmed platform impersonation (30d)"})
@@ -414,8 +451,9 @@ def surfaces(vm, now: datetime) -> list[dict]:
     else:
         dig.append({"b": "ok", "html": "CAA present — certificate issuance constrained"})
     if h.tls_issuer:
+        issuer = _issuer_label(h.tls_issuer)
         left = f", {h.tls_days_left}d left" if getattr(h, "tls_days_left", None) is not None else ", valid"
-        dig.append({"b": "ok", "html": f"Certificates healthy ({h.tls_issuer}{left})"})
+        dig.append({"b": "ok", "html": f"Certificates healthy ({issuer}{left})"})
     if not dig:
         dig.append({"b": "ok", "html": "No public-facing digital exposure observed"})
 
@@ -433,7 +471,7 @@ def surfaces(vm, now: datetime) -> list[dict]:
     host.append({"b": "ok" if loc else "na", "html": "<b style='color:var(--ink)'>Location:</b>&nbsp;"
                  + (loc or "not determined")})
     mail = mailbox_provider(vm)[0]
-    gw = next((p["name"] for p in confirmed_platforms(vm) if p["name"] != mail), None)
+    gw = next((p["name"] for p in confirmed_platforms(vm) if not _same_vendor(p["name"], mail)), None)
     mail_line = (mail + (f" via {gw}" if gw else "")) if mail else "not determined"
     host.append({"b": "ok" if mail else "na", "html": f"<b style='color:var(--ink)'>Mail:</b>&nbsp;{mail_line}"})
     # Was "Clean — no threat-feed or malicious-IP hits", which rested on blocklists
@@ -441,7 +479,12 @@ def surfaces(vm, now: datetime) -> list[dict]:
     # threat score for the hosting IP — and when that was never measured, absence is
     # reported as absence rather than as "clean".
     ip_threat = vm.threat.ip_direct_threat_score
-    if ip_threat is None:
+    asn_level = (getattr(vm.trust, "asn_risk_level", None) or getattr(ann, "asn_risk_level", None) or "").lower()
+    if ip_threat is None and asn_level in ("low", "medium", "high", "critical") and asn:
+        b = {"low": "ok", "medium": "warn"}.get(asn_level, "bad")
+        host.append({"b": b, "html": f"Network reputation: AS{asn} rated <b>{asn_level}</b> risk in the "
+                                     "Datazag corpus (no score for this address on its own)"})
+    elif ip_threat is None:
         host.append({"b": "na", "html": "Hosting reputation not assessed for this domain"})
     elif ip_threat < 0.3:
         host.append({"b": "ok", "html": "No malicious-infrastructure signal in the Datazag corpus"})
@@ -520,7 +563,7 @@ def fixes(vm, now: datetime) -> list[dict]:
         ca = _caa_domain(h.tls_issuer)
         out.append({
             "title": "Publish a CAA record", "priority": "soon",
-            "why": ("CAA reduces the set of certificate authorities authorised to issue for your domain. "
+            "why": ("CAA reduces the set of certificate authorities authorized to issue for your domain. "
                     f"Without it that set is unrestricted; a CAA record limits issuance to your known CA."),
             "cmd": (f"{d}.  IN  CAA  0 issue \"{ca}\"\n"
                     f"{d}.  IN  CAA  0 issuewild \"{ca}\"\n"

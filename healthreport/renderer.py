@@ -26,6 +26,7 @@ Pages
 """
 
 from __future__ import annotations
+import re
 
 import json
 from typing import Any
@@ -111,7 +112,7 @@ _LOCK_TOKENS = ("transferprohibited", "deleteprohibited", "updateprohibited", "r
 def _locks_from_status(status: str | None) -> int:
     """Count registrar locks from the RDAP status string on the contract, so the
     audit does not depend on the legacy dict being populated."""
-    low = (status or "").lower()
+    low = re.sub(r"[\s_-]", "", (status or "").lower())  # RDAP writes "client transfer prohibited"
     return sum(1 for t in _LOCK_TOKENS if t in low)
 
 

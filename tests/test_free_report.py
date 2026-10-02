@@ -229,3 +229,37 @@ def test_hosting_falls_back_to_network_operator():
     html = _render(vm)
     assert "not determined" not in html.split("Hosting:")[1][:200]
     assert "Amazon.com, Inc. network (AS16509)" in html
+
+
+# --- 2026-10-02: the second datazag.com report ------------------------------
+
+def test_rdap_spaced_lock_status_counts_as_locked():
+    vm = _vm(status="client transfer prohibited")
+    assert compose.has_locks(vm)
+
+
+def test_failed_impersonation_lookup_is_not_an_all_clear():
+    vm = _vm()
+    vm.external_threat.lookup_ok = False
+    for out in (_render(vm), FreeReportRenderer(vm, now=NOW).to_markdown()):
+        assert "no confirmed impersonation" not in out.lower()
+        assert "could not retrieve impersonation data" in out.lower() or "could not be retrieved" in out.lower()
+
+
+def test_issuer_label_is_readable():
+    assert compose._issuer_label("countryName=US, organizationName=Let's Encrypt, commonName=YR1") == "Let's Encrypt (YR1)"
+    assert compose._issuer_label("DigiCert") == "DigiCert"
+
+
+def test_same_vendor_is_not_a_gateway():
+    assert compose._same_vendor("Microsoft 365", "Microsoft")
+    assert not compose._same_vendor("Mimecast", "Microsoft")
+
+
+def test_network_reputation_fallback_when_no_ip_score():
+    vm = _vm(asn=16509)
+    vm.threat.ip_direct_threat_score = None
+    vm.trust.asn_risk_level = "low"
+    html = _render(vm)
+    assert "Network reputation: AS16509 rated <b>low</b> risk" in html
+    assert "Hosting reputation not assessed" not in html
