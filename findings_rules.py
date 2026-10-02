@@ -329,19 +329,21 @@ def _impersonation_findings(impersonations: list[PlatformImpersonation]) -> list
     for imp in impersonations:
         if imp.count_30d <= 0:
             continue
-        sev = "high" if imp.count_30d >= 20 else "medium" if imp.count_30d >= 5 else "info"
+        # Internet-wide volume for the platform, not activity against this domain:
+        # reported for awareness, never ranked as a defect of the customer's own.
+        sev = "medium" if imp.count_30d >= 20 else "info"
         examples = ", ".join(imp.sample_domains[:3]) if imp.sample_domains else "—"
         out.append({
             "finding": f"platform_impersonation_{imp.platform}",
             "severity": sev,
-            "title": f"{imp.count_30d} lookalike domains impersonating {imp.platform} (30d)",
-            "evidence": f"{imp.platform}: {imp.count_7d} in 7d / {imp.count_30d} in 30d; "
+            "title": f"{imp.count_30d:,} new lookalike domains impersonating {imp.platform} (30d, platform-wide)",
+            "evidence": f"{imp.platform}: {imp.count_7d:,} in 7d / {imp.count_30d:,} in 30d; "
                         f"examples: {examples}",
-            "detail": f"Your organisation uses {imp.platform}. Attackers have registered "
-                      f"{imp.count_30d} lookalike/typosquat domains targeting that platform in "
-                      "the last 30 days. Staff who trust the platform are the phishing target.",
-            "remediation": f"Brief staff on {imp.platform} phishing; enforce phishing-resistant "
-                           "MFA; consider takedown of the lookalikes most likely to target you.",
+            "detail": f"Your organization uses {imp.platform}. {imp.count_30d:,} new lookalike "
+                      f"domains imitated {imp.platform} across the internet in the last 30 days. "
+                      f"They target every organization on {imp.platform}, not this domain "
+                      "specifically. Staff who trust the platform are the phishing target.",
+            "remediation": f"Brief staff on {imp.platform} phishing and enforce phishing-resistant MFA.",
             "category": "external_threat",
         })
     return out

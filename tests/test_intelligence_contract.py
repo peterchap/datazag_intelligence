@@ -213,8 +213,9 @@ def test_findings_thresholds():
     assert "moas_anomaly" in by_key
 
     # external threat
-    assert by_key["platform_impersonation_microsoft365"]["severity"] == "high"  # 41
-    assert by_key["platform_impersonation_okta"]["severity"] == "high"          # 25
+    # Internet-wide platform volume: awareness, not a defect of this domain.
+    assert by_key["platform_impersonation_microsoft365"]["severity"] == "medium"  # 41
+    assert by_key["platform_impersonation_okta"]["severity"] == "medium"        # 25
     assert by_key["platform_impersonation_mailchimp"]["severity"] == "info"     # 4
 
     # reason-code passthrough — nothing dropped, including unmapped codes

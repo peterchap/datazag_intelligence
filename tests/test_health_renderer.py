@@ -509,7 +509,8 @@ def test_infra_routing_section():
     # ISP/country/risk (from the medallion facts) + providers (from live scan)
     assert ir["isp"] == "Evil Hosting Ltd"
     assert ir["country"] == "RU"
-    assert ir["asn_risk"] == "high" and ir["asn_risk_class"] == "bad"
+    # No range check in this fixture: the whole-network rating is the fallback.
+    assert ir["asn_risk"] == "high (whole network)" and ir["asn_risk_class"] == "bad"
     assert ir["mx_provider"] == "Microsoft"
     assert ir["ns_provider"] == "Cloudflare"
     html2 = r.to_html()
@@ -552,7 +553,7 @@ def test_annotation_lake_overrides_providers():
     assert ir["mx_category"] == "Enterprise mail"
     assert ir["ns_provider"] == "Cloudflare"
     assert ir["hosting_provider"] == "Amazon AWS"
-    assert ir["asn_risk"] == "critical" and ir["asn_risk_class"] == "bad"
+    assert ir["asn_risk"] == "critical (whole network)" and ir["asn_risk_class"] == "bad"
     assert ir["tld_risk"] == "high" and ir["tld_risk_class"] == "bad"
     assert ir["trust_label"] == "Low trust"
     html = r.to_html()
@@ -901,7 +902,7 @@ def test_markdown_is_full_report():
     }
     md = HealthReportRenderer(_sample_vm(), tier="full", legacy=legacy).to_markdown()
     # the three-act arc + the rich sections all present
-    for heading in ("# Datazag", "## The attacker problem", "## Your defence weaknesses",
+    for heading in ("# Datazag", "## The attacker problem", "## Your defense weaknesses",
                     "## Platform footprint", "## Defensive controls", "## Hidden infrastructure",
                     "## Three things to address first", "## Implementation-changes roadmap",
                     "## All findings"):
@@ -965,3 +966,40 @@ def _main():
 
 if __name__ == "__main__":
     _main()
+
+
+
+# --- 2026-10-02: Domain Risk report for datazag.com -------------------------
+
+def _dz_vm():
+    """datazag.com as the third run saw it: live IP 216.150.1.1, a corpus record from a
+    previous host (108.138.42.0/24) carrying HIGH_BGP_CHURN, and Microsoft 365 with
+    6,054 internet-wide lookalikes."""
+    import copy
+    vm = copy.deepcopy(_sample_vm())
+    vm.dns_records.a = ["216.150.1.1"]
+    vm.trust.prefix = "108.138.42.0/24"
+    vm.trust.asn = 16509
+    vm.trust.asn_risk_level = "critical"
+    vm.annotation.prefix = "216.150.1.0/24"
+    vm.annotation.asn = 16509
+    vm.annotation.range_abuse_checked = True
+    vm.annotation.range_abuse_observed = False
+    vm.findings = list(vm.findings) + [{"finding": "high_bgp_churn", "category": "routing_security",
+                                        "severity": "medium", "title": "High BGP prefix churn"}]
+    return vm
+
+
+def test_amazon_range_is_rated_by_range_not_whole_network():
+    r = HealthReportRenderer(_dz_vm())
+    ir = r._build_infra_routing()
+    assert ir["asn_risk"] == "no abuse recorded" and ir["asn_risk_class"] == "good"
+    assert ir["prefix"] == "216.150.1.0/24"
+
+
+def test_stale_corpus_routing_is_dropped():
+    r = HealthReportRenderer(_dz_vm())
+    titles = [f.get("title") for f in r.findings]
+    assert "High BGP prefix churn" not in titles
+    ir = r._build_infra_routing()
+    assert ir["rpki_state"] == "NOT ASSESSED" and ir["reason_codes"] == []
