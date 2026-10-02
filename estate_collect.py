@@ -98,8 +98,16 @@ async def collect_one(client, domain: str, contracts_dir: Path, resume: bool,
         return {"domain": domain, "status": "skipped", "path": str(path)}
 
     from report_pipeline import build_view_model
+    # One domain must not stall the estate. On 2026-10-02 a 14-domain run sat for
+    # 17 minutes with three domains awaiting a socket that never answered, and
+    # nothing timed them out. A domain that overruns is an error like any other:
+    # reported, omitted from the manifest, recorded in collect_report.json.
+    timeout_s = float(os.environ.get("ESTATE_DOMAIN_TIMEOUT", "300"))
     try:
-        vm = await build_view_model(domain, client, live=live)
+        vm = await asyncio.wait_for(build_view_model(domain, client, live=live), timeout=timeout_s)
+    except asyncio.TimeoutError:
+        return {"domain": domain, "status": "error",
+                "error": f"timed out after {timeout_s:.0f}s (ESTATE_DOMAIN_TIMEOUT)"}
     except Exception as e:  # noqa: BLE001 - IntelligenceUnavailable, DNS, lake, ...
         return {"domain": domain, "status": "error", "error": f"{type(e).__name__}: {e}"}
 
