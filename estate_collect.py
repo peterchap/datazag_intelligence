@@ -89,8 +89,33 @@ def disable_cert_intel() -> None:
     report_pipeline._ensure_cert_intel = _empty
 
 
+async def collect_dns(domains: list[str], concurrency: int) -> dict[str, dict]:
+    """Phase 1: the live DNS scan for every domain, batched.
+
+    DNS is I/O-bound and fast, so it runs wide (DNS_CONCURRENCY, default 20) through
+    the report resolver, the way the celery workers batch the corpus. The slower
+    per-domain assembly (scoring, lake, RDAP, certificates) then starts from these
+    records instead of scanning again, and a stall in one phase is visible as that
+    phase (2026-10-02: estate stalls could not be told apart from the DNS scan).
+    A scan that does not finish comes back flagged scan_incomplete, never raises."""
+    import canonical_collect
+
+    sem = asyncio.Semaphore(max(1, concurrency))
+
+    async def one(d: str) -> tuple[str, dict]:
+        async with sem:
+            try:
+                return d, await canonical_collect.collect(d, strict=False)
+            except Exception as e:  # noqa: BLE001 - one bad scan must not sink the batch
+                return d, {"domain": d, "status": "error", "scan_incomplete": True,
+                           "error": f"{type(e).__name__}: {e}"}
+
+    pairs = await asyncio.gather(*(one(d) for d in domains))
+    return dict(pairs)
+
+
 async def collect_one(client, domain: str, contracts_dir: Path, resume: bool,
-                      live: bool) -> dict:
+                      live: bool, live_output: dict | None = None) -> dict:
     """Fetch + assemble one domain → contract file. Returns a status dict
     (never raises — one bad domain must not sink the estate)."""
     path = contracts_dir / f"{domain}.json"
@@ -104,7 +129,8 @@ async def collect_one(client, domain: str, contracts_dir: Path, resume: bool,
     # reported, omitted from the manifest, recorded in collect_report.json.
     timeout_s = float(os.environ.get("ESTATE_DOMAIN_TIMEOUT", "300"))
     try:
-        vm = await asyncio.wait_for(build_view_model(domain, client, live=live), timeout=timeout_s)
+        vm = await asyncio.wait_for(
+            build_view_model(domain, client, live=live, live_output=live_output), timeout=timeout_s)
     except asyncio.TimeoutError:
         return {"domain": domain, "status": "error",
                 "error": f"timed out after {timeout_s:.0f}s (ESTATE_DOMAIN_TIMEOUT)"}
@@ -148,13 +174,26 @@ async def run(domains_path: str, group: str, out_dir: str, concurrency: int,
     print(f"  Collecting {len(pairs)} domains -> {contracts}")
     print(f"  live-dns={live} certs={certs} concurrency={concurrency} "
           f"client={'local' if local else 'http'}")
+    # Phase 1: one batched DNS pass over every domain still to collect.
+    dns: dict[str, dict] = {}
+    if live:
+        todo = [d for d, _ in pairs if not (resume and (contracts / f"{d}.json").exists())]
+        if todo:
+            dns_conc = int(os.environ.get("DNS_CONCURRENCY", "20"))
+            print(f"  DNS: scanning {len(todo)} domains in one batch (concurrency {dns_conc})", flush=True)
+            dns = await collect_dns(todo, dns_conc)
+            bad = [d for d, r in dns.items() if r.get("scan_incomplete")]
+            print(f"  DNS: {len(dns) - len(bad)} complete, {len(bad)} incomplete"
+                  + (f" ({', '.join(bad)})" if bad else ""), flush=True)
+
+    # Phase 2: per-domain assembly from those records.
     sem = asyncio.Semaphore(concurrency)
     done = 0
 
     async def guarded(domain):
         nonlocal done
         async with sem:
-            res = await collect_one(client, domain, contracts, resume, live)
+            res = await collect_one(client, domain, contracts, resume, live, live_output=dns.get(domain))
             done += 1
             flag = {"ok": "+", "skipped": "=", "no_intelligence": "~"}.get(res["status"], "!")
             extra = ""
