@@ -109,9 +109,9 @@ async def collect(domain: str, *, timeout: float = 10.0, enrich: bool = True, st
     if records is None:
         if strict:
             raise LiveScanIncomplete(f"live DNS scan of {domain} did not finish; not rendering a report from no data")
-        # Estate loops keep going on one slow domain. The record is flagged so a
-        # renderer can say "not assessed"; until one does, the log line above is
-        # the only signal. FOLLOW-UP: render scan_incomplete domains as not assessed.
+        # Estate loops keep going on one slow domain. The flag reaches the view
+        # model (report_pipeline) and the estate counts the domain as not
+        # assessed (crossestate/build.py).
         return {"domain": domain, "status": "error", "scan_incomplete": True}
     rec = dataclasses.asdict(records) if dataclasses.is_dataclass(records) else dict(records)
 

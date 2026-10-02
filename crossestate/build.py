@@ -77,11 +77,17 @@ def build_estate_view_model(
     for e in entries:
         a = assignments[e.domain]
         vm = vms.get(e.domain) or _unassessed_vm(e.domain)
+        # A domain whose live DNS scan did not finish is counted but NOT assessed,
+        # through the same path as a contract that failed to load. Its empty
+        # hygiene would otherwise count as "no DMARC, no CAA, no DNSSEC" in every
+        # control prevalence and baseline.
+        load_error = load_errors.get(e.domain) or (
+            "live DNS scan did not finish" if getattr(vm, "scan_incomplete", False) else None)
         refs.append(DomainRef(
             domain=e.domain, segment=a.segment,
             segment_source=a.source, segment_disagreement=a.disagreement,
             vm=vm, contract_path=e.contract_path,
-            load_error=load_errors.get(e.domain),
+            load_error=load_error,
         ))
 
     # ── Analytics (deterministic aggregations) ───────────────────────────

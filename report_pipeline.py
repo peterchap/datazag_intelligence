@@ -394,7 +394,7 @@ async def build_view_model(
     # AND cert_analysis, both onto the contract (cert_analysis render is deferred).
     cert_intel = await _ensure_cert_intel(domain)
 
-    return build_view_models(
+    vm = build_view_models(
         di,
         detected_platforms=ext.detected_platforms,
         impersonations=ext.impersonations,
@@ -413,6 +413,9 @@ async def build_view_model(
         subdomains=cert_intel.get("subdomains") or [],
         cert_analysis=cert_intel.get("cert_analysis") or {},
     )
+    if live_output and live_output.get("scan_incomplete"):
+        vm.scan_incomplete = True
+    return vm
 
 
 def view_model_from_medallion(payload: dict) -> ReportViewModel:

@@ -656,6 +656,10 @@ class ReportViewModel(BaseModel):
     generated_at: Optional[str] = None
     data_freshness: dict[str, str] = Field(default_factory=dict)
     has_intelligence: bool = True
+    # The live DNS scan did not finish (canonical_collect, strict=False). The
+    # hygiene block is then empty because nothing was seen, not because nothing is
+    # published, so an estate counts the domain as not assessed.
+    scan_incomplete: bool = False
     composite_score: int = 0             # 0..100, higher = worse
     grade: TrustGrade
     trust: TrustSurface
