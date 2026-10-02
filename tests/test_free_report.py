@@ -281,3 +281,33 @@ def test_range_abuse_bands_match_ip_to_asn():
 
 def test_range_not_checked_stays_not_assessed():
     assert "Hosting reputation not assessed" in _render(_range_vm())
+
+
+# --- 2026-10-02: third datazag.com report -------------------------------------
+
+def test_stale_corpus_prefix_is_not_shown_for_the_live_ip():
+    vm = _vm(asn=16509)
+    vm.dns_records.a = ["216.150.1.1"]
+    vm.trust.prefix = "16.162.0.0/15"          # where the corpus last saw the domain
+    html = _render(vm)
+    assert "16.162.0.0/15" not in html
+    assert "not determined for <code>216.150.1.1</code>" in html
+
+
+def test_live_prefix_from_the_lake_wins():
+    vm = _vm(asn=16509)
+    vm.dns_records.a = ["216.150.1.1"]
+    vm.trust.prefix = "16.162.0.0/15"
+    vm.annotation.prefix = "216.150.1.0/24"
+    vm.annotation.asn = 16509
+    html = _render(vm)
+    assert "216.150.1.0/24" in html and "16.162.0.0/15" not in html
+
+
+def test_impersonation_count_is_platform_wide_not_targeted():
+    from intelligence_contract import PlatformImpersonation
+    vm = _vm(imps=[PlatformImpersonation(platform="Microsoft 365", count_7d=2772, count_30d=6063)])
+    out = _render(vm) + FreeReportRenderer(vm, now=NOW).to_markdown()
+    assert "6,063 new domains" in out
+    assert "pointed at your stack" not in out and "exact match to your environment" not in out
+    assert "platform-wide" in out
