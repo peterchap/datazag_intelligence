@@ -218,7 +218,7 @@ class CrossEstateRenderer:
             for d in seg.domains:
                 letter = d.vm.grade.letter if getattr(d.vm, "grade", None) else "?"
                 if d.load_error:
-                    self._A(f"| {d.domain} | {seg.key} | ? | — | load error: {d.load_error} |")
+                    self._A(f"| {d.domain} | {seg.key} | ? | — | not assessed: {d.load_error} |")
                     continue
                 titles = "; ".join(f.get("title", "") for f in (d.vm.findings or [])[:3]) or "—"
                 self._A(f"| {d.domain} | {seg.key} | {letter} | {d.vm.composite_score} | {titles} |")
@@ -427,8 +427,8 @@ CROSS_ESTATE_TEMPLATE = r"""<!DOCTYPE html>
     <table><tr><th>Domain</th><th>Segment</th><th>Grade</th><th>Score</th><th>Top findings</th></tr>
     {% for seg in e.segments %}{% for d in seg.domains %}<tr>
       <td>{{ d.domain }}</td><td>{{ seg.key }}</td>
-      <td>{{ d.vm.grade.letter if d.vm.grade else '?' }}</td><td>{{ d.vm.composite_score }}</td>
-      <td>{% if d.load_error %}load error{% else %}{{ d.vm.findings[:3]|map(attribute='title')|join('; ') or '—' }}{% endif %}</td>
+      <td>{% if d.load_error %}?{% else %}{{ d.vm.grade.letter if d.vm.grade else '?' }}{% endif %}</td><td>{% if d.load_error %}—{% else %}{{ d.vm.composite_score }}{% endif %}</td>
+      <td>{% if d.load_error %}not assessed: {{ d.load_error }}{% else %}{{ d.vm.findings[:3]|map(attribute='title')|join('; ') or '—' }}{% endif %}</td>
     </tr>{% endfor %}{% endfor %}</table>
   {% else %}
     <h2>Fixable-weakness rollup</h2>
