@@ -13,6 +13,7 @@ domain must not read as a great grade or a passing control).
 """
 
 from __future__ import annotations
+import re
 
 import statistics
 from datetime import datetime, timezone
@@ -491,7 +492,7 @@ def compute_calendar(refs: list[DomainRef], thresholds: EstateThresholds,
                             else f"Domain registration expires in {days}d"),
                 ))
         # Registrar locks
-        status = (vm.registration.status or "").lower()
+        status = re.sub(r"[\s_-]", "", (vm.registration.status or "").lower())  # RDAP spaces
         if status and not any(tok in status for tok in _LOCK_TOKENS):
             items.append(CalendarItem(
                 domain=r.domain, segment=r.segment, kind="unlocked", severity="medium",
