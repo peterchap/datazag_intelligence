@@ -258,6 +258,25 @@ def _resolve_infra(con, rec: dict) -> Optional[dict]:
         return None
 
 
+def _range_abuse(con, infra: dict) -> dict:
+    """Abuse recorded on the hosting range, from the table IP to ASN rates large
+    shared networks with (centralake 02_build_publish: intel.prefix_abuse, one row per
+    prefix and origin AS). No row is "no abuse recorded", which the report states as
+    that, not as "clean". A failed query raises, so _safe leaves the range unchecked."""
+    row = _one(con, """
+        SELECT max(abuse_score) AS abuse_score, bool_or(corroborated) AS corroborated
+        FROM intel.prefix_abuse
+        WHERE prefix = ? AND (? IS NULL OR asn = ?)
+    """, [infra["prefix"], infra.get("asn"), infra.get("asn")]) or {}
+    observed = row.get("abuse_score") is not None or bool(row.get("corroborated"))
+    return {
+        "range_abuse_checked": True,
+        "range_abuse_observed": observed,
+        "range_abuse_score": float(row["abuse_score"]) if row.get("abuse_score") is not None else None,
+        "range_abuse_corroborated": bool(row.get("corroborated")),
+    }
+
+
 def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] = None) -> dict:
     rec = rec or {}
     d = domain.strip().lower()
@@ -287,6 +306,8 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
         "asn": f.get("asn"), "isp": f.get("isp"), "isp_country": f.get("isp_country"),
         "asn_risk_level": f.get("asn_risk_level"), "prefix": f.get("prefix"),
     } if f else None
+    if out["infra"] and out["infra"].get("prefix"):
+        out["infra"].update(_safe("range_abuse", lambda: _range_abuse(con, out["infra"]), {}))
 
     # --- Threat decomposition / liveness ---
     # Deliberately NOT queried for the health report. The scenario/weaponization/
@@ -537,6 +558,9 @@ def to_view_models(rec: dict, bundle: dict) -> dict:
         ann_in["isp_country"] = infra.get("isp_country")
         ann_in["prefix"] = infra.get("prefix")
         ann_in.setdefault("asn_risk_level", infra.get("asn_risk_level"))
+        for k in ("range_abuse_checked", "range_abuse_observed", "range_abuse_score", "range_abuse_corroborated"):
+            if infra.get(k) is not None:
+                ann_in[k] = infra[k]
         # `platform_signals` was declared on the contract, consumed by
         # healthreport/renderer.py and freereport/compose.py, and PRODUCED BY NOTHING —
         # `_labels_fallback` reproduces v_annotated per-domain but never reproduced

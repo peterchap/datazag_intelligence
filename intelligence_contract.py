@@ -449,6 +449,13 @@ class Annotation(_Base):
     prefix: Optional[str] = None
     # risk labels
     asn_risk_level: Optional[str] = None
+    # Abuse recorded on the hosting RANGE (intel.prefix_abuse), the basis IP to ASN
+    # uses for large shared networks. range_abuse_checked=False means the lookup did
+    # not run; checked with observed=False means it ran and found no abuse record.
+    range_abuse_checked: bool = False
+    range_abuse_observed: bool = False
+    range_abuse_score: Optional[float] = None
+    range_abuse_corroborated: bool = False
     tld_risk_level: Optional[str] = None
     is_parked: bool = False
     # trust labels
