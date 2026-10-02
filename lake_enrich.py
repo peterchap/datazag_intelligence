@@ -288,6 +288,11 @@ def enrich(domain: str, rec: dict | None = None, platforms: Optional[list[str]] 
     con = enricher.con
     out: dict[str, Any] = {}
     if con is None:
+        # Never silent: with no lake connection every section below is skipped, and the
+        # report falls back to 'not assessed' for hosting reputation, labels and more.
+        # (2026-10-02: the datazag.com report lost its range-abuse check this way, unlogged.)
+        print(f"  lake: no connection for {d} - labels, hosting facts and range abuse skipped "
+              f"(LakeEnricher.con is None; check DNSPROJECT_PATH, MASTER_FLIGHT_URL and the R2/catalog env)")
         return out
 
     # --- Labels / fronting (parameterized over base ref/gold tables) ---
