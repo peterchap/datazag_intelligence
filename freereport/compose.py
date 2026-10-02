@@ -18,6 +18,7 @@ House style enforced here:
 from __future__ import annotations
 import re
 
+import ipaddress
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -185,6 +186,35 @@ def _range_reputation(ann, prefix) -> dict:
     return {"b": "ok", "html": f"Abuse on this range{rng} is below the watch level in the Datazag corpus"}
 
 
+def _live_ip(vm) -> Optional[str]:
+    a = list(getattr(vm.dns_records, "a", None) or [])
+    return str(a[0]).strip() if a else None
+
+
+def _in_prefix(ip: Optional[str], prefix: Optional[str]) -> bool:
+    try:
+        return bool(ip and prefix) and ipaddress.ip_address(ip) in ipaddress.ip_network(prefix, strict=False)
+    except ValueError:
+        return False
+
+
+def _network_facts(vm) -> tuple:
+    """(asn, prefix, country) for the address the domain resolves to NOW.
+
+    The lake annotation is looked up from the live IP, so it wins. The corpus facts
+    (vm.trust, from the intelligence service) are used only when their prefix contains
+    the live IP; otherwise they describe where the domain used to be hosted."""
+    ann, tr = vm.annotation, vm.trust
+    ip = _live_ip(vm)
+    if ann.prefix and (not ip or _in_prefix(ip, ann.prefix)):
+        return ann.asn or tr.asn, ann.prefix, ann.isp_country or tr.isp_country
+    if tr.prefix and (not ip or _in_prefix(ip, tr.prefix)):
+        return tr.asn or ann.asn, tr.prefix, tr.isp_country or ann.isp_country
+    if not ip:
+        return tr.asn or ann.asn, None, tr.isp_country or ann.isp_country
+    return None, None, None
+
+
 def has_locks(vm) -> bool:
     status = _status_compact(vm.registration.status)
     return any(tok in status for tok in _LOCK_TOKENS)
@@ -251,9 +281,11 @@ def _external_state(vm) -> tuple[str, str, str]:
     if not _lookup_ok(vm):
         return ("warn", "Not checked",
                 "Impersonation data could not be retrieved for this report, so it makes no claim either way.")
-    if exact_count_30d(vm) > 0:
-        return ("warn", "Elevated",
-                "Impersonation activity against your platform stack was observed in the last 30 days.")
+    n = exact_count_30d(vm)
+    if n > 0:
+        return ("warn", "Active",
+                f"{n:,} new domains impersonated {top_platform(vm)} in the last 30 days. "
+                f"Campaigns like these target every organization on {top_platform(vm)}, including yours.")
     return ("ok", "Low",
             "No confirmed impersonation against your platform stack in the last 30 days.")
 
@@ -411,11 +443,14 @@ def observed_event_line(vm) -> str:
         return ("In the last 30 days we observed <b>no confirmed impersonation</b> against your "
                 "platform stack. The economics above still apply — the absence of an observed "
                 "event is not the absence of risk — so the primer stands regardless.")
-    cert = "one certificate was" if n == 1 else f"{n} certificates were"
-    return (f"In the last 30 days, {cert} issued for domains impersonating a {plat} login page on an "
-            "exact match to your environment — instances of the machine above, pointed at your stack. "
-            "The domain, certificate serial and issuance time are verifiable. Lower-confidence "
-            "typosquat candidates are tracked separately and excluded from this figure.")
+    # Platform-wide, not domain-specific (2026-10-02). The old wording ("on an exact match to
+    # your environment... pointed at your stack") presented the internet-wide Microsoft count
+    # as if it were aimed at this customer.
+    doms = "one new domain" if n == 1 else f"{n:,} new domains"
+    return (f"In the last 30 days, {doms} impersonated {plat} sign-in pages, each seen when it "
+            "obtained a certificate. Campaigns like these target every organization that uses "
+            f"{plat}, including yours. This is a platform-wide figure, not a count of attacks on "
+            "your domain. Lower-confidence typosquat candidates are counted separately.")
 
 
 # ---------------------------------------------------------------------------
@@ -440,7 +475,7 @@ def surfaces(vm, now: datetime) -> list[dict]:
     if not _lookup_ok(vm):
         comm.append({"b": "na", "html": "Platform impersonation not checked in this run"})
     elif n > 0:
-        comm.append({"b": "warn", "html": f"{n} confirmed {top_platform(vm)} impersonation (30d)"})
+        comm.append({"b": "warn", "html": f"{n:,} new {top_platform(vm)} impersonation domains (30d, platform-wide)"})
     else:
         comm.append({"b": "ok", "html": "No confirmed platform impersonation (30d)"})
     if h.spf_record and h.spf_record.strip().endswith("~all"):
@@ -480,15 +515,15 @@ def surfaces(vm, now: datetime) -> list[dict]:
 
     # -- Surface 03: Hosting & network --
     host: list[dict] = []
-    asn = vm.trust.asn or ann.asn
+    asn, prefix, loc = _network_facts(vm)
     hp = ann.hosting_provider or (
         f"{ann.asn_name} network (AS{asn})" if getattr(ann, "asn_name", None) and asn else None)
     host.append({"b": "ok" if hp else "na", "html": f"<b style='color:var(--ink)'>Hosting:</b>&nbsp;"
                  + (hp or "not determined")})
-    prefix = vm.trust.prefix or ann.prefix
-    net = (f"AS{asn}" + (f" · <code>{prefix}</code>" if prefix else "")) if asn else "not determined"
+    live_ip = _live_ip(vm)
+    net = ((f"AS{asn}" + (f" · <code>{prefix}</code>" if prefix else "")) if asn
+           else (f"not determined for <code>{live_ip}</code>" if live_ip else "not determined"))
     host.append({"b": "ok" if asn else "na", "html": f"<b style='color:var(--ink)'>Network:</b>&nbsp;{net}"})
-    loc = vm.trust.isp_country or ann.isp_country
     host.append({"b": "ok" if loc else "na", "html": "<b style='color:var(--ink)'>Location:</b>&nbsp;"
                  + (loc or "not determined")})
     mail = mailbox_provider(vm)[0]
@@ -500,6 +535,10 @@ def surfaces(vm, now: datetime) -> list[dict]:
     # threat score for the hosting IP — and when that was never measured, absence is
     # reported as absence rather than as "clean".
     ip_threat = vm.threat.ip_direct_threat_score
+    # The corpus score describes the corpus record's address. When that is not where the
+    # domain resolves now, it says nothing about the current host.
+    if live_ip and vm.trust.prefix and not _in_prefix(live_ip, vm.trust.prefix):
+        ip_threat = None
     if ip_threat is None:
         host.append(_range_reputation(ann, prefix))
     elif ip_threat < 0.3:
