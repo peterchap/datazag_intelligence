@@ -112,11 +112,13 @@ def test_cover_headline_never_leads_with_a_feed():
 
 
 def test_the_source_tree_keeps_no_feed_lookups():
-    """Belt and braces: a reader of the code should not find a live lookup either."""
+    """Belt and braces: a reader of the code should not find a live lookup either.
+    `.claude/` holds agent worktrees (stale copies of the repo), not the source."""
     offenders = []
     for root, dirs, files in os.walk(_ROOT):
         dirs[:] = [d for d in dirs if d not in
-                   {".git", "node_modules", "__pycache__", "tests", "dzintelligence_env"}]
+                   {".git", ".claude", "node_modules", "__pycache__", "tests",
+                    "dzintelligence_env", "venv"}]
         for fn in files:
             if not fn.endswith(".py"):
                 continue
