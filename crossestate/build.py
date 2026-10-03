@@ -32,7 +32,7 @@ from crossestate.contract import (
 )
 from crossestate.discovery import DiscoveryProvider, default_discovery, to_completeness
 from crossestate.exceptions import derive_estate_exceptions
-from crossestate.manifest import ManifestEntry, load_contract, load_manifest
+from crossestate.manifest import ManifestEntry, load_contract, load_manifest, load_manifest_owner
 from crossestate.segments import resolve_segments
 from healthreport.grade import score_to_grade
 from intelligence_contract import ReportViewModel
@@ -48,7 +48,8 @@ def build_estate_from_manifest(
     """Convenience wrapper: parse the manifest file, then build."""
     group, entries = load_manifest(manifest_path)
     return build_estate_view_model(group, entries, thresholds=thresholds,
-                                   discovery=discovery, now=now, tls_probe=tls_probe)
+                                   discovery=discovery, now=now, tls_probe=tls_probe,
+                                   owner=load_manifest_owner(manifest_path))
 
 
 def build_estate_view_model(
@@ -58,8 +59,13 @@ def build_estate_view_model(
     discovery: Optional[DiscoveryProvider] = None,
     now: Optional[datetime] = None,
     tls_probe=None,
+    owner: Optional[dict] = None,
 ) -> EstateViewModel:
-    """`tls_probe` (crossestate.tls_probe.probe_hosts, or None) confirms certificate
+    """`owner` ({name, domain}) is the sponsor: entries with role "owner" are loaded
+    but split off before any analytic runs, so they can never enter a grade,
+    distribution, concentration, calendar or exposure figure.
+
+    `tls_probe` (crossestate.tls_probe.probe_hosts, or None) confirms certificate
     calendar rows against the live served cert. None keeps the build pure."""
     thresholds = thresholds or EstateThresholds()
     discovery = discovery or default_discovery()
@@ -92,7 +98,13 @@ def build_estate_view_model(
             segment_source=a.source, segment_disagreement=a.disagreement,
             vm=vm, contract_path=e.contract_path,
             load_error=load_error,
+            entity=e.entity, role=e.role, primary=e.primary,
         ))
+
+    # ── The owner is not part of its own estate ──────────────────────────
+    owner_refs = [r for r in refs if r.is_owner]
+    refs = [r for r in refs if not r.is_owner]
+    n_estate = len(refs)
 
     # ── Analytics (deterministic aggregations) ───────────────────────────
     concentration = compute_concentration(refs, thresholds)
@@ -124,9 +136,9 @@ def build_estate_view_model(
         group=group,
         generated_at=now.isoformat(),
         thresholds=thresholds,
-        domain_count=len(entries),
+        domain_count=n_estate,
         assessed_count=len(assessed),
-        declared_n=len(entries),
+        declared_n=n_estate,
         estate_score=estate_score,
         estate_grade=estate_grade,
         grade_distribution=variance.grade_distribution,
@@ -138,6 +150,8 @@ def build_estate_view_model(
         calendar=calendar,
         completeness=completeness,
         exceptions=[],
+        owner=owner,
+        owner_refs=owner_refs,
     )
     estate.exceptions = derive_estate_exceptions(estate)
     return estate

@@ -1,0 +1,18 @@
+owner:
+  name: Osney Capital
+  domain: osneycapital.com
+entities:
+  - { name: Aisy, domain: aisy.ai }
+  - { name: Aviel, domain: aviel.tech }
+  - { name: ESProfiler, domain: esprofiler.com }
+  - { name: Huntbase, domain: huntbase.io }
+  - { name: Mindgard, domain: mindgard.ai }
+  - { name: OnSecurity, domain: onsecurity.io }
+  - { name: Ossprey, domain: ossprey.com }
+  - { name: Overmind, domain: overmindlab.ai }
+  - { name: Ploy, domain: ploy.io }
+  - { name: Refute, domain: refute.com }
+  - { name: RevEng.AI, domain: reveng.ai }
+  - { name: Sitehop, domain: sitehop.com }
+  - { name: Strand Intelligence, domain: strandintelligence.com }
+# seedata.io excluded: no A record

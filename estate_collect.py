@@ -15,6 +15,10 @@ because `spf_strict` defaults False when absent and reads as a passing control.
 An absent field must never be scored as a finding.
 
 Usage:
+    # estate spec: owner + entities (crossestate/estate_spec.py). The owner is
+    # collected too, and kept out of every estate aggregate.
+    python estate_collect.py --estate fixtures/osney/estate.yaml --out estates/osney --local
+
     # domains.csv:  domain,segment   (segment optional — crossestate infers gaps)
     python estate_collect.py --domains estates/x/domains.csv --out estates/x --local
 
@@ -145,9 +149,42 @@ async def collect_one(client, domain: str, contracts_dir: Path, resume: bool,
             "score": getattr(vm, "composite_score", None)}
 
 
-async def run(domains_path: str, group: str, out_dir: str, concurrency: int,
+def is_estate_spec(path: str) -> bool:
+    return Path(path).suffix.lower() in (".yaml", ".yml")
+
+
+def manifest_doc(group: str, rows: list[dict], statuses: dict[str, str],
+                 owner: dict | None = None) -> dict:
+    """The manifest JSON: one row per domain that collected (ok/skipped), carrying
+    whatever estate-spec fields the row has (entity/role/primary), plus the owner
+    block. A failed domain is left out and recorded in collect_report.json."""
+    keep = []
+    for row in rows:
+        if statuses.get(row["domain"]) not in ("ok", "skipped"):
+            continue
+        e = {k: v for k, v in row.items() if v is not None}
+        e.setdefault("contract_path", f"contracts/{row['domain']}.json")
+        keep.append(e)                 # no segment key -> crossestate infers it
+    doc = {"group": group, "domains": keep}
+    if owner:
+        doc["owner"] = owner
+    return doc
+
+
+async def run(domains_path: str, group: str | None, out_dir: str, concurrency: int,
               resume: bool, local: bool, live: bool, certs: bool) -> dict:
-    pairs = load_domain_list(domains_path)
+    owner = None
+    if is_estate_spec(domains_path):
+        from crossestate.estate_spec import load_estate_spec
+        spec = load_estate_spec(domains_path)
+        rows = spec.manifest_rows()
+        owner = spec.owner_block()
+        group = group or spec.group_name
+        pairs = [(r["domain"], None) for r in rows]
+    else:
+        pairs = load_domain_list(domains_path)
+        rows = [{"domain": d, "segment": seg} for d, seg in pairs]
+    group = group or Path(out_dir).name
     if not pairs:
         raise SystemExit(f"no domains found in {domains_path}")
 
@@ -215,19 +252,10 @@ async def run(domains_path: str, group: str, out_dir: str, concurrency: int,
 
     results = await asyncio.gather(*(guarded(d) for d, _ in pairs))
 
-    by_domain = {r["domain"]: r for r in results}
-    entries = [
-        {"domain": d, "segment": seg, "contract_path": f"contracts/{d}.json"}
-        for d, seg in pairs
-        if by_domain[d]["status"] in ("ok", "skipped")
-    ]
-    for e in entries:
-        if e["segment"] is None:
-            del e["segment"]        # let crossestate infer rather than tag it null
-
+    doc = manifest_doc(group, rows, {r["domain"]: r["status"] for r in results}, owner)
+    entries = doc["domains"]
     manifest = out / "manifest.json"
-    manifest.write_text(
-        json.dumps({"group": group, "domains": entries}, indent=2), encoding="utf-8")
+    manifest.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     (out / "collect_report.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
 
     counts: dict[str, int] = {}
@@ -239,8 +267,11 @@ async def run(domains_path: str, group: str, out_dir: str, concurrency: int,
 
 def main():
     ap = argparse.ArgumentParser(description="Collect real-domain contracts + estate manifest")
-    ap.add_argument("--domains", required=True, help="CSV (domain,segment) or plain domain list")
-    ap.add_argument("--group", help="Estate/group name (default: --out directory name)")
+    ap.add_argument("--domains", "--estate", dest="domains", required=True,
+                    help="Estate spec (.yaml: owner + entities) or a CSV (domain,segment) / "
+                         "plain domain list")
+    ap.add_argument("--group", help="Estate/group name (default: the spec's owner name, "
+                                    "else the --out directory name)")
     ap.add_argument("--out", required=True, help="Output directory for manifest.json + contracts/")
     ap.add_argument("--concurrency", type=int, default=3,
                     help="Parallel domains (default 3 — each does a live DNS scan "
@@ -256,8 +287,7 @@ def main():
                          "--no-certs skips it.")
     args = ap.parse_args()
 
-    group = args.group or Path(args.out).name
-    asyncio.run(run(args.domains, group, args.out, args.concurrency,
+    asyncio.run(run(args.domains, args.group, args.out, args.concurrency,
                     args.resume, args.local, args.live, args.certs))
 
 

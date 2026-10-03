@@ -7,3 +7,4 @@ playwright>=1.40.0
 psycopg2-binary>=2.9.0
 duckdb>=1.0.0            # tailored discovery index (crossestate/corpus_index.py)
 pyarrow>=14.0.0          # observatory.py parquet reads (duckdb is the preferred reader)
+PyYAML>=6.0              # estate specs (crossestate/estate_spec.py) and report lenses

@@ -46,6 +46,11 @@ class ManifestEntry(BaseModel):
     contract_path: str
     limit: Optional[str] = None              # reserved for the insurer instance (limit-weighting)
     metadata: dict = Field(default_factory=dict)
+    # Estate-spec fields (crossestate/estate_spec.py). A plain manifest leaves them
+    # at their defaults: every domain is its own portfolio entity.
+    entity: Optional[str] = None             # the entity this domain belongs to
+    role: str = "portfolio"                  # owner | portfolio | insured | client
+    primary: bool = True                     # the entity's primary (website) domain
 
 
 def load_manifest(path: str) -> tuple[str, list[ManifestEntry]]:
@@ -66,6 +71,16 @@ def load_manifest(path: str) -> tuple[str, list[ManifestEntry]]:
             e = e.model_copy(update={"contract_path": os.path.normpath(os.path.join(base, e.contract_path))})
         entries.append(e)
     return group, entries
+
+
+def load_manifest_owner(path: str) -> Optional[dict]:
+    """The manifest's `owner` block ({name, domain}), or None. CSV manifests have none."""
+    if os.path.splitext(path)[1].lower() == ".csv":
+        return None
+    with open(path, "r", encoding="utf-8") as fh:
+        doc = json.load(fh)
+    owner = doc.get("owner")
+    return owner if isinstance(owner, dict) and owner.get("domain") else None
 
 
 def _load_json(path: str) -> tuple[str, list[dict]]:

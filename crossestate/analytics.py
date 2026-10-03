@@ -40,7 +40,10 @@ _GRADE_INDEX = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4, "F": 5}
 
 
 def _assessed(refs: Iterable[DomainRef]) -> list[DomainRef]:
-    return [r for r in refs if getattr(r.vm, "has_intelligence", False) and not r.load_error]
+    # The owner is never part of the estate it sponsors (build.py already splits it
+    # off; this keeps any direct caller honest too).
+    return [r for r in refs if getattr(r.vm, "has_intelligence", False) and not r.load_error
+            and getattr(r, "role", "portfolio") != "owner"]
 
 
 def _grade_index(letter: str) -> Optional[int]:

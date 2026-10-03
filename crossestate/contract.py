@@ -275,8 +275,19 @@ class DomainRef(BaseModel):
     vm: ReportViewModel
     contract_path: Optional[str] = None
     load_error: Optional[str] = None     # non-fatal load failure; counted, not assessed
+    entity: Optional[str] = None         # entity name (estate spec); None = the domain itself
+    role: str = "portfolio"              # owner | portfolio | insured | client
+    primary: bool = True                 # the entity's primary (website) domain
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @property
+    def is_owner(self) -> bool:
+        return self.role == "owner"
+
+    @property
+    def entity_name(self) -> str:
+        return self.entity or self.domain
 
 
 class Segment(BaseModel):
@@ -312,5 +323,10 @@ class EstateViewModel(BaseModel):
     calendar: CalendarBlock = Field(default_factory=CalendarBlock)
     completeness: CompletenessBlock = Field(default_factory=CompletenessBlock)
     exceptions: list[EstateException] = Field(default_factory=list)
+
+    # The sponsor (estate spec `owner`). Its domains are loaded and graded but are NOT
+    # in `segments` or any aggregate above: they are rendered on their own page.
+    owner: Optional[dict] = None                     # {name, domain}
+    owner_refs: list[DomainRef] = Field(default_factory=list)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
