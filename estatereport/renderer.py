@@ -293,11 +293,12 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 .cw .cw-pct{flex:0 0 88px;text-align:right;font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--ink)}
 .cw .cw-pct .of{display:block;font-size:8.5px;font-weight:500;color:var(--ink-4)}
 .scale{display:flex;align-items:stretch;gap:0;border:1px solid var(--bad-line);border-radius:12px;overflow:hidden;margin-bottom:16px}
-.scale .sbig{background:linear-gradient(135deg,#2A0E0E,#3D1414);color:#fff;padding:22px 26px;flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;min-width:215px}
+.scale .sbig{background:linear-gradient(135deg,#2A0E0E,#3D1414);color:#fff;padding:22px 26px;flex:0 0 46%;max-width:46%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;min-width:215px}
 .scale .sbig .snum{font-size:44px;font-weight:900;letter-spacing:-.04em;line-height:.9;color:#FF9A9A}
 .scale .sbig .slab{font-size:11px;color:var(--w2);margin-top:8px;line-height:1.4}
 .scale .sbig .sprov{font-size:9px;color:var(--w3);margin-top:9px;font-family:'JetBrains Mono',monospace;letter-spacing:.01em;border-top:1px solid var(--rd);padding-top:8px}
-.scale .stext{padding:20px 24px;background:var(--bad-wash);font-size:12.5px;line-height:1.6;color:#7A1212;display:flex;align-items:center}
+.scale .stext{padding:20px 24px;background:var(--bad-wash);font-size:12.5px;line-height:1.6;color:#7A1212;display:flex;align-items:center;flex:1 1 auto;min-width:0}
+.scale .stext > div{display:block}
 .scale .stext b{font-weight:700}
 .imp-table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10.5px}
 .imp-table th{text-align:left;font-size:8.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);padding:6px 9px;border-bottom:1.5px solid var(--rule)}
@@ -490,10 +491,10 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
     <div class="scale" style="margin-top:16px">
     {% if ex.total_30d is not none %}
       <div class="sbig"><div class="snum">{{ "{:,}".format(ex.total_30d) }}</div><div class="slab">new lookalike domains of the estate's platforms (30d, internet-wide)</div><div class="sprov">Exact certificate matches. Excludes names under registry-level wildcard DNS.</div></div>
-      <div class="stext">{% if ex.top_platform %}These imitate the platforms, not this estate: every organisation using them sees the same count. Most imitate <b>{{ ex.top_platform }}</b> ({{ (ex.top_share*100)|round|int }}% of the total).{% if ex.unchecked_domains %} {{ ex.unchecked_domains|length }} domain(s) could not be checked, so this is a floor.{% endif %}{% elif ex.unchecked_domains %}<b>Not checked</b> — the impersonation lookup was unreachable for {{ ex.unchecked_domains|length }} of the estate's domains and no other domain matched. Not an all-clear.{% else %}No exact-match lookalikes of the estate's platforms in the last 30 days.{% endif %}</div>
+      <div class="stext"><div>{% if ex.top_platform %}These imitate the platforms, not this estate: every organisation using them sees the same count. Most imitate <b>{{ ex.top_platform }}</b> ({{ (ex.top_share*100)|round|int }}% of the total).{% if ex.unchecked_domains %} {{ ex.unchecked_domains|length }} domain(s) could not be checked, so this is a floor.{% endif %}{% elif ex.unchecked_domains %}<b>Not checked</b> — the impersonation lookup was unreachable for {{ ex.unchecked_domains|length }} of the estate's domains and no other domain matched. Not an all-clear.{% else %}No exact-match lookalikes of the estate's platforms in the last 30 days.{% endif %}</div></div>
     {% else %}
       <div class="sbig"><div class="snum">—</div><div class="slab">platform lookalike count not shown for this run</div></div>
-      <div class="stext">The lookalike source for this run could not be confirmed to exclude names under registry-level wildcard DNS, so no count is shown rather than an inflated one.</div>
+      <div class="stext"><div>The lookalike source for this run could not be confirmed to exclude names under registry-level wildcard DNS, so no count is shown rather than an inflated one.</div></div>
     {% endif %}
     </div>
     {% if ex.platforms %}
