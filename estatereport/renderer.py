@@ -48,7 +48,7 @@ class EstateReportRenderer:
         A(f"Estate grade **{r.grade.grade}** ({r.grade.score:.0f}/100).\n")
         for c in r.concentration:
             sev = f" [{c.severity.upper()}]" if c.severity else ""
-            A(f"- {c.label}: **{c.provider}** {round(c.share_post_discovery*100)}% "
+            A(f"- {c.label}: **{c.provider}** {c.share_label} "
               f"({c.resilience_tier}, exit {c.exit_friction}){sev} — {c.recommendation}")
         A("\n### Variance")
         for v in r.variance:
@@ -56,7 +56,7 @@ class EstateReportRenderer:
               + (f" · OUTLIER (−{v.bands_below_baseline} bands)" if v.outlier else ""))
         A("\n## Correlated weakness & active exposure\n")
         for c in r.correlated:
-            A(f"- {c.label}: {c.affected}/{c.estate_size} ({round(c.pct*100)}%)"
+            A(f"- {c.label}: {c.share_label}"
               + (f" — clustered in {', '.join(c.segments)}" if c.segment_isolated else ""))
         unchecked = len(r.exposure.unchecked_domains)
         A(f"\n**Platform exposure:** {r.exposure.total_exact:,} new lookalikes of the estate's platforms, internet-wide "
@@ -255,6 +255,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 .conc-row .cbar{flex:1;height:15px;background:var(--tint-2);border-radius:4px;overflow:hidden;position:relative}
 .conc-row .cfill{height:100%;border-radius:4px;background:var(--cyan-deep)}
 .conc-row .cpct{flex:0 0 66px;text-align:right;font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--ink)}
+.conc-row .cpct .of{display:block;font-size:8.5px;font-weight:500;color:var(--ink-4)}
 .conc-row .cpct .delta{display:block;font-size:8.5px;font-weight:500;color:var(--ink-4)}
 .conc-row .csev{flex:0 0 74px;text-align:right}
 .csev .ex-sev{font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:100px}
@@ -442,7 +443,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         <div class="ck">{{ c.label }}</div>
         <div class="cprov">{{ c.provider }}<span class="ct">{{ c.resilience_tier }}{% if not c.resilience_assessed %} · not assessed{% elif c.exit_friction == 'high' %} · high exit friction{% endif %}</span></div>
         <div class="cbar"><div class="cfill" style="width:{{ (c.share_post_discovery*100)|round|int }}%"></div></div>
-        <div class="cpct">{{ (c.share_post_discovery*100)|round|int }}%{% if c.share_pre_discovery is not none %}<span class="delta">was {{ (c.share_pre_discovery*100)|round|int }}%</span>{% endif %}</div>
+        <div class="cpct">{{ (c.share_post_discovery*100)|round|int }}%<span class="of">{{ c.n }} of {{ c.N }}</span>{% if c.share_pre_discovery is not none %}<span class="delta">was {{ (c.share_pre_discovery*100)|round|int }}%</span>{% endif %}</div>
         <div class="csev">{% if c.severity %}<span class="ex-sev {{ c.severity }}">{{ c.severity }}</span>{% else %}<span class="none">—</span>{% endif %}</div>
       </div>
     {% endfor %}
@@ -471,7 +472,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
       <div class="cw"><div class="cw-main"><div class="cw-t">{{ c.label }}</div>
         <div class="cw-seg">{% if c.segment_isolated %}Clustered in <b>{{ c.segments|join(', ') }}</b> — one standard, isolated segments{% else %}Spread across the estate{% endif %}</div></div>
         <div class="cw-bar"><div class="cw-fill {{ 'hot' if c.hot else '' }}" style="width:{{ (c.pct*100)|round|int }}%"></div></div>
-        <div class="cw-pct">{{ (c.pct*100)|round|int }}%<span class="of">{{ c.affected }} / {{ c.estate_size }} domains</span></div></div>
+        <div class="cw-pct">{{ (c.pct*100)|round|int }}%<span class="of">{{ c.affected }} of {{ c.estate_size }} domains</span></div></div>
     {% endfor %}
     <div class="scale" style="margin-top:16px">
       <div class="sbig"><div class="snum">{{ "{:,}".format(r.exposure.total_exact) }}</div><div class="slab">new lookalike domains impersonating the estate's platforms (30d, internet-wide)</div><div class="sprov">{{ r.exposure.provenance }}</div></div>

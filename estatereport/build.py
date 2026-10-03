@@ -17,7 +17,7 @@ from typing import Optional
 from crossestate.build import build_estate_from_manifest, build_estate_view_model
 from crossestate.contract import EstateThresholds
 from estatereport import transform
-from estatereport.contract import EstateReport
+from estatereport.contract import EstateReport, share_text
 from estatereport.discovery import DiscoveryProvider, default_discovery, to_estate_discovery
 from estatereport.exceptions2 import build_exceptions
 from estatereport.remediation import build_remediation
@@ -92,8 +92,10 @@ def _synthesis(mvp, disc, grade, exp) -> str:
     tail = f" The estate grades <b>{grade.grade}</b> ({grade.score:.0f}/100)."
     flagged = [c for c in mvp.concentration if c.flagged]
     if flagged:
-        tail += (f" It is single-threaded on <b>{flagged[0].top_provider}</b> for "
-                 f"{flagged[0].label.lower()} ({_pct(flagged[0].top_pct)}).")
+        f0 = flagged[0]
+        n0 = f0.shares[0].count if f0.shares else 0
+        tail += (f" It is single-threaded on <b>{f0.top_provider}</b> for "
+                 f"{f0.label.lower()} ({share_text(n0, f0.denom)}).")
     if exp.total_exact:
         tail += (f" {exp.total_exact:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide): they target every organization on those "
                  "platforms, not this estate specifically.")
@@ -124,7 +126,7 @@ def _lens(mvp, conc, var, exp) -> str:
     flagged = [c for c in conc if c.severity]
     if flagged:
         c = flagged[0]
-        parts.append(f"accumulation risk on <b>{c.provider}</b> ({_pct(c.share_post_discovery)} of "
+        parts.append(f"accumulation risk on <b>{c.provider}</b> ({c.share_label} of "
                      f"{c.label.lower()}, {c.resilience_tier})")
     outliers = [v for v in var if v.outlier]
     if outliers:

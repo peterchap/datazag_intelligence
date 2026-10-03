@@ -214,6 +214,28 @@ def test_cover_lapses_kpi_equals_distinct_hosts():
     assert lapses["state"] == str(len(hosts)) == "2"
 
 
+# ── #7 every share shows its denominator ────────────────────────────────────
+
+def test_concentration_rows_carry_n_and_N_matching_the_share():
+    rep, _, _ = _rendered()
+    assert rep.concentration
+    for c in rep.concentration:
+        assert c.N > 0 and 0 < c.n <= c.N
+        assert abs(c.n / c.N - c.share_post_discovery) < 1e-9
+
+
+def test_every_rendered_share_shows_n_of_N():
+    rep, html, md = _rendered()
+    blocks = re.findall(r'<div class="(?:cpct|cw-pct)">(.*?)</div>', html, re.S)
+    assert len(blocks) == len(rep.concentration) + len(rep.correlated)
+    for b in blocks:
+        assert re.search(r"\d+%", b) and re.search(r"\b\d+ of \d+\b", b), b
+    share_lines = [ln for ln in md.splitlines() if ln.startswith("- ") and "%" in ln]
+    assert share_lines
+    for ln in share_lines:
+        assert re.search(r"\d+% \(\d+ of \d+\)", ln), ln
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))

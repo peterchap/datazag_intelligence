@@ -41,9 +41,9 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
     for c in masked:
         ex.append(Exception_(
             rank=0, severity=c.severity or "elevated",
-            title=f"Apparent diversity, actual concentration: {c.provider} is {_pct(c.share_post_discovery)} "
+            title=f"Apparent diversity, actual concentration: {c.provider} is {c.share_label} "
                   f"of the estate's {c.label.lower()} underneath",
-            body_html=f"The estate appears diversified at MX level but is {_pct(c.share_post_discovery)} "
+            body_html=f"The estate appears diversified at MX level but is {c.share_label} "
                       f"{c.provider} underneath — only visible with vanity-MX resolution.",
             evidence_line=f"{c.dimension}={c.provider} {_pct(c.share_post_discovery)} · surface_diversity_masking = true",
         ))
@@ -53,7 +53,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
     if conc:
         conc.sort(key=lambda c: _SEV_RANK[c.severity])
         worst = conc[0].severity
-        listed = ", ".join(f"{c.provider} {_pct(c.share_post_discovery)} ({c.label.lower()})" for c in conc[:4])
+        listed = ", ".join(f"{c.provider} {c.share_label} ({c.label.lower()})" for c in conc[:4])
         ev = " · ".join(f"{c.dimension}={c.provider} {_pct(c.share_post_discovery)} "
                         f"[{c.resilience_tier}{'/high-exit' if c.exit_friction == 'high' else ''}]"
                         for c in conc[:4])
@@ -69,7 +69,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
     cw = report.correlated
     if cw:
         worst = "high" if any(c.hot and c.pct >= 0.5 for c in cw) else "elevated"
-        top = ", ".join(f"{c.label} ({_pct(c.pct)})" for c in cw[:3])
+        top = ", ".join(f"{c.label} ({c.share_label})" for c in cw[:3])
         ex.append(Exception_(
             rank=0, severity=worst,
             title="Systemic misconfiguration repeats across the estate — fix as a standard",

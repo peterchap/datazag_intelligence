@@ -47,6 +47,7 @@ def concentration(mvp) -> list[Concentration]:
         out.append(Concentration(
             dimension=dim.dimension, label=dim.label, provider=dim.top_provider,
             share_post_discovery=share, share_pre_discovery=None,   # discovery disabled → no delta
+            n=(dim.shares[0].count if dim.shares else 0), N=dim.denom,
             known_count=dim.denom,
             resilience_tier=res.tier, exit_friction=res.exit_friction,
             resilience_assessed=res.assessed,

@@ -63,6 +63,12 @@ class EstateGrade(_Base):
     distribution: dict[str, int] = Field(default_factory=dict)   # grade → count
 
 
+def share_text(n: int, N: int) -> str:
+    """A share always travels with its denominator: "55% (6 of 11)"."""
+    pct = round(n / N * 100) if N else 0
+    return f"{pct}% ({n} of {N})"
+
+
 # ── Concentration (§4/§4a) ───────────────────────────────────────────────────
 
 class Concentration(_Base):
@@ -71,6 +77,11 @@ class Concentration(_Base):
     provider: str
     share_post_discovery: float
     share_pre_discovery: Optional[float] = None   # None when discovery didn't run
+    # The share's own denominator, carried so it is never rendered without it:
+    # n = domains on the top provider, N = domains with a known value for this
+    # dimension (dimensions differ: registrar may be known on 9, mailbox on 11).
+    n: int = 0
+    N: int = 0
     known_count: int = 0
     # resilience join (§4a)
     resilience_tier: str = "commodity"
@@ -80,6 +91,10 @@ class Concentration(_Base):
     recommendation: str = ""
     surface_diversity_masking: bool = False
     bar_class: str = ""                            # "" | warm | hot — colour lives on the pill, bar mostly neutral
+
+    @property
+    def share_label(self) -> str:
+        return share_text(self.n, self.N)
 
 
 # ── Variance (§4 SegmentVariance) ────────────────────────────────────────────
@@ -103,6 +118,10 @@ class CorrelatedWeakness(_Base):
     segments: list[str] = Field(default_factory=list)
     segment_isolated: bool = False     # clean elsewhere → "one standard, two segments"
     hot: bool = False                  # red bar (high-severity control), else warn
+
+    @property
+    def share_label(self) -> str:
+        return share_text(self.affected, self.estate_size)
 
 
 # ── Active exposure (§4 / §2 page 4) ─────────────────────────────────────────
