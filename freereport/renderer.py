@@ -31,10 +31,16 @@ WATCH_URL = "https://www.datazag.com/alerts"
 
 
 class FreeReportRenderer:
-    def __init__(self, vm, generated_at: Optional[str] = None, now=None, brand: Any = None):
+    def __init__(self, vm, generated_at: Optional[str] = None, now=None, brand: Any = None,
+                 observatory=None):
+        """`observatory`: injected in tests; default is the live, process-cached load.
+        The corpus size is read from it and omitted when it is unavailable."""
+        import observatory as _obs
         self.vm = vm
         self.brand = brand
         self.ctx = compose_context(vm, generated_at=generated_at, now=now)
+        size = _obs.corpus_size(observatory if observatory is not None else _obs.load_cached())
+        self.ctx["corpus_label"] = size.label if size else None
 
     # ----- JSON / dict -----
     def to_dict(self) -> dict:
@@ -488,7 +494,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         <div class="seam-n">01</div>
         <div class="seam-t">
           <div class="seam-title">The domains you didn't know you owned</div>
-          <div class="seam-sub">Found in Datazag's 340M-domain corpus and certificate-transparency feed — not from a list you provide.</div>
+          <div class="seam-sub">Found in Datazag's {% if corpus_label %}{{ corpus_label }}-domain {% else %}domain {% endif %}corpus and certificate-transparency feed — not from a list you provide.</div>
         </div>
       </div>
       <div class="seam-body">

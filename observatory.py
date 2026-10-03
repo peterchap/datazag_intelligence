@@ -162,3 +162,42 @@ def load(path: Optional[str] = None) -> Observatory:
         if stats:
             return Observatory(stats, next(iter(stats.values())).as_of)
     return Observatory.unavailable()
+
+
+_CACHE: Optional[Observatory] = None
+
+
+def load_cached() -> Observatory:
+    """One load per process (a report run renders many pages and editions; the
+    corpus figures are the same for all of them). Never raises."""
+    global _CACHE
+    if _CACHE is None:
+        try:
+            _CACHE = load()
+        except Exception as e:  # noqa: BLE001 - optional context, never fatal
+            print(f"  observatory unavailable ({type(e).__name__}) — corpus figures omitted")
+            _CACHE = Observatory.unavailable()
+    return _CACHE
+
+
+@dataclass(frozen=True)
+class CorpusSize:
+    """How many domains Datazag measures, as published by the Observatory. Read
+    live: a hard-coded figure goes stale (the reports said 340M long after the
+    corpus passed it)."""
+    domains: int
+    label: str          # "364M"
+    as_of: str
+    denominator_label: str
+
+
+def corpus_size(obs: Optional[Observatory]) -> Optional[CorpusSize]:
+    """The `corpus_domains` statistic, or None when the Observatory is unavailable.
+    None means the sentence that quotes it is left out, never filled with a guess."""
+    s = obs.get("corpus_domains") if obs is not None and obs.available else None
+    if s is None or s.value <= 0:
+        return None
+    n = int(s.value)
+    label = f"{n / 1e9:.1f}B" if n >= 1_000_000_000 else f"{n // 1_000_000}M"
+    return CorpusSize(domains=n, label=label, as_of=s.as_of,
+                      denominator_label=s.denominator_label)

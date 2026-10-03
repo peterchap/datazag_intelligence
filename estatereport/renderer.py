@@ -518,14 +518,14 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
       <div class="seam-body"><p class="seam-lead">Every exact-match certificate for your platforms and brands, delivered to your SOC/SIEM within 5–10 seconds of issuance — the standing exposure on page 4, turned into live events.</p>
         <div class="seam-note"><b>Platform &amp; Brand Impersonation Watch</b> — webhook + takedown evidence pack (landing-page screenshot with the brand match highlighted).</div></div></div>
     <div class="seam"><div class="seam-h"><div class="seam-n">02</div><div class="seam-t"><div class="seam-title">Continuous discovery &amp; drift</div><div class="seam-sub">Estate change becomes its own alert stream.</div></div></div>
-      <div class="seam-body"><p class="seam-lead">Re-run across the {{ r.corpus_label }}-domain corpus on a cadence: new domains appearing in your estate, segments drifting below baseline, sleeper lookalikes activating — "3 new domains appeared in your estate this week; one is RED."</p>
+      <div class="seam-body"><p class="seam-lead">Re-run {% if r.corpus %}across the {{ r.corpus.label }}-domain corpus {% endif %}on a cadence: new domains appearing in your estate, segments drifting below baseline, sleeper lookalikes activating — "3 new domains appeared in your estate this week; one is RED."</p>
         <div class="seam-note"><b>Runs over time</b> turn this snapshot into a monitored posture with drift/delta alerts.</div></div></div>
     <div class="upgrade-cta"><div class="uc-text"><div class="uc-h">Move from snapshot to monitored estate.</div><div class="uc-b">Wire the feed and schedule continuous discovery — the estate you can't fully see, watched continuously.</div></div><a href=""" + '"' + UPGRADE_CONTACT_URL + '"' + r""" class="uc-btn">Talk to Datazag →</a></div>
     <div class="limits"><div class="lim-h">Scope &amp; limits of this assessment</div><div class="lim-grid">
       <div class="lim-item"><b>Grade scope.</b> Declared + strongly-associated domains. Possible-tier listed ungraded; defensive-tier never graded.</div>
       <div class="lim-item"><b>Externally observable only.</b> Public DNS + certificate transparency at a point in time. No endpoint, network-segmentation, IAM or patch posture.</div>
       <div class="lim-item"><b>Impersonation.</b> Exact-match only; lower-confidence candidates excluded from headline counts.</div>
-      <div class="lim-item"><b>Corpus.</b> {{ r.corpus_label }}-domain Datazag corpus + certificate-transparency feed.</div>
+      <div class="lim-item"><b>Corpus.</b> {% if r.corpus %}{{ r.corpus.label }}-domain Datazag corpus (as of {{ r.corpus.as_of[:10] }}){% else %}Datazag domain corpus{% endif %} + certificate-transparency feed.</div>
     </div></div>
     <div class="gloss-strip"><b>Key terms:</b> <span><b>Concentration</b> — share of the estate on one provider.</span> <span><b>Resilience tier</b> — how survivable that provider's failure is.</span> <span><b>Posture variance</b> — segments below the group baseline.</span> <span><b>Exact match</b> — a certificate impersonating your platform, not a fuzzy typosquat.</span></div>
   </div>

@@ -17,13 +17,14 @@ from crossestate.discovery import NullDiscoveryProvider  # noqa: E402
 from estatereport import resilience  # noqa: E402
 from estatereport.build import build_estate_report_from_manifest  # noqa: E402
 from estatereport.renderer import EstateReportRenderer  # noqa: E402
+from tests.estate_helpers import fixture_observatory  # noqa: E402
 
 MANIFEST = os.path.join(_ROOT, "tests", "fixtures", "estate", "manifest.json")
 NOW = datetime(2026, 7, 2, tzinfo=timezone.utc)
 
 
 def _report():
-    return build_estate_report_from_manifest(MANIFEST, now=NOW)
+    return build_estate_report_from_manifest(MANIFEST, now=NOW, observatory=fixture_observatory())
 
 
 # ── §4a resilience severity matrix ──────────────────────────────────────────
@@ -130,7 +131,8 @@ def test_now_strings_are_formatted_not_raw_field_names():
 # ── discovery structure (§3.1) ──────────────────────────────────────────────
 
 def test_four_tier_structure_renders_even_when_disabled():
-    r = build_estate_report_from_manifest(MANIFEST, discovery=NullDiscoveryProvider(), now=NOW)
+    r = build_estate_report_from_manifest(MANIFEST, discovery=NullDiscoveryProvider(), now=NOW,
+                                          observatory=fixture_observatory())
     d = r.discovery
     assert d.enabled is False
     for t in ("declared", "strong", "possible", "defensive"):
@@ -172,7 +174,7 @@ def test_render_six_core_plus_appendix_pages_and_verbatim_tokens():
     assert html.count('class="page') == 6 + r.appendix_pages
     assert "--cyan:#00C2FF" in html                        # shared design token verbatim
     assert "CROSS-ESTATE DOMAIN RISK REPORT" in html        # cover runner id
-    assert "340M-domain corpus" in html                     # single sourced corpus constant
+    assert "364M-domain corpus" in html                     # read live from the Observatory
     assert "resolved through vanity MX" in html             # vanity-MX methodology sentence
 
 

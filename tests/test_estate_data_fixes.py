@@ -64,7 +64,7 @@ def test_estate_headline_counts_declared_plus_strong_only():
 import re  # noqa: E402
 from datetime import datetime, timezone  # noqa: E402
 
-from tests.estate_helpers import ESTATE_MANIFEST  # noqa: E402
+from tests.estate_helpers import ESTATE_MANIFEST, fixture_observatory, no_observatory  # noqa: E402
 
 _NOW = datetime(2026, 7, 2, tzinfo=timezone.utc)
 
@@ -76,7 +76,8 @@ EMPTY_PLACEHOLDER = re.compile(
 def _rendered():
     from estatereport.build import build_estate_report_from_manifest
     from estatereport.renderer import EstateReportRenderer
-    rep = build_estate_report_from_manifest(ESTATE_MANIFEST, now=_NOW)
+    rep = build_estate_report_from_manifest(ESTATE_MANIFEST, now=_NOW,
+                                            observatory=fixture_observatory())
     r = EstateReportRenderer(rep)
     return rep, r.to_html(), r.to_markdown()
 
@@ -208,7 +209,7 @@ def test_cover_lapses_kpi_equals_distinct_hosts():
                 json.dump(r.vm.model_dump(mode="json"), fh)
             entries.append(ManifestEntry(domain=r.domain, segment="s", contract_path=p))
         mvp = build_estate_view_model("g", entries, now=_NOW)
-    rep = build_estate_report(mvp, now=_NOW)
+    rep = build_estate_report(mvp, now=_NOW, observatory=no_observatory())
     lapses = next(c for c in rep.dash if c["key"] == "Live lapses")
     hosts = {c.host for c in rep.calendar if c.due_class in ("overdue", "soon")}
     assert lapses["state"] == str(len(hosts)) == "2"
@@ -256,6 +257,53 @@ def test_variance_is_signed_and_above_baseline_renders_plus():
     assert by["ns:AWS"].bands_vs_baseline < 0
     assert by["ns:AWS"].vs_baseline_label.startswith("−")
     assert SegmentVariance(segment="s", domain_count=1, median_grade="B").vs_baseline_label == "baseline"
+
+
+# ── #9 corpus size is read live, never hard-coded ───────────────────────────
+
+def test_corpus_size_comes_from_the_observatory():
+    rep, html, _ = _rendered()
+    assert rep.corpus is not None and rep.corpus.domains == 364_175_633
+    assert "364M-domain corpus" in html and "340M" not in html
+
+
+def test_corpus_sentences_are_omitted_when_the_observatory_is_unreachable():
+    from estatereport.build import build_estate_report_from_manifest
+    from estatereport.renderer import EstateReportRenderer
+    rep = build_estate_report_from_manifest(ESTATE_MANIFEST, now=_NOW, observatory=no_observatory())
+    html = EstateReportRenderer(rep).to_html()
+    assert rep.corpus is None
+    assert "-domain corpus" not in html and "340M" not in html and "None" not in html
+
+
+def test_free_report_reads_the_corpus_size_live_too():
+    import json as _json
+    from freereport.renderer import FreeReportRenderer
+    from intelligence_contract import ReportViewModel
+    path = os.path.join(_ROOT, "tests", "fixtures", "free_qbeeurope.json")
+    with open(path, encoding="utf-8") as fh:
+        vm = ReportViewModel.model_validate(_json.load(fh))
+    live = FreeReportRenderer(vm, now=_NOW, observatory=fixture_observatory()).to_html()
+    off = FreeReportRenderer(vm, now=_NOW, observatory=no_observatory()).to_html()
+    assert "364M-domain corpus" in live
+    assert "340M" not in live + off and "Datazag's domain corpus" in off
+
+
+# Modules whose strings reach a reader (templates and composed copy).
+_COPY_MODULES = ("estatereport/renderer.py", "estatereport/build.py", "estatereport/exceptions2.py",
+                 "crossestate/renderer.py", "crossestate/exceptions.py",
+                 "freereport/renderer.py", "freereport/compose.py")
+
+
+def test_no_hard_coded_corpus_figure_in_report_copy():
+    pat = re.compile(r"\b\d{3}M\b|\b\d{3} ?million\b", re.I)
+    for rel in _COPY_MODULES:
+        with open(os.path.join(_ROOT, rel), encoding="utf-8") as fh:
+            for i, line in enumerate(fh, 1):
+                code = line.split("  #")[0]
+                if code.lstrip().startswith("#"):
+                    continue
+                assert not pat.search(code), f"{rel}:{i}: {line.strip()[:80]}"
 
 
 if __name__ == "__main__":

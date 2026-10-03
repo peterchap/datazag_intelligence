@@ -69,3 +69,19 @@ def make_ref(domain, segment, **vm_kwargs) -> DomainRef:
 def imp(platform, c7=0, c30=0, samples=None, confidence="exact") -> PlatformImpersonation:
     return PlatformImpersonation(platform=platform, count_7d=c7, count_30d=c30,
                                  sample_domains=samples or [], confidence=confidence)
+
+
+def fixture_observatory():
+    """The committed 2026-09-08 Observatory snapshot (corpus_domains = 364,175,633).
+    Estate tests inject this (or no_observatory()) so they never reach R2."""
+    import observatory
+    os.environ["OBSERVATORY_DATE"] = "20260908"
+    try:
+        return observatory.load(os.path.join(FIXTURES, "observatory") + "/")
+    finally:
+        os.environ.pop("OBSERVATORY_DATE", None)
+
+
+def no_observatory():
+    import observatory
+    return observatory.Observatory.unavailable()

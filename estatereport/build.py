@@ -17,7 +17,7 @@ from typing import Optional
 from crossestate.build import build_estate_from_manifest, build_estate_view_model
 from crossestate.contract import EstateThresholds
 from estatereport import transform
-from estatereport.contract import EstateReport, share_text
+from estatereport.contract import CorpusInfo, EstateReport, share_text
 from estatereport.discovery import DiscoveryProvider, default_discovery, to_estate_discovery
 from estatereport.exceptions2 import build_exceptions
 from estatereport.remediation import build_remediation
@@ -32,15 +32,19 @@ def build_estate_report_from_manifest(manifest_path: str,
                                       thresholds: Optional[EstateThresholds] = None,
                                       discovery: Optional[DiscoveryProvider] = None,
                                       now: Optional[datetime] = None,
-                                      tls_probe=None) -> EstateReport:
+                                      tls_probe=None, observatory=None) -> EstateReport:
     mvp = build_estate_from_manifest(manifest_path, thresholds=thresholds, now=now,
                                      tls_probe=tls_probe)
-    return build_estate_report(mvp, discovery=discovery, now=now)
+    return build_estate_report(mvp, discovery=discovery, now=now, observatory=observatory)
 
 
 def build_estate_report(mvp, discovery: Optional[DiscoveryProvider] = None,
-                        now: Optional[datetime] = None) -> EstateReport:
+                        now: Optional[datetime] = None, observatory=None) -> EstateReport:
+    """`observatory`: an observatory.Observatory (tests inject a fixture or
+    Observatory.unavailable()); default is the live, process-cached load."""
     now = now or datetime.now(timezone.utc)
+    import observatory as _obs
+    corpus = _obs.corpus_size(observatory if observatory is not None else _obs.load_cached())
     discovery = discovery or default_discovery()
 
     refs = [d for seg in mvp.segments for d in seg.domains]
@@ -56,6 +60,8 @@ def build_estate_report(mvp, discovery: Optional[DiscoveryProvider] = None,
 
     report = EstateReport(
         group=mvp.group, generated_at=now.isoformat(),
+        corpus=(CorpusInfo(domains=corpus.domains, label=corpus.label, as_of=corpus.as_of)
+                if corpus else None),
         synthesis_html=_synthesis(mvp, disc, grade, exp),
         dash=_dash(mvp, disc, grade, exp),
         lens_html=_lens(mvp, conc, var, exp),

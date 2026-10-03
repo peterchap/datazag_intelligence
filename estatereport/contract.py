@@ -233,10 +233,19 @@ class AdminPoint(_Base):
     detail: str = ""
 
 
+class CorpusInfo(_Base):
+    """Corpus size read live from the Observatory (`corpus_domains`)."""
+    domains: int
+    label: str                         # "364M"
+    as_of: str = ""
+
+
 class EstateReport(_Base):
     group: str
     generated_at: Optional[str] = None
-    corpus_label: str = "340M"         # single sourced constant (§3.8)
+    # Live from the Observatory; None when it is unreachable, and every sentence that
+    # quotes the corpus size is then left out. Never a hard-coded figure.
+    corpus: Optional[CorpusInfo] = None
     # page 1
     synthesis_html: str = ""
     dash: list[dict] = Field(default_factory=list)     # 4 cover cards {cls,key,state,note}
