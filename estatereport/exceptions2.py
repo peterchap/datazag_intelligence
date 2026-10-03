@@ -11,6 +11,7 @@ dilution). Severity vocabulary: HIGH / ELEVATED / WATCH.
 from __future__ import annotations
 
 from estatereport.contract import EstateReport, Exception_
+from estatereport.labels import segment_label
 
 _SEV_RANK = {"high": 0, "elevated": 1, "watch": 2, "info": 3}
 
@@ -32,7 +33,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
             title=f"{len(doms)} domain(s) expired or unlocked — recover before anything else",
             body_html="Expired registrations and absent registrar locks are live takeover windows. "
                       "Renew and re-lock these before DNS hygiene work.",
-            evidence_line=f"calendar.overdue × {len(overdue)} · registrar_lock = none × {len(unlocked)}",
+            provenance=f"calendar.overdue × {len(overdue)} · registrar_lock = none × {len(unlocked)}",
             collapsed_from=(f"calendar × {len(overdue) + len(unlocked)}" if (len(overdue) + len(unlocked)) > 1 else None),
         ))
 
@@ -45,7 +46,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
                   f"of the estate's {c.label.lower()} underneath",
             body_html=f"The estate appears diversified at MX level but is {c.share_label} "
                       f"{c.provider} underneath — only visible with vanity-MX resolution.",
-            evidence_line=f"{c.dimension}={c.provider} {_pct(c.share_post_discovery)} · surface_diversity_masking = true",
+            provenance=f"{c.dimension}={c.provider} {_pct(c.share_post_discovery)} · surface_diversity_masking = true",
         ))
 
     # 3) Concentration — collapse the rest into ONE entry listing top providers.
@@ -61,7 +62,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
             rank=0, severity=worst,
             title=f"Provider concentration across the estate — {len(conc)} single points of failure",
             body_html=f"Top concentrations: {listed}. Severity reflects provider resilience, not share alone.",
-            evidence_line=ev,
+            provenance=ev,
             collapsed_from=(f"concentration × {len(conc)}" if len(conc) > 1 else None),
         ))
 
@@ -75,20 +76,20 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
             title="Systemic misconfiguration repeats across the estate — fix as a standard",
             body_html=f"Most prevalent: {top}. These share fixes — see the correlated-weakness rollup "
                       "and the remediation worksheet (Appendix A), not per-domain tickets.",
-            evidence_line=f"correlated_weakness × {len(cw)} · see page 4 rollup",
+            provenance=f"correlated_weakness × {len(cw)} · see page 4 rollup",
             collapsed_from=f"correlated_weakness × {len(cw)}",
         ))
 
     # 5) Posture variance — outlier segments.
     outliers = [v for v in report.variance if v.outlier]
     if outliers:
-        names = ", ".join(v.segment for v in outliers)
+        names = ", ".join(segment_label(v.segment) for v in outliers)
         ex.append(Exception_(
             rank=0, severity="elevated",
             title=f"Segment(s) below the estate baseline: {names}",
             body_html=f"Baseline grade {report.baseline_grade}; {names} sit materially below it — the "
                       "classic acquired-company integration gap.",
-            evidence_line=" · ".join(f"{v.segment}: median {v.median_grade}, {v.vs_baseline_label}"
+            provenance=" · ".join(f"{v.segment}: median {v.median_grade}, {v.vs_baseline_label}"
                                      for v in outliers),
         ))
 
@@ -102,7 +103,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
             body_html=f"Context, not a finding against this estate: these imitate the platforms, so "
                       f"every organization using them sees the same count. Most are "
                       f"{report.exposure.top_platform} lookalikes ({_pct(report.exposure.top_share)}).",
-            evidence_line=report.exposure.provenance,
+            provenance=report.exposure.provenance,
         ))
 
     # Rank by severity, cap at 7 (§3.3 target 5–7).

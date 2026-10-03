@@ -85,3 +85,35 @@ def fixture_observatory():
 def no_observatory():
     import observatory
     return observatory.Observatory.unavailable()
+
+
+def report_from_refs(refs, now, observatory=None, tagged: bool = True):
+    """Build a v2.2 EstateReport from in-memory refs via real contract files and the
+    real build path. tagged=False drops the segments so they are INFERRED
+    (ns:/reg:/asn: keys), as on a real estate with no customer tags."""
+    import json
+    import tempfile
+
+    from crossestate.build import build_estate_view_model
+    from crossestate.manifest import ManifestEntry
+    from estatereport.build import build_estate_report
+
+    with tempfile.TemporaryDirectory() as d:
+        entries = []
+        for r in refs:
+            p = os.path.join(d, f"{r.domain}.json")
+            with open(p, "w", encoding="utf-8") as fh:
+                json.dump(r.vm.model_dump(mode="json"), fh)
+            entries.append(ManifestEntry(domain=r.domain, segment=(r.segment if tagged else None),
+                                         contract_path=p))
+        mvp = build_estate_view_model("g", entries, now=now)
+    return build_estate_report(mvp, now=now,
+                               observatory=observatory if observatory is not None else no_observatory())
+
+
+def visible_text(html: str) -> str:
+    """What a reader sees: tags, <style> and <head> removed, entities decoded."""
+    import html as _html
+    import re
+    body = re.sub(r"(?is)<head>.*?</head>|<style.*?</style>|<script.*?</script>", " ", html)
+    return _html.unescape(re.sub(r"<[^>]+>", " ", body))

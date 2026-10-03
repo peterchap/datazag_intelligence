@@ -289,6 +289,47 @@ def test_free_report_reads_the_corpus_size_live_too():
     assert "340M" not in live + off and "Datazag's domain corpus" in off
 
 
+# ── internal field names never reach a reader ──────────────────────────────
+
+INTERNAL_TOKENS = re.compile(
+    r"\b(?:ns|reg|asn):\S|confidence\s*=|external_threat|calendar\.overdue|correlated_weakness"
+    r"|registrar_lock|surface_diversity_masking|\b(?:cert_expiring|cert_expired|domain_expiry"
+    r"|missed_renewal|item_kind|known_count|bands_below_baseline)\b|×\s*\d")
+
+
+def _inferred_estate_report():
+    from tests.estate_helpers import report_from_refs
+    refs = [
+        make_ref("a.com", "x", ns="AWS", registrar="GoDaddy", dmarc="none", caa=False,
+                 status="ok", expires="2026-07-10",
+                 cert=_ca(_cert("auth.a.com", "2026-07-20"))),
+        make_ref("b.com", "x", ns="AWS", registrar="GoDaddy", dmarc="none", caa=False),
+        make_ref("c.com", "x", ns="Cloudflare", registrar="Namecheap", score=5),
+        make_ref("d.com", "x", ns="Cloudflare", registrar="Namecheap", score=5),
+    ]
+    return report_from_refs(refs, _NOW, tagged=False)
+
+
+def test_no_internal_field_names_in_html_or_markdown():
+    from estatereport.renderer import EstateReportRenderer
+    from tests.estate_helpers import visible_text
+    rep = _inferred_estate_report()
+    assert any(v.segment.startswith("ns:") for v in rep.variance)    # keys really are inferred
+    r = EstateReportRenderer(rep)
+    for name, text in (("html", visible_text(r.to_html())), ("md", r.to_markdown())):
+        hit = INTERNAL_TOKENS.search(text)
+        assert not hit, f"{name}: {text[max(0, hit.start()-50):hit.end()+50]!r}"
+    assert "DNS hosted by AWS" in visible_text(r.to_html())
+
+
+def test_json_keeps_keys_and_provenance_for_analysts():
+    import json as _json
+    from estatereport.renderer import EstateReportRenderer
+    data = _json.loads(EstateReportRenderer(_inferred_estate_report()).to_json())
+    assert any(v["segment"].startswith("ns:") for v in data["variance"])
+    assert all("provenance" in e and "evidence_line" not in e for e in data["exceptions"])
+
+
 # Modules whose strings reach a reader (templates and composed copy).
 _COPY_MODULES = ("estatereport/renderer.py", "estatereport/build.py", "estatereport/exceptions2.py",
                  "crossestate/renderer.py", "crossestate/exceptions.py",

@@ -153,7 +153,7 @@ class Exposure(_Base):
     # entirely, so with this non-empty a 0 is "not checked", not "none found", and a
     # non-zero total is a floor. Carried from ExposureRollup.unchecked_domains.
     unchecked_domains: list[str] = Field(default_factory=list)
-    provenance: str = 'external_threat.impersonations · confidence = "exact"'
+    provenance: str = 'external_threat.impersonations · confidence = "exact"'   # JSON-only
 
 
 # ── Calendar (§4 CalendarItem) ───────────────────────────────────────────────
@@ -177,8 +177,10 @@ class Exception_(_Base):
     severity: Literal["high", "elevated", "watch", "info"]
     title: str
     body_html: str = ""
-    evidence_line: str = ""            # monospace provenance
-    collapsed_from: Optional[str] = None   # e.g. "correlated_weakness × 6"
+    # JSON-only audit trail (internal field names, counts). Never rendered: a
+    # reader sees body_html; an analyst reading the export sees where it came from.
+    provenance: str = ""
+    collapsed_from: Optional[str] = None   # JSON-only, e.g. "correlated_weakness × 6"
 
 
 # ── Appendix A — remediation worksheet (§2b) ─────────────────────────────────

@@ -18,6 +18,7 @@ from crossestate.build import build_estate_from_manifest, build_estate_view_mode
 from crossestate.contract import EstateThresholds
 from estatereport import transform
 from estatereport.contract import CorpusInfo, EstateReport, share_text
+from estatereport.labels import segment_label
 from estatereport.discovery import DiscoveryProvider, default_discovery, to_estate_discovery
 from estatereport.exceptions2 import build_exceptions
 from estatereport.remediation import build_remediation
@@ -136,7 +137,7 @@ def _lens(mvp, conc, var, exp) -> str:
                      f"{c.label.lower()}, {c.resilience_tier})")
     outliers = [v for v in var if v.outlier]
     if outliers:
-        parts.append(f"a below-baseline segment (<b>{outliers[0].segment}</b>)")
+        parts.append(f"a below-baseline segment (<b>{segment_label(outliers[0].segment)}</b>)")
     if exp.total_exact:
         parts.append(f"<b>{exp.total_exact:,}</b> internet-wide lookalikes of the estate's platforms")
     body = "On the externally observable evidence, an underwriter would weigh " + (

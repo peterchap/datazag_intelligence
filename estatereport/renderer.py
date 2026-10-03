@@ -20,6 +20,7 @@ from typing import Any
 
 from design.generated.tokens import CSS_LOGO, CSS_ROOT
 from estatereport.contract import EstateReport
+from estatereport.labels import calendar_kind_label, segment_label
 
 _PRI_LABEL = {"now": "Now", "soon": "Soon", "plan": "Maturity"}
 _GRADE_CLS = {"A": "ga", "B": "gb", "C": "gc", "D": "gd", "E": "ge", "F": "gf"}
@@ -52,23 +53,22 @@ class EstateReportRenderer:
               f"({c.resilience_tier}, exit {c.exit_friction}){sev} — {c.recommendation}")
         A("\n### Variance")
         for v in r.variance:
-            A(f"- {v.segment}: median {v.median_grade}"
+            A(f"- {segment_label(v.segment)}: median {v.median_grade}"
               + f" · {v.vs_baseline_label}" + (" · OUTLIER" if v.outlier else ""))
         A("\n## Correlated weakness & active exposure\n")
         for c in r.correlated:
             A(f"- {c.label}: {c.share_label}"
-              + (f" — clustered in {', '.join(c.segments)}" if c.segment_isolated else ""))
+              + (f" — clustered in {', '.join(segment_label(s) for s in c.segments)}"
+                 if c.segment_isolated else ""))
         unchecked = len(r.exposure.unchecked_domains)
         A(f"\n**Platform exposure:** {r.exposure.total_exact:,} new lookalikes of the estate's platforms, internet-wide "
-          f"({r.exposure.provenance})."
+          "(exact certificate matches)."
           + (f" **{unchecked} domain(s) could not be checked** — the rollup was unreachable, "
              "so this is a floor, not a count." if unchecked else "") + "\n")
         A("## Exception register\n")
         for e in r.exceptions:
             A(f"{e.rank}. **[{e.severity.upper()}]** {e.title}")
-            if e.collapsed_from:
-                A(f"   - collapsed from {e.collapsed_from}")
-            A(f"   - `{e.evidence_line}`")
+            A(f"   - {_strip(e.body_html)}")
         A("\n## Appendix A — remediation worksheet\n")
         for p in r.remediation:
             A(f"### {p.title} — {_PRI_LABEL[p.priority]}")
@@ -90,6 +90,8 @@ class EstateReportRenderer:
         from jinja2 import BaseLoader, Environment, select_autoescape
         env = Environment(loader=BaseLoader(), autoescape=select_autoescape(["html"]),
                           trim_blocks=True, lstrip_blocks=True)
+        env.filters["seg"] = segment_label
+        env.filters["calkind"] = calendar_kind_label
         return env.from_string(ESTATE_TEMPLATE).render(**self._build_context(brand or self.brand))
 
     def _build_context(self, brand: Any) -> dict:
@@ -451,7 +453,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
     <div class="discovery-note">{{ r.vanity_mx_note }}</div>
     <table class="var-table"><tr><th>Segment</th><th>Domains</th><th>Median grade</th><th>vs baseline</th><th></th></tr>
     {% for v in r.variance %}
-      <tr><td class="seg">{{ v.segment }}</td><td class="mono">{{ v.domain_count }}</td>
+      <tr><td class="seg">{{ v.segment|seg }}</td><td class="mono">{{ v.domain_count }}</td>
         <td><span class="gradepill {{ gradepill_cls[v.median_grade] if v.median_grade in gradepill_cls else 'gc' }}">{{ v.median_grade }}</span></td>
         <td class="mono">{{ v.vs_baseline_label }}</td>
         <td>{% if v.outlier %}<span class="outlier-tag">Outlier</span>{% endif %}</td></tr>
@@ -470,12 +472,12 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
       <div class="smeta"><div class="sm-k">Systemic controls</div><div class="sm-v warn">{{ r.correlated|length }}</div></div></div>
     {% for c in r.correlated %}
       <div class="cw"><div class="cw-main"><div class="cw-t">{{ c.label }}</div>
-        <div class="cw-seg">{% if c.segment_isolated %}Clustered in <b>{{ c.segments|join(', ') }}</b> — one standard, isolated segments{% else %}Spread across the estate{% endif %}</div></div>
+        <div class="cw-seg">{% if c.segment_isolated %}Clustered in <b>{{ c.segments|map('seg')|join(', ') }}</b> — one standard, isolated segments{% else %}Spread across the estate{% endif %}</div></div>
         <div class="cw-bar"><div class="cw-fill {{ 'hot' if c.hot else '' }}" style="width:{{ (c.pct*100)|round|int }}%"></div></div>
         <div class="cw-pct">{{ (c.pct*100)|round|int }}%<span class="of">{{ c.affected }} of {{ c.estate_size }} domains</span></div></div>
     {% endfor %}
     <div class="scale" style="margin-top:16px">
-      <div class="sbig"><div class="snum">{{ "{:,}".format(r.exposure.total_exact) }}</div><div class="slab">new lookalike domains impersonating the estate's platforms (30d, internet-wide)</div><div class="sprov">{{ r.exposure.provenance }}</div></div>
+      <div class="sbig"><div class="snum">{{ "{:,}".format(r.exposure.total_exact) }}</div><div class="slab">new lookalike domains impersonating the estate's platforms (30d, internet-wide)</div><div class="sprov">Exact certificate matches only</div></div>
       <div class="stext">{% if r.exposure.top_platform %}The concentration is the finding: <b>{{ (r.exposure.top_share*100)|round|int }}% targeting {{ r.exposure.top_platform }}</b>. Exact-match certificates only; lower-confidence candidates are excluded.{% elif r.exposure.unchecked_domains %}<b>Not checked</b> — the impersonation rollup was unreachable for {{ r.exposure.unchecked_domains|length }} of the estate's domains and no other domain matched. Not an all-clear.{% else %}No exact-match impersonation of the estate's platforms in the last 30 days.{% endif %}</div>
     </div>
     {% if r.exposure.rows %}
@@ -496,13 +498,13 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
       <div class="smeta"><div class="sm-k">Exceptions</div><div class="sm-v bad">{{ r.exceptions|length }}</div></div></div>
     {% if r.calendar %}
     <table class="cal-table"><tr><th>Domain</th><th>Segment</th><th>Item</th><th>Due</th><th>Detail</th></tr>
-    {% for it in r.calendar[:8] %}<tr><td class="dom">{{ it.domain }}</td><td>{{ it.segment }}</td><td>{{ it.item_kind }}</td>
+    {% for it in r.calendar[:8] %}<tr><td class="dom">{{ it.host or it.domain }}</td><td>{{ it.segment|seg }}</td><td>{{ it.item_kind|calkind }}</td>
       <td><span class="due {{ it.due_class }}">{% if it.overdue %}Overdue{% elif it.due_class == 'soon' %}Soon{% else %}Standing{% endif %}</span></td><td>{{ it.detail }}</td></tr>{% endfor %}
     </table>
     {% endif %}
     {% for e in r.exceptions %}
       <div class="exc"><div class="ex-head"><div class="ex-num">{{ e.rank }}</div><div class="ex-t">{{ e.title }}</div><span class="ex-sev {{ e.severity }}">{{ e.severity }}</span></div>
-        <div class="ex-body">{{ e.body_html|safe }}{% if e.collapsed_from %} <i>(collapsed from {{ e.collapsed_from }})</i>{% endif %}<div class="ex-ev">{{ e.evidence_line }}</div></div></div>
+        <div class="ex-body">{{ e.body_html|safe }}</div></div>
     {% endfor %}
     <div class="monitor-note"><span class="mn-h">Remediation worksheet</span>The fix-by-fix worksheet — pattern-grouped, ordered by admin point, ready to hand to your DNS and registrar teams — is in <b>Appendix A</b>.</div>
   </div>
@@ -552,7 +554,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         {% if p.record_lines and p.example_domain %}<div class="fx-cmd">{% for ln in p.records_for(p.example_domain) %}{% if ln.kind == 'comment' %}<span class="cm">{{ ln.text }}</span>{% else %}{{ ln.text }}{% endif %}{% if not loop.last %}{{ '
 ' }}{% endif %}{% endfor %}</div>{% if p.entries|length > 1 %}<div class="fx-for">Shown for {{ p.example_domain }}; the same change applies to each domain below with its own name.</div>{% endif %}{% endif %}
         <table class="ws-table"><tr><th></th><th>Domain</th><th>Admin point</th><th>Now</th><th>Fix</th></tr>
-        {% for e in p.entries %}<tr><td><span class="ws-check"></span></td><td class="dom">{{ e.domain }}</td><td class="adm">{{ e.admin_point }} · {{ e.segment }}</td><td class="now">{{ e.now }}</td><td class="tgt">{{ e.fix }}</td></tr>{% endfor %}
+        {% for e in p.entries %}<tr><td><span class="ws-check"></span></td><td class="dom">{{ e.domain }}</td><td class="adm">{{ e.admin_point }}</td><td class="now">{{ e.now }}</td><td class="tgt">{{ e.fix }}</td></tr>{% endfor %}
         {% if p.overflow %}<tr><td></td><td colspan="4" style="color:var(--ink-4);font-style:italic">+{{ p.overflow }} more domains in the JSON/MD export</td></tr>{% endif %}
         </table>
       </div>
