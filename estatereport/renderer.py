@@ -72,6 +72,13 @@ class EstateReportRenderer:
         A("\n## Appendix A — remediation worksheet\n")
         for p in r.remediation:
             A(f"### {p.title} — {_PRI_LABEL[p.priority]}")
+            if p.record_lines and p.example_domain:
+                A("```")
+                A("\n".join(ln.text for ln in p.records_for(p.example_domain)))
+                A("```")
+                if len(p.entries) > 1:
+                    A(f"*Shown for {p.example_domain}; the same change applies to each "
+                      "domain below with its own name.*")
             for e in p.entries:
                 A(f"- [ ] {e.domain} ({e.admin_point}) · now: {e.now} → {e.fix}")
             if p.overflow:
@@ -342,6 +349,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 .fix .fx-body .why b{color:var(--ink);font-weight:600}
 .fix .fx-cmd{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--navy-deep);color:#CFE8F5;padding:10px 13px;border-radius:6px;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-bottom:10px}
 .fix .fx-cmd .cm{color:#6BA8C0}
+.fix .fx-for{font-size:9.5px;color:var(--ink-4);margin:-6px 0 10px}
 .ws-table{width:100%;border-collapse:collapse;font-size:10px}
 .ws-table th{text-align:left;font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4);padding:6px 8px;border-bottom:1.5px solid var(--rule)}
 .ws-table td{padding:6px 8px;border-bottom:1px solid var(--rule-2);vertical-align:top}
@@ -540,9 +548,10 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
       <div class="fx-head"><div class="fx-num">{{ loop.index + (ap.n-1)*2 }}</div><div class="fx-t">{{ p.title }}</div><span class="fx-pri {{ p.priority }}">{{ pri_label[p.priority] }}</span></div>
       <div class="fx-body">
         <div class="why">{{ p.why_html|safe }}{% if p.end_state %} <b>End state:</b> {{ p.end_state }}.{% endif %}</div>
-        {% if p.record_template %}<div class="fx-cmd">{{ p.record_template|safe }}</div>{% endif %}
+        {% if p.record_lines and p.example_domain %}<div class="fx-cmd">{% for ln in p.records_for(p.example_domain) %}{% if ln.kind == 'comment' %}<span class="cm">{{ ln.text }}</span>{% else %}{{ ln.text }}{% endif %}{% if not loop.last %}{{ '
+' }}{% endif %}{% endfor %}</div>{% if p.entries|length > 1 %}<div class="fx-for">Shown for {{ p.example_domain }}; the same change applies to each domain below with its own name.</div>{% endif %}{% endif %}
         <table class="ws-table"><tr><th></th><th>Domain</th><th>Admin point</th><th>Now</th><th>Fix</th></tr>
-        {% for e in p.entries %}<tr><td><span class="ws-check"></span></td><td class="dom">{{ e.domain }}</td><td class="adm">{{ e.admin_point }} · {{ e.segment }}</td><td class="now">{{ e.now }}</td><td class="tgt">{{ e.fix|safe }}</td></tr>{% endfor %}
+        {% for e in p.entries %}<tr><td><span class="ws-check"></span></td><td class="dom">{{ e.domain }}</td><td class="adm">{{ e.admin_point }} · {{ e.segment }}</td><td class="now">{{ e.now }}</td><td class="tgt">{{ e.fix }}</td></tr>{% endfor %}
         {% if p.overflow %}<tr><td></td><td colspan="4" style="color:var(--ink-4);font-style:italic">+{{ p.overflow }} more domains in the JSON/MD export</td></tr>{% endif %}
         </table>
       </div>

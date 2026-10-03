@@ -59,6 +59,61 @@ def test_estate_headline_counts_declared_plus_strong_only():
     assert disc.total_found == 3                   # every row, never a headline
 
 
+# ── #3 DNS snippets carry the real domain ───────────────────────────────────
+
+import re  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
+
+from tests.estate_helpers import ESTATE_MANIFEST  # noqa: E402
+
+_NOW = datetime(2026, 7, 2, tzinfo=timezone.utc)
+
+# Shapes the baseline produced once HTML ate the <domain> placeholder.
+EMPTY_PLACEHOLDER = re.compile(
+    r'_dmarc\.\.|@(?:"|&#34;|&quot;)|^\.\s+IN\s+CAA|(^|\s)\.\s+TXT|\{domain\}', re.M)
+
+
+def _rendered():
+    from estatereport.build import build_estate_report_from_manifest
+    from estatereport.renderer import EstateReportRenderer
+    rep = build_estate_report_from_manifest(ESTATE_MANIFEST, now=_NOW)
+    r = EstateReportRenderer(rep)
+    return rep, r.to_html(), r.to_markdown()
+
+
+def test_record_lines_substitute_every_entry_domain():
+    rep, _, _ = _rendered()
+    patterns = [p for p in rep.remediation if p.record_lines]
+    assert patterns
+    for p in patterns:
+        for e in p.entries:
+            text = "\n".join(ln.text for ln in p.records_for(e.domain))
+            assert "{domain}" not in text
+            if any("{domain}" in ln.text for ln in p.record_lines):
+                assert e.domain in text, (p.pattern_id, e.domain)
+
+
+def test_no_empty_placeholders_in_html_or_markdown():
+    rep, html, md = _rendered()
+    for name, out in (("html", html), ("md", md)):
+        hit = EMPTY_PLACEHOLDER.search(out)
+        assert not hit, f"{name}: empty placeholder near {out[max(0, hit.start()-40):hit.end()+40]!r}"
+    # placeholders that are meant for the reader survive, escaped, in HTML
+    caa = next((p for p in rep.remediation if p.pattern_id == "caa"), None)
+    if caa:
+        assert "&lt;your-ca&gt;" in html
+        assert f'{caa.example_domain}.  IN  CAA  0 issue' in html.replace("&#34;", '"')
+    # each record sits on its own line (trim_blocks once swallowed the separator)
+    assert re.search(r'p=none; rua=mailto:dmarc@[^\n<]+\n<span class="cm">', html)
+
+
+def test_record_data_carries_no_markup():
+    rep, _, _ = _rendered()
+    for p in rep.remediation:
+        for ln in p.record_lines:
+            assert "<span" not in ln.text and "&lt;" not in ln.text
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))

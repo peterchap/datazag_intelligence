@@ -23,10 +23,20 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from estatereport.contract import AdminPoint, RemediationEntry, RemediationPattern
+from estatereport.contract import AdminPoint, RecordLine, RemediationEntry, RemediationPattern
 from freereport import maturity
 
 _ROW_CAP = 20
+
+
+def R(text: str) -> RecordLine:
+    """A record line. `{domain}` is filled per domain at render; `<placeholders>`
+    are literal text that the renderer escapes."""
+    return RecordLine(kind="record", text=text)
+
+
+def C(text: str) -> RecordLine:
+    return RecordLine(kind="comment", text=text)
 
 # tier → worksheet priority pill
 _TIER_PRI = {"baseline": "now", "advanced": "soon", "gold": "plan"}
@@ -83,29 +93,30 @@ CONTROL_SPECS = [
     {"id": "dmarc", "title": "Enforce DMARC", "control": "dmarc",
      "why": "DMARC lets you reject mail spoofed as your domain. Staged: publish <code>p=none</code> "
             "with <code>rua</code> first to observe, then move to enforcement.",
-     "record": ('_dmarc.<domain>.  TXT  "v=DMARC1; p=none; rua=mailto:dmarc@<domain>"\n'
-                '<span class="cm"># then, once rua confirms your senders:</span>\n'
-                '_dmarc.<domain>.  TXT  "v=DMARC1; p=quarantine; rua=mailto:dmarc@<domain>"'),
+     "record": [R('_dmarc.{domain}.  TXT  "v=DMARC1; p=none; rua=mailto:dmarc@{domain}"'),
+                C("# then, once rua confirms your senders:"),
+                R('_dmarc.{domain}.  TXT  "v=DMARC1; p=quarantine; rua=mailto:dmarc@{domain}"')],
      "end_state": "p=reject once rua confirms all senders",
      "weak": _dmarc_weak, "now": _dmarc_now, "fix": _dmarc_fix, "admin": _ns_admin},
     {"id": "spf", "title": "Tighten SPF to hard-fail", "control": "spf",
      "why": "SPF declares which servers may send as your domain. Move to hard-fail "
             "(<code>-all</code>) once DMARC reports confirm your legitimate senders; non-sending "
             "domains can go to <code>-all</code> immediately.",
-     "record": ('<span class="cm"># target apex record (after DMARC confirms senders):</span>\n'
-                'v=spf1 include:&lt;your-sender&gt; -all'),
+     "record": [C("# target apex record (after DMARC confirms senders):"),
+                R('{domain}.  TXT  "v=spf1 include:<your-sender> -all"')],
      "end_state": "-all once DMARC confirms senders",
      "weak": _spf_weak, "now": _spf_now, "fix": _spf_fix, "admin": _ns_admin},
     {"id": "caa", "title": "Publish CAA records", "control": "caa",
      "why": "CAA reduces the set of certificate authorities that may issue for your domains.",
-     "record": '<domain>.  IN  CAA  0 issue "&lt;your-ca&gt;"\n<domain>.  IN  CAA  0 iodef "mailto:security@<domain>"',
+     "record": [R('{domain}.  IN  CAA  0 issue "<your-ca>"'),
+                R('{domain}.  IN  CAA  0 iodef "mailto:security@{domain}"')],
      "end_state": None,
-     "weak": _caa_weak, "now": lambda vm: "no CAA record", "fix": lambda vm: 'issue "&lt;your-ca&gt;"',
+     "weak": _caa_weak, "now": lambda vm: "no CAA record", "fix": lambda vm: 'issue "<your-ca>"',
      "admin": _ns_admin},
     {"id": "dnssec", "title": "Enable DNSSEC", "control": "dnssec",
      "why": "DNSSEC cryptographically signs your DNS records. Gold-standard; plan it — its absence "
             "does not create exploitable risk today.",
-     "record": '<span class="cm"># enable signing at the DNS provider, then publish the DS at the registry</span>',
+     "record": [C("# enable signing at the DNS provider for {domain}, then publish the DS at the registry")],
      "end_state": None,
      "weak": _dnssec_weak, "now": lambda vm: "zone unsigned", "fix": lambda vm: "sign zone + DS at registry",
      "admin": _ns_admin},
@@ -141,8 +152,8 @@ def build_remediation(mvp, calendar_items) -> tuple[list[RemediationPattern], li
             pattern_id="recovery", title="Recover expired / unlocked domains", priority="now",
             why_html="Expired registrations and absent locks are live takeover windows — recover "
                      "these before any DNS hygiene work.",
-            record_template='<span class="cm"># at the registrar: renew, then enable</span>\n'
-                            'clientTransferProhibited · clientDeleteProhibited · clientUpdateProhibited',
+            record_lines=[C("# at the registrar for {domain}: renew, then enable"),
+                          R("clientTransferProhibited · clientDeleteProhibited · clientUpdateProhibited")],
             end_state=None, entries=entries[:_ROW_CAP], overflow=max(0, len(entries) - _ROW_CAP)))
 
     # ── One pattern per control, dedup on pattern_id, tier-ordered ───────────
@@ -160,7 +171,7 @@ def build_remediation(mvp, calendar_items) -> tuple[list[RemediationPattern], li
         entries.sort(key=lambda e: (e.admin_point, e.domain))    # batch by admin point
         patterns.append(RemediationPattern(
             pattern_id=spec["id"], title=spec["title"], priority=_TIER_PRI[tier],
-            why_html=spec["why"], record_template=spec["record"], end_state=spec["end_state"],
+            why_html=spec["why"], record_lines=spec["record"], end_state=spec["end_state"],
             entries=entries[:_ROW_CAP], overflow=max(0, len(entries) - _ROW_CAP)))
 
     # ── Isolated per-domain findings: internal-IP leak, dangling subdomain ───
@@ -193,7 +204,7 @@ def _isolated_patterns(refs) -> list[RemediationPattern]:
             pattern_id="internal_ip_leak", title="Remove internal endpoints from public DNS",
             priority="now",
             why_html="Private (RFC1918) addresses in public DNS reveal internal network structure.",
-            record_template='<span class="cm"># remove the public A record, or move to split-horizon</span>',
+            record_lines=[C("# remove the public A record for {domain}, or move to split-horizon")],
             entries=entries[:_ROW_CAP], overflow=max(0, len(entries) - _ROW_CAP)))
     if dangles:
         entries = [RemediationEntry(domain=s.get("dns_name", d.domain), segment=d.segment,
@@ -205,7 +216,7 @@ def _isolated_patterns(refs) -> list[RemediationPattern]:
             pattern_id="dangling_subdomain", title="Resolve dangling subdomains (takeover exposure)",
             priority="now",
             why_html="A CNAME pointing at an unclaimed resource can be taken over by an attacker.",
-            record_template='<span class="cm"># remove the CNAME or reclaim the target resource</span>',
+            record_lines=[C("# remove the CNAME at {domain} or reclaim the target resource")],
             entries=entries[:_ROW_CAP], overflow=max(0, len(entries) - _ROW_CAP)))
     return out
 

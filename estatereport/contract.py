@@ -161,12 +161,35 @@ class RemediationEntry(_Base):
     fix: str                           # staged next step, not the end state
 
 
+DOMAIN_TOKEN = "{domain}"
+
+
+class RecordLine(_Base):
+    """One line of a DNS / registrar change. Plain text, never markup: the renderer
+    escapes it, so placeholders like <your-ca> survive instead of being eaten as
+    tags. `{domain}` is substituted with a real domain at render (`for_domain`)."""
+    kind: Literal["comment", "record"] = "record"
+    text: str
+
+    def for_domain(self, domain: str) -> "RecordLine":
+        return RecordLine(kind=self.kind, text=self.text.replace(DOMAIN_TOKEN, domain))
+
+
 class RemediationPattern(_Base):
     pattern_id: str                    # 1:1 with the control (dedup key)
     title: str
     why_html: str = ""
     priority: Literal["now", "soon", "plan"]        # from the maturity tier
-    record_template: Optional[str] = None           # the fx-cmd block, written once
+    record_lines: list[RecordLine] = Field(default_factory=list)   # the fx-cmd block, written once
+
+    def records_for(self, domain: str) -> list[RecordLine]:
+        """The record block with `{domain}` filled in for one real domain."""
+        return [ln.for_domain(domain) for ln in self.record_lines]
+
+    @property
+    def example_domain(self) -> Optional[str]:
+        """The domain the main report shows the block for: the first entry."""
+        return self.entries[0].domain if self.entries else None
     end_state: Optional[str] = None                 # e.g. "p=reject once rua confirms senders"
     entries: list[RemediationEntry] = Field(default_factory=list)
     overflow: int = 0                               # rows beyond the per-pattern cap
