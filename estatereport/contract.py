@@ -43,7 +43,10 @@ class DiscoveredDomain(_Base):
 class EstateDiscovery(_Base):
     enabled: bool = False              # False → render the 4-tier model with declared-only + a note
     declared_count: int = 0
-    total_found: int = 0               # declared + strong (the graded estate) ∪ possible ∪ defensive
+    total_found: int = 0               # every row across all four tiers (not a headline number)
+    # The HEADLINE: declared + strongly associated — the estate we stand behind and
+    # grade. Possible and defensive rows are listed but never counted as estate.
+    estate_count: int = 0
     tiers: dict[str, list[DiscoveredDomain]] = Field(default_factory=dict)
     note: str = ""
 

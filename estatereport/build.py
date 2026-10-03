@@ -83,7 +83,7 @@ def _pct(x: float) -> str:
 def _synthesis(mvp, disc, grade, exp) -> str:
     if disc.enabled:
         lead = (f"Starting from <b>{disc.declared_count} declared domains</b>, Datazag found "
-                f"<b>{disc.total_found} across the estate</b>.")
+                f"<b>{disc.estate_count} across the estate</b>.")
     else:
         lead = (f"Across <b>{disc.declared_count} declared domains</b> (undeclared-domain discovery "
                 "not enabled for this run),")
@@ -104,9 +104,9 @@ def _dash(mvp, disc, grade, exp) -> list[dict]:
     soon = mvp.calendar.next_30d
     return [
         {"cls": "cy", "key": "Estate discovered",
-         "state": str(disc.total_found),
+         "state": str(disc.estate_count),
          "note": (f"{disc.declared_count} declared" if not disc.enabled
-                  else f"{disc.declared_count} declared → {disc.total_found} found")},
+                  else f"{disc.declared_count} declared → {disc.estate_count} found")},
         {"cls": grade_cls(grade.grade), "key": "Estate grade", "state": grade.grade,
          "note": f"{grade.score:.0f}/100 across {grade.domain_count} graded domains"},
         {"cls": "warn" if exp.total_exact else "ok", "key": "Active exposure",

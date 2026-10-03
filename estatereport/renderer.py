@@ -43,7 +43,7 @@ class EstateReportRenderer:
         A(f"# Cross-Estate Domain Risk Report — {r.group}\n")
         A(_strip(r.synthesis_html) + "\n")
         A(f"## Estate discovery\nDeclared {r.discovery.declared_count}; "
-          f"{'discovery not enabled' if not r.discovery.enabled else f'{r.discovery.total_found} found'}.\n")
+          f"{'discovery not enabled' if not r.discovery.enabled else f'{r.discovery.estate_count} found'}.\n")
         A("## Concentration & posture variance\n")
         A(f"Estate grade **{r.grade.grade}** ({r.grade.score:.0f}/100).\n")
         for c in r.concentration:
@@ -388,11 +388,11 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
   <div class="runner"><div class="r-brand"><span class="dz-logo"><span class="dz-logo-data">Data</span><span class="dz-logo-zag">zag</span></span></div><div class="r-id">{{ group|lower }} · estate discovery</div></div>
   <div class="body">
     <div class="shead"><div><div class="stitle">The estate you didn't know you had.</div><div class="ssub">Discovery is the headline: how much of the estate carrying your brand extends beyond the list you hold.</div></div>
-      <div class="smeta"><div class="sm-k">Estate found</div><div class="sm-v cy">{{ r.discovery.total_found }}</div></div></div>
+      <div class="smeta"><div class="sm-k">Estate found</div><div class="sm-v cy">{{ r.discovery.estate_count }}</div></div></div>
     <div class="funnel">
       <div class="f-declared"><div class="fn">{{ r.discovery.declared_count }}</div><div class="fl">Domains declared</div></div>
       <div class="f-arrow">→</div>
-      <div class="f-found"><div class="fn">{{ r.discovery.total_found }}</div><div class="fl"><b>The estate Datazag {{ 'found' if r.discovery.enabled else 'assessed' }}</b><br>{{ 'declared + discovered across four confidence tiers' if r.discovery.enabled else 'declared estate — discovery not enabled for this run' }}</div></div>
+      <div class="f-found"><div class="fn">{{ r.discovery.estate_count }}</div><div class="fl"><b>The estate Datazag {{ 'found' if r.discovery.enabled else 'assessed' }}</b><br>{{ 'declared + strongly associated; other tiers listed below, not counted' if r.discovery.enabled else 'declared estate — discovery not enabled for this run' }}</div></div>
     </div>
     <div class="tiers">
       <div class="tier declared"><div class="tk">Declared · {{ r.discovery.tier_count('declared') }}</div><div class="tn">The domains you told us about</div><div class="td">Your starting list — graded and assessed throughout this report.</div></div>

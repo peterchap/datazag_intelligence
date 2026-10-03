@@ -29,8 +29,30 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional, Protocol, runtime_checkable
 
+import json
+import os
+
 from crossestate.contract import CompletenessBlock
 from crossestate.segments import registrable
+
+_SHARED_SUFFIXES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     "shared_platform_suffixes.json")
+
+
+def _load_shared_suffixes() -> tuple[str, ...]:
+    with open(_SHARED_SUFFIXES_PATH, encoding="utf-8") as fh:
+        return tuple(s.lower().strip(".") for s in json.load(fh)["suffixes"])
+
+
+SHARED_PLATFORM_SUFFIXES = _load_shared_suffixes()
+
+
+def is_shared_platform_host(name: str) -> bool:
+    """True when `name` is a shared CDN / hosting platform hostname (e.g.
+    `1fd3f647.sni.cloudflaressl.com`). Such a name on a certificate says the
+    estate shares a platform certificate, never that it owns the name."""
+    n = (name or "").lower().strip().rstrip(".")
+    return any(n == s or n.endswith("." + s) for s in SHARED_PLATFORM_SUFFIXES)
 
 
 @dataclass
@@ -243,8 +265,9 @@ def _cross_domain_sans(vm, declared: set) -> set:
             if not d:
                 continue
             d = str(d).lstrip("*.").strip().lower().rstrip(".")
-            # registrable form; skip declared and same-registrable-as-a-declared apexes? keep apex-siblings.
-            if d and d not in declared:
+            # Shared CDN / platform hostnames are never estate candidates: they sit on a
+            # certificate because the platform put them there, not the owner.
+            if d and d not in declared and not is_shared_platform_host(d):
                 out.add(d)
     return out
 

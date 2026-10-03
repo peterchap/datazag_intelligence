@@ -56,4 +56,6 @@ def to_estate_discovery(result: DiscoveryResult, declared_domains: list[str]) ->
     total = sum(len(v) for v in tiers.values())
     note = result.note if result.available else NullDiscoveryProvider.NOTE
     return EstateDiscovery(enabled=result.available, declared_count=len(declared_domains),
-                           total_found=total, tiers=tiers, note=note)
+                           total_found=total,
+                           estate_count=len(tiers["declared"]) + len(tiers["strong"]),
+                           tiers=tiers, note=note)
