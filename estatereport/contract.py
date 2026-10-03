@@ -103,7 +103,17 @@ class SegmentVariance(_Base):
     segment: str
     domain_count: int
     median_grade: str
-    bands_below_baseline: int          # outlier if >= 2
+    # Signed grade bands against the estate baseline, as a reader says it:
+    # +1 = one band ABOVE (better), -2 = two bands below (worse), 0 = at baseline.
+    # (crossestate's bands_below_baseline has the opposite sign.) Outlier if <= -2.
+    bands_vs_baseline: int = 0
+
+    @property
+    def vs_baseline_label(self) -> str:
+        b = self.bands_vs_baseline
+        if b == 0:
+            return "baseline"
+        return f"{'+' if b > 0 else '−'}{abs(b)} band{'s' if abs(b) != 1 else ''}"
     outlier: bool = False
 
 

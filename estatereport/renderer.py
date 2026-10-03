@@ -53,7 +53,7 @@ class EstateReportRenderer:
         A("\n### Variance")
         for v in r.variance:
             A(f"- {v.segment}: median {v.median_grade}"
-              + (f" · OUTLIER (−{v.bands_below_baseline} bands)" if v.outlier else ""))
+              + f" · {v.vs_baseline_label}" + (" · OUTLIER" if v.outlier else ""))
         A("\n## Correlated weakness & active exposure\n")
         for c in r.correlated:
             A(f"- {c.label}: {c.share_label}"
@@ -453,7 +453,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
     {% for v in r.variance %}
       <tr><td class="seg">{{ v.segment }}</td><td class="mono">{{ v.domain_count }}</td>
         <td><span class="gradepill {{ gradepill_cls[v.median_grade] if v.median_grade in gradepill_cls else 'gc' }}">{{ v.median_grade }}</span></td>
-        <td class="mono">{% if v.bands_below_baseline > 0 %}−{{ v.bands_below_baseline }} bands{% else %}baseline{% endif %}</td>
+        <td class="mono">{{ v.vs_baseline_label }}</td>
         <td>{% if v.outlier %}<span class="outlier-tag">Outlier</span>{% endif %}</td></tr>
     {% endfor %}
     </table>

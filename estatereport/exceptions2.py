@@ -88,7 +88,7 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
             title=f"Segment(s) below the estate baseline: {names}",
             body_html=f"Baseline grade {report.baseline_grade}; {names} sit materially below it — the "
                       "classic acquired-company integration gap.",
-            evidence_line=" · ".join(f"{v.segment}: median {v.median_grade}, −{v.bands_below_baseline} bands"
+            evidence_line=" · ".join(f"{v.segment}: median {v.median_grade}, {v.vs_baseline_label}"
                                      for v in outliers),
         ))
 

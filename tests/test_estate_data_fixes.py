@@ -236,6 +236,28 @@ def test_every_rendered_share_shows_n_of_N():
         assert re.search(r"\d+% \(\d+ of \d+\)", ln), ln
 
 
+# ── #8 variance is signed ───────────────────────────────────────────────────
+
+def test_variance_is_signed_and_above_baseline_renders_plus():
+    from crossestate.analytics import compute_variance
+    from estatereport.contract import SegmentVariance
+    from estatereport.transform import variance
+
+    refs = ([make_ref(f"cf{i}.com", "ns:Cloudflare", score=5) for i in range(3)]      # A
+            + [make_ref(f"aws{i}.com", "ns:AWS", score=45) for i in range(3)])        # worse
+    vb = compute_variance(refs, TH)
+
+    class _M:
+        variance = vb
+    rows, baseline = variance(_M)
+    by = {r.segment: r for r in rows}
+    assert by["ns:Cloudflare"].bands_vs_baseline > 0
+    assert by["ns:Cloudflare"].vs_baseline_label.startswith("+")
+    assert by["ns:AWS"].bands_vs_baseline < 0
+    assert by["ns:AWS"].vs_baseline_label.startswith("−")
+    assert SegmentVariance(segment="s", domain_count=1, median_grade="B").vs_baseline_label == "baseline"
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))

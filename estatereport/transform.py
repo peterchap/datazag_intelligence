@@ -85,7 +85,7 @@ def _mx_masking(mvp, provider: str, share: float) -> bool:
 def variance(mvp) -> tuple[list[SegmentVariance], str]:
     rows = [
         SegmentVariance(segment=sp.segment, domain_count=sp.stats.count,
-                        median_grade=sp.stats.grade, bands_below_baseline=sp.bands_below_baseline,
+                        median_grade=sp.stats.grade, bands_vs_baseline=-sp.bands_below_baseline,
                         outlier=sp.is_outlier)
         for sp in mvp.variance.per_segment
     ]
