@@ -167,9 +167,18 @@ class TargetedPlatform(_Base):
     stack_identity_risk: str = ""                            # high | med | none (of the match)
 
 
+# Suffixes whose registry wildcards unregistered names. A rollup must have excluded
+# all of them before its counts can be shown (riskscore#48 stamps excluded_suffixes).
+REQUIRED_EXCLUDED_SUFFIXES = ("ph",)
+
+
 class ExposureRollup(_Base):
     total_7d: int = 0
     total_30d: int = 0
+    # True only when every exact-match platform record came from a rollup stamped as
+    # excluding REQUIRED_EXCLUDED_SUFFIXES. False means the counts may include names
+    # that exist only because a registry wildcards them: renderers withhold them.
+    counts_verified: bool = False
     by_platform: list[TargetedPlatform] = Field(default_factory=list)
     by_segment: dict[str, int] = Field(default_factory=dict)        # segment -> count_30d
     sample_domains: list[str] = Field(default_factory=list)

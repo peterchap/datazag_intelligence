@@ -289,6 +289,78 @@ def test_free_report_reads_the_corpus_size_live_too():
     assert "340M" not in live + off and "Datazag's domain corpus" in off
 
 
+# ── #4 platform lookalikes: one total, no .ph, counts only when verified ────
+
+from tests.estate_helpers import imp  # noqa: E402
+
+
+def _exposure_report(stamp=("ph",)):
+    from tests.estate_helpers import report_from_refs
+    refs = [
+        make_ref("a.com", "s", imps=[imp("Google Workspace", 900, 18479,
+                                         ["google-feud.ph", "g-login.com", "google-bot.com.ph"],
+                                         excluded_suffixes=stamp)],
+                 lookalikes=[imp("google", 0, 4000, ["x.com"], confidence="lookalike",
+                                 excluded_suffixes=stamp)]),
+        make_ref("b.com", "s", imps=[imp("Google Workspace", 900, 18479, ["g-sso.net"],
+                                         excluded_suffixes=stamp),
+                                     imp("Amazon SES", 100, 9574, ["amazon-x.ph"],
+                                         excluded_suffixes=stamp)]),
+    ]
+    return report_from_refs(refs, _NOW)
+
+
+def _all_outputs(rep):
+    from estatereport.renderer import EstateReportRenderer
+    r = EstateReportRenderer(rep)
+    return r.to_html(), r.to_markdown(), r.to_json()
+
+
+def test_one_exposure_total_counted_once_per_platform():
+    import json as _json
+    rep = _exposure_report()
+    assert rep.exposure.counts_verified and rep.exposure.total_30d == 18479 + 9574
+    exp = _json.loads(_all_outputs(rep)[2])["exposure"]
+    assert "lookalike_total" not in exp and "total_exact" not in exp
+    assert [p["platform"] for p in exp["platforms"]] == ["Google Workspace", "Amazon SES"]
+
+
+def test_no_ph_domain_in_any_sample_or_output():
+    rep = _exposure_report()
+    for out in _all_outputs(rep):
+        assert not re.search(r"[a-z0-9-]\.(?:com\.)?ph\b", out), "a .ph name reached the output"
+    gw = next(p for p in rep.exposure.platforms if p.platform == "Google Workspace")
+    assert gw.samples == ["g-login.com", "g-sso.net"]
+
+
+def test_platform_total_column_is_labelled_for_what_it_holds():
+    html = _all_outputs(_exposure_report())[0]
+    assert "<th>Platform total (30d)</th>" in html
+    assert "in 30d" not in html                       # the old per-row 'window' label
+    assert html.count("18,479") >= 1 and html.count("<td>Google Workspace</td>") == 1
+
+
+def test_unverified_rollup_shows_no_count_anywhere():
+    import json as _json
+    rep = _exposure_report(stamp=None)
+    assert rep.exposure.total_30d is None and not rep.exposure.platforms
+    html, md, js = _all_outputs(rep)
+    for out in (html, md):
+        assert "18,479" not in out and "28,053" not in out and "9,574" not in out
+        assert "not shown for this run" in out
+    assert _json.loads(js)["exposure"]["total_30d"] is None
+    kpi = next(c for c in rep.dash if c["key"] == "Active exposure")
+    assert kpi["state"] == "—"
+    assert not any("lookalike" in e.title for e in rep.exceptions)
+
+
+def test_rollup_stamp_is_read_when_present_and_none_when_absent():
+    from local_intelligence import _excluded_suffixes
+    assert _excluded_suffixes([{"kind": "platform", "excluded_suffixes": '["ph"]'}]) == ["ph"]
+    assert _excluded_suffixes([{"kind": "platform"}]) is None          # pre-riskscore#48 file
+    assert _excluded_suffixes([{"excluded_suffixes": "not json"}]) is None
+
+
 # ── internal field names never reach a reader ──────────────────────────────
 
 INTERNAL_TOKENS = re.compile(

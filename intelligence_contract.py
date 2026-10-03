@@ -320,6 +320,10 @@ class PlatformImpersonation(_Base):
     # A platform detected in the stack but missing from the rollup must never be
     # presented, or silently omitted, as though it came back clean.
     measured: bool = True
+    # Suffixes the producing rollup excluded from counts and samples (riskscore
+    # compute_platform_impersonation_rollup, `excluded_suffixes`). None = an older
+    # rollup that excluded nothing, whose counts include registry-wildcard names.
+    excluded_suffixes: Optional[list[str]] = None
 
     @property
     def trend(self) -> Literal["up", "down", "flat"]:

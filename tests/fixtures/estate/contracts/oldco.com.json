@@ -84,7 +84,8 @@
         "sample_domains": [
           "0ldco-login.com"
         ],
-        "confidence": "exact"
+        "confidence": "exact",
+        "excluded_suffixes": ["ph"]
       }
     ],
     "own_brand": {

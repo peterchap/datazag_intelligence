@@ -96,10 +96,10 @@ def build_exceptions(report: EstateReport) -> list[Exception_]:
     # 6) Platform exposure. Informational, never a ranked risk: the count is
     # platform-wide (every organization on these platforms sees the same lookalikes),
     # so it says nothing about this estate being targeted (2026-10-03).
-    if report.exposure.total_exact > 0:
+    if report.exposure.total_30d:
         ex.append(Exception_(
             rank=0, severity="info",
-            title=f"{report.exposure.total_exact:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide)",
+            title=f"{report.exposure.total_30d:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide)",
             body_html=f"Context, not a finding against this estate: these imitate the platforms, so "
                       f"every organization using them sees the same count. Most are "
                       f"{report.exposure.top_platform} lookalikes ({_pct(report.exposure.top_share)}).",

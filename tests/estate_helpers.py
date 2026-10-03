@@ -66,9 +66,14 @@ def make_ref(domain, segment, **vm_kwargs) -> DomainRef:
                      segment_disagreement=disagree, vm=make_vm(domain, **vm_kwargs))
 
 
-def imp(platform, c7=0, c30=0, samples=None, confidence="exact") -> PlatformImpersonation:
+def imp(platform, c7=0, c30=0, samples=None, confidence="exact",
+        excluded_suffixes=("ph",)) -> PlatformImpersonation:
+    """Defaults to a record from a corrected rollup (stamped as excluding .ph);
+    pass excluded_suffixes=None for an older, unstamped rollup."""
     return PlatformImpersonation(platform=platform, count_7d=c7, count_30d=c30,
-                                 sample_domains=samples or [], confidence=confidence)
+                                 sample_domains=samples or [], confidence=confidence,
+                                 excluded_suffixes=(list(excluded_suffixes)
+                                                    if excluded_suffixes is not None else None))
 
 
 def fixture_observatory():

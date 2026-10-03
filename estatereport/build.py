@@ -103,8 +103,8 @@ def _synthesis(mvp, disc, grade, exp) -> str:
         n0 = f0.shares[0].count if f0.shares else 0
         tail += (f" It is single-threaded on <b>{f0.top_provider}</b> for "
                  f"{f0.label.lower()} ({share_text(n0, f0.denom)}).")
-    if exp.total_exact:
-        tail += (f" {exp.total_exact:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide): they target every organization on those "
+    if exp.total_30d:
+        tail += (f" {exp.total_30d:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide): they target every organization on those "
                  "platforms, not this estate specifically.")
     return lead + tail
 
@@ -121,8 +121,10 @@ def _dash(mvp, disc, grade, exp) -> list[dict]:
                   else f"{disc.declared_count} declared → {disc.estate_count} found")},
         {"cls": grade_cls(grade.grade), "key": "Estate grade", "state": grade.grade,
          "note": f"{grade.score:.0f}/100 across {grade.domain_count} graded domains"},
-        {"cls": "warn" if exp.total_exact else "ok", "key": "Active exposure",
-         "state": f"{exp.total_exact:,}", "note": "platform lookalikes (30d, internet-wide)"},
+        ({"cls": "warn" if exp.total_30d else "ok", "key": "Active exposure",
+          "state": f"{exp.total_30d:,}", "note": "platform lookalikes (30d, internet-wide)"}
+         if exp.total_30d is not None else
+         {"cls": "", "key": "Active exposure", "state": "—", "note": "not shown for this run"}),
         {"cls": "bad" if overdue else ("warn" if soon else "ok"), "key": "Live lapses",
          "state": str(overdue + soon), "note": f"{overdue} overdue · {soon} due ≤30d"},
     ]
@@ -138,8 +140,8 @@ def _lens(mvp, conc, var, exp) -> str:
     outliers = [v for v in var if v.outlier]
     if outliers:
         parts.append(f"a below-baseline segment (<b>{segment_label(outliers[0].segment)}</b>)")
-    if exp.total_exact:
-        parts.append(f"<b>{exp.total_exact:,}</b> internet-wide lookalikes of the estate's platforms")
+    if exp.total_30d:
+        parts.append(f"<b>{exp.total_30d:,}</b> internet-wide lookalikes of the estate's platforms")
     body = "On the externally observable evidence, an underwriter would weigh " + (
         "; ".join(parts) if parts else "a broadly consistent estate") + "."
     return body

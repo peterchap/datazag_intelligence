@@ -136,20 +136,25 @@ class CorrelatedWeakness(_Base):
 
 # ── Active exposure (§4 / §2 page 4) ─────────────────────────────────────────
 
-class ImpRow(_Base):
-    domain: str
-    target: str
-    detail: str
-    pattern: str = ""
+class PlatformLookalikes(_Base):
+    """One imitated platform: its internet-wide 30-day total, shown ONCE, plus a few
+    example lookalike domains. The total is about the platform, not this estate."""
+    platform: str
+    total_30d: int
+    samples: list[str] = Field(default_factory=list)
 
 
 class Exposure(_Base):
-    total_exact: int = 0
+    # ONE total: distinct new lookalike domains of the estate's platforms, 30 days,
+    # internet-wide, exact certificate matches. None when the counts could not be
+    # verified as excluding registry-wildcard names: then no count is rendered at all.
+    # (The fuzzy per-domain candidate sum, inflated by estate size, is gone.)
+    total_30d: Optional[int] = None
+    counts_verified: bool = False
     top_platform: Optional[str] = None
-    top_share: float = 0.0
-    rows: list[ImpRow] = Field(default_factory=list)
-    lookalike_total: int = 0           # parallel, never summed into total_exact
-    # Domains whose impersonation lookup could not RUN. total_exact excludes them
+    top_share: float = 0.0             # top platform's share of total_30d (lookalike volume)
+    platforms: list[PlatformLookalikes] = Field(default_factory=list)
+    # Domains whose impersonation lookup could not RUN. total_30d excludes them
     # entirely, so with this non-empty a 0 is "not checked", not "none found", and a
     # non-zero total is a floor. Carried from ExposureRollup.unchecked_domains.
     unchecked_domains: list[str] = Field(default_factory=list)

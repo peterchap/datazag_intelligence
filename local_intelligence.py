@@ -84,6 +84,20 @@ def _match_platform(rows: list, requested: str) -> dict:
             "sample_domains": [], "measured": False}
 
 
+def _excluded_suffixes(recs: list[dict]):
+    """The rollup's excluded_suffixes stamp (one value for the whole file), or None
+    for a rollup built before the stamp existed."""
+    for r in recs:
+        raw = r.get("excluded_suffixes")
+        if raw is None:
+            continue
+        try:
+            return [str(s) for s in json.loads(raw)]
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def _match_brand(rows: list, brand_key: str) -> dict:
     for name, c7, c30, samples in rows:
         if _norm(name) == brand_key:
@@ -167,17 +181,21 @@ class LocalIntelligenceClient:
 
         con = lake_connect()
         try:
-            rows = con.execute(
-                f"SELECT kind, name, count_7d, count_30d, sample_domains "
-                f"FROM read_parquet('{_ROLLUP_PARQUET}')"
-            ).fetchall()
+            # SELECT *: the excluded_suffixes stamp exists only on rollups built after
+            # riskscore#48; an older file simply lacks the column.
+            cur = con.execute(f"SELECT * FROM read_parquet('{_ROLLUP_PARQUET}')")
+            cols = [d[0] for d in cur.description]
+            recs = [dict(zip(cols, r)) for r in cur.fetchall()]
         finally:
             con.close()
 
-        by_kind = {k: [(r[1], r[2], r[3], r[4]) for r in rows if r[0] == k]
+        by_kind = {k: [(r["name"], r["count_7d"], r["count_30d"], r["sample_domains"])
+                       for r in recs if r["kind"] == k]
                    for k in ("platform", "platform_typosquat", "brand", "brand_typosquat")}
+        stamp = _excluded_suffixes(recs)
 
-        exact = [_match_platform(by_kind["platform"], p) for p in platforms]
+        exact = [{**_match_platform(by_kind["platform"], p), "excluded_suffixes": stamp}
+                 for p in platforms]
         looks = [p for p in (_match_platform(by_kind["platform_typosquat"], p) for p in platforms)
                  if p["count_30d"] > 0]
 

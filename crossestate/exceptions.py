@@ -197,7 +197,7 @@ def derive_estate_exceptions(estate: EstateViewModel) -> list[EstateException]:
 
     # ── Active exposure (§2.5) ───────────────────────────────────────────
     exp = estate.exposure
-    if exp.total_30d > 0:
+    if exp.counts_verified and exp.total_30d > 0:
         top = exp.by_platform[0] if exp.by_platform else None
         out.append(EstateException(
             finding="active_impersonation",

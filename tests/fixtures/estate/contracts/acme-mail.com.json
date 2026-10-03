@@ -85,7 +85,8 @@
           "acme-m1cros0ft.com",
           "acme365-login.com"
         ],
-        "confidence": "exact"
+        "confidence": "exact",
+        "excluded_suffixes": ["ph"]
       }
     ],
     "own_brand": {

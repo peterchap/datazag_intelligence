@@ -180,7 +180,8 @@ def test_render_six_core_plus_appendix_pages_and_verbatim_tokens():
 
 def test_v2_all_clear_gated_on_the_lookup_having_run():
     r = _report()
-    r.exposure.total_exact = 0
+    r.exposure.total_30d = 0
+    r.exposure.counts_verified = True
     r.exposure.top_platform = None
     r.exposure.unchecked_domains = ["a.com", "b.com"]
     html = EstateReportRenderer(r).to_html()

@@ -60,11 +60,21 @@ class EstateReportRenderer:
             A(f"- {c.label}: {c.share_label}"
               + (f" — clustered in {', '.join(segment_label(s) for s in c.segments)}"
                  if c.segment_isolated else ""))
-        unchecked = len(r.exposure.unchecked_domains)
-        A(f"\n**Platform exposure:** {r.exposure.total_exact:,} new lookalikes of the estate's platforms, internet-wide "
-          "(exact certificate matches)."
-          + (f" **{unchecked} domain(s) could not be checked** — the rollup was unreachable, "
-             "so this is a floor, not a count." if unchecked else "") + "\n")
+        ex = r.exposure
+        unchecked = len(ex.unchecked_domains)
+        if ex.total_30d is None:
+            A("\n**Platform lookalikes:** not shown for this run. The source could not be "
+              "confirmed to exclude names under registry-level wildcard DNS.\n")
+        else:
+            A(f"\n**Platform lookalikes:** {ex.total_30d:,} new lookalike domains of the estate's "
+              "platforms (30d, internet-wide; exact certificate matches; excludes names under "
+              "registry-level wildcard DNS)."
+              + (f" **{unchecked} domain(s) could not be checked**, so this is a floor, not a count."
+                 if unchecked else "") + "\n")
+            for p in ex.platforms:
+                A(f"- {p.platform}: {p.total_30d:,} platform total (30d)"
+                  + (f" — e.g. {', '.join(p.samples)}" if p.samples else ""))
+            A("")
         A("## Exception register\n")
         for e in r.exceptions:
             A(f"{e.rank}. **[{e.severity.upper()}]** {e.title}")
@@ -476,13 +486,19 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
         <div class="cw-bar"><div class="cw-fill {{ 'hot' if c.hot else '' }}" style="width:{{ (c.pct*100)|round|int }}%"></div></div>
         <div class="cw-pct">{{ (c.pct*100)|round|int }}%<span class="of">{{ c.affected }} of {{ c.estate_size }} domains</span></div></div>
     {% endfor %}
+    {% set ex = r.exposure %}
     <div class="scale" style="margin-top:16px">
-      <div class="sbig"><div class="snum">{{ "{:,}".format(r.exposure.total_exact) }}</div><div class="slab">new lookalike domains impersonating the estate's platforms (30d, internet-wide)</div><div class="sprov">Exact certificate matches only</div></div>
-      <div class="stext">{% if r.exposure.top_platform %}The concentration is the finding: <b>{{ (r.exposure.top_share*100)|round|int }}% targeting {{ r.exposure.top_platform }}</b>. Exact-match certificates only; lower-confidence candidates are excluded.{% elif r.exposure.unchecked_domains %}<b>Not checked</b> — the impersonation rollup was unreachable for {{ r.exposure.unchecked_domains|length }} of the estate's domains and no other domain matched. Not an all-clear.{% else %}No exact-match impersonation of the estate's platforms in the last 30 days.{% endif %}</div>
+    {% if ex.total_30d is not none %}
+      <div class="sbig"><div class="snum">{{ "{:,}".format(ex.total_30d) }}</div><div class="slab">new lookalike domains of the estate's platforms (30d, internet-wide)</div><div class="sprov">Exact certificate matches. Excludes names under registry-level wildcard DNS.</div></div>
+      <div class="stext">{% if ex.top_platform %}These imitate the platforms, not this estate: every organisation using them sees the same count. Most imitate <b>{{ ex.top_platform }}</b> ({{ (ex.top_share*100)|round|int }}% of the total).{% if ex.unchecked_domains %} {{ ex.unchecked_domains|length }} domain(s) could not be checked, so this is a floor.{% endif %}{% elif ex.unchecked_domains %}<b>Not checked</b> — the impersonation lookup was unreachable for {{ ex.unchecked_domains|length }} of the estate's domains and no other domain matched. Not an all-clear.{% else %}No exact-match lookalikes of the estate's platforms in the last 30 days.{% endif %}</div>
+    {% else %}
+      <div class="sbig"><div class="snum">—</div><div class="slab">platform lookalike count not shown for this run</div></div>
+      <div class="stext">The lookalike source for this run could not be confirmed to exclude names under registry-level wildcard DNS, so no count is shown rather than an inflated one.</div>
+    {% endif %}
     </div>
-    {% if r.exposure.rows %}
-    <table class="imp-table"><tr><th>Impersonating domain</th><th>Target</th><th>Window</th><th>Pattern</th></tr>
-    {% for row in r.exposure.rows %}<tr><td class="dom">{{ row.domain }}</td><td>{{ row.target }}</td><td>{{ row.detail }}</td><td>{{ row.pattern }}</td></tr>{% endfor %}
+    {% if ex.platforms %}
+    <table class="imp-table"><tr><th>Imitated platform</th><th>Platform total (30d)</th><th>Example lookalikes</th></tr>
+    {% for p in ex.platforms %}<tr><td>{{ p.platform }}</td><td class="mono">{{ "{:,}".format(p.total_30d) }}</td><td class="dom">{{ p.samples|join(', ') or '—' }}</td></tr>{% endfor %}
     </table>
     {% endif %}
     <div class="monitor-note"><span class="mn-h">Report is the map · feed is the tripwire</span>This is the <b>standing</b> exposure snapshot. The Platform &amp; Brand Impersonation Watch delivers the <b>live</b> events — a certificate for your platforms, 5–10 seconds from issuance.</div>

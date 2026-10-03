@@ -16,7 +16,7 @@ from estatereport.contract import (
     CorrelatedWeakness,
     EstateGrade,
     Exposure,
-    ImpRow,
+    PlatformLookalikes,
     SegmentVariance,
 )
 
@@ -134,17 +134,20 @@ def calendar(mvp) -> list[CalItem]:
 # ── §2.5 exposure (EXACT only) ───────────────────────────────────────────────
 
 def exposure(mvp) -> Exposure:
+    """Platform lookalikes, one total. Counts and samples pass through ONLY when the
+    rollup is verified to exclude registry-wildcard names; otherwise the block
+    carries no number at all (a missing figure is fine, an inflated one is not)."""
     e = mvp.exposure
-    rows: list[ImpRow] = []
-    for p in e.by_platform:
-        for s in p.sample_domains[:4]:
-            rows.append(ImpRow(domain=s, target=p.platform,
-                               detail=f"{p.count_30d} in 30d", pattern="Exact platform match"))
+    if not e.counts_verified:
+        return Exposure(total_30d=None, counts_verified=False,
+                        unchecked_domains=list(e.unchecked_domains))
     top = e.by_platform[0] if e.by_platform else None
     return Exposure(
-        total_exact=e.total_30d, top_platform=(top.platform if top else None),
-        top_share=e.targeting_concentration, rows=rows[:12],
-        lookalike_total=e.lookalike_total_30d,
+        total_30d=e.total_30d, counts_verified=True,
+        top_platform=(top.platform if top else None), top_share=e.targeting_concentration,
+        platforms=[PlatformLookalikes(platform=p.platform, total_30d=p.count_30d,
+                                      samples=p.sample_domains[:3])
+                   for p in e.by_platform if p.count_30d > 0][:5],
         unchecked_domains=list(e.unchecked_domains),
     )
 

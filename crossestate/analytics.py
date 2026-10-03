@@ -32,7 +32,7 @@ from crossestate.contract import (
     VarianceBlock,
     WeaknessPrevalence,
 )
-from crossestate.contract import DomainRef
+from crossestate.contract import REQUIRED_EXCLUDED_SUFFIXES, DomainRef
 from crossestate.technographic import identity_critical, signals_for
 from healthreport.grade import score_to_grade
 
@@ -399,6 +399,7 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
     by_segment: dict[str, int] = {}
     lookalike_30d = 0
     unchecked: list[str] = []
+    stamps: list = []
 
     for r in assessed:
         ext = r.vm.external_threat
@@ -410,6 +411,7 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
         for imp in ext.impersonations:
             if getattr(imp, "confidence", "exact") != "exact":
                 continue
+            stamps.append(getattr(imp, "excluded_suffixes", None))
             p = imp.platform
             # Internet-wide for the platform, identical on every domain that uses it:
             # take it once (max), never once per domain.
@@ -419,6 +421,8 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
             if imp.sample_domains:
                 plat_samples.setdefault(p, [])
                 for d in imp.sample_domains:
+                    if _under_excluded_suffix(d):
+                        continue          # defensive: never show one, stamped or not
                     if d not in plat_samples[p]:
                         plat_samples[p].append(d)
             by_segment[r.segment] = max(by_segment.get(r.segment, 0), int(imp.count_30d or 0))
@@ -454,7 +458,15 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
         lookalike_total_30d=lookalike_30d,
         stack_matched_30d=stack_matched_30d,
         unchecked_domains=unchecked,
+        counts_verified=bool(stamps) and all(
+            s is not None and set(REQUIRED_EXCLUDED_SUFFIXES) <= {x.lower().lstrip(".") for x in s}
+            for s in stamps),
     )
+
+
+def _under_excluded_suffix(domain: str) -> bool:
+    d = (domain or "").lower().rstrip(".")
+    return any(d == s or d.endswith("." + s) for s in REQUIRED_EXCLUDED_SUFFIXES)
 
 
 # ---------------------------------------------------------------------------

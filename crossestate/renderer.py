@@ -150,6 +150,10 @@ class CrossEstateRenderer:
         self._A("## Active exposure", "",
                 "*Standing impersonation snapshot (EXACT matches). The live feed (SKU-2) "
                 "delivers these as events; this report is the map.*", "")
+        if not e.counts_verified:
+            self._A("Platform lookalike counts are not shown for this run: the source could not "
+                    "be confirmed to exclude names under registry-level wildcard DNS.", "")
+            return
         if e.total_30d == 0 and not e.fully_checked:
             self._A(f"**Not checked** — the impersonation rollup was unreachable for "
                     f"{len(e.unchecked_domains)} of the estate's domains, and no other domain "
@@ -167,9 +171,6 @@ class CrossEstateRenderer:
                 self._A(f"| {p.platform} | {p.count_7d} | {p.count_30d} | {p.targeted_domains} | "
                         f"{', '.join(p.sample_domains[:3]) or '—'} |")
             self._A("")
-        if e.lookalike_total_30d:
-            self._A(f"*Lookalike candidates (lower confidence, watchlist only — not in the headline): "
-                    f"{e.lookalike_total_30d} in 30d.*", "")
 
     # -- operational calendar --
     def _md_calendar(self) -> None:
@@ -388,7 +389,8 @@ CROSS_ESTATE_TEMPLATE = r"""<!DOCTYPE html>
 {% elif section == 'exposure' %}
   <h2>Active exposure</h2>
   <div class="sub">Standing impersonation snapshot (EXACT). The live feed delivers events; this is the map.</div>
-  {% if e.exposure.total_30d %}
+  {% if not e.exposure.counts_verified %}<p>Platform lookalike counts are not shown for this run: the source could not be confirmed to exclude names under registry-level wildcard DNS.</p>
+  {% elif e.exposure.total_30d %}
     <p><strong>{{ "{:,}".format(e.exposure.total_30d) }} new lookalikes of the estate's platforms (30d, internet-wide)</strong>,
        targeting concentration {{ pct(e.exposure.targeting_concentration) }} on the top platform.</p>
     {% if not e.exposure.fully_checked %}<p><em>Understated: {{ e.exposure.unchecked_domains|length }} domain(s) could not be checked (rollup unreachable), so these totals are a floor, not a count.</em></p>{% endif %}
