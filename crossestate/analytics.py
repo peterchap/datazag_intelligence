@@ -101,7 +101,9 @@ def _ca_issuers(ref: DomainRef) -> set[str]:
     elif isinstance(ib, list):
         for item in ib:
             if isinstance(item, dict):
-                name = item.get("issuer") or item.get("name") or item.get("ca")
+                # cert_pipeline's issuer_distribution() emits issuer_category.
+                name = (item.get("issuer_category") or item.get("issuer")
+                        or item.get("name") or item.get("ca"))
                 if name:
                     out.add(str(name))
             elif item:

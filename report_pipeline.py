@@ -168,34 +168,28 @@ async def _ensure_rdap(domain: str, bundle: dict) -> dict:
 
 
 async def _ensure_cert_intel(domain: str) -> dict:
-    """Live CT-log intel via CertSpotter — a per-domain pull (like RDAP), NOT a corpus
-    scan, so it can't reintroduce the slow per-report scan. Reuses dnsproject/
-    intelligence/cert_pipeline.fetch_certspotter_subdomains (keyed off
-    CERTSPOTTER_API_KEY) which returns BOTH the subdomains and the cert_analysis
-    (wildcard zones, issuer breakdown, expiring/expired, churn). Best-effort: a
-    missing key / rate-limit / network error yields empties.
+    """CT-log intel from Datazag's own certificate archive (cert_stream.py), which
+    replaced the CertSpotter pull on 2026-10-02: CertSpotter's free tier slept for
+    minutes per domain on a 429. Same output shape — subdomains plus cert_analysis
+    (wildcard zones, issuer breakdown, expiring/expired, churn). An estate
+    prefetches all its domains in one query; a single report queries one domain.
+    Best-effort: an archive error yields empties.
 
     Returns {"subdomains": [...], "cert_analysis": {...}}."""
+    import asyncio
+
+    import cert_stream
+
     empty = {"subdomains": [], "cert_analysis": {}}
     try:
-        import os
-        import sys
-        parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if parent not in sys.path:
-            sys.path.append(parent)
-        from dnsproject.intelligence.cert_pipeline import fetch_certspotter_subdomains
-    except Exception as e:
-        print(f"  cert-intel: cert_pipeline unavailable: {e}")
-        return empty
-    try:
-        result = await fetch_certspotter_subdomains(domain) or {}
+        result = await asyncio.to_thread(cert_stream.cert_intel, domain)
         subs = result.get("subdomains") or []
         ca = result.get("cert_analysis") or {}
         subs = await _resolve_subdomains(subs)
-        print(f"  cert-intel: {len(subs)} subdomains + cert_analysis via CertSpotter")
+        print(f"  cert-intel: {len(subs)} subdomains + cert_analysis via the CT archive")
         return {"subdomains": subs, "cert_analysis": ca}
     except Exception as e:
-        print(f"  cert-intel: CertSpotter lookup failed: {e}")
+        print(f"  cert-intel: CT archive lookup failed: {str(e).splitlines()[0] if str(e) else e!r}")
         return empty
 
 
@@ -284,7 +278,9 @@ async def _resolve_subdomains(subs: list[dict], limit: int = 250) -> list[dict]:
         mx_provider, mx_category = (classify_mx(mx[0]) if mx else (None, None))
         s["a_records"], s["aaaa_records"] = a, aaaa
         s["cname"], s["mx"], s["ptr"] = cname, mx, ptr
-        s["is_dangling"] = dangling
+        # Both keys: the estate reads is_dangling; the health and legacy renderers
+        # read is_dangling_cname. Only one was set, so those renderers never saw it.
+        s["is_dangling"] = s["is_dangling_cname"] = dangling
         s["mx_platform"], s["mx_category"] = mx_provider, mx_category
         if dangling:
             s["risk_level"] = "high"
