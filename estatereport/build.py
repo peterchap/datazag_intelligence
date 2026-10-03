@@ -17,7 +17,9 @@ from typing import Optional
 from crossestate.build import build_estate_from_manifest, build_estate_view_model
 from crossestate.contract import EstateThresholds
 from estatereport import transform
-from estatereport.contract import CorpusInfo, EstateReport, share_text
+from estatereport import brand_lookalikes
+from estatereport.contract import CorpusInfo, EstateReport, Owner, share_text
+from estatereport.entities import NOTABLE_LABELS, build_entities
 from estatereport.labels import segment_label
 from estatereport.discovery import DiscoveryProvider, default_discovery, to_estate_discovery
 from estatereport.exceptions2 import build_exceptions
@@ -40,9 +42,13 @@ def build_estate_report_from_manifest(manifest_path: str,
 
 
 def build_estate_report(mvp, discovery: Optional[DiscoveryProvider] = None,
-                        now: Optional[datetime] = None, observatory=None) -> EstateReport:
+                        now: Optional[datetime] = None, observatory=None,
+                        corpus_index=None) -> EstateReport:
     """`observatory`: an observatory.Observatory (tests inject a fixture or
-    Observatory.unavailable()); default is the live, process-cached load."""
+    Observatory.unavailable()); default is the live, process-cached load.
+    `corpus_index`: the tailored corpus index for brand same-name registrations;
+    default is the one the discovery provider uses (CORPUS_INDEX_DIR), else none,
+    in which case every entity's brand_lookalikes is None (not measured)."""
     now = now or datetime.now(timezone.utc)
     import observatory as _obs
     corpus = _obs.corpus_size(observatory if observatory is not None else _obs.load_cached())
@@ -51,6 +57,10 @@ def build_estate_report(mvp, discovery: Optional[DiscoveryProvider] = None,
     refs = [d for seg in mvp.segments for d in seg.domains]
     declared = [r.domain for r in refs]
     disc = to_estate_discovery(discovery.discover(mvp.group, refs), declared)
+    owner_refs = list(getattr(mvp, "owner_refs", []) or [])
+    owner_disc = (to_estate_discovery(discovery.discover(mvp.group, owner_refs),
+                                      [r.domain for r in owner_refs]) if owner_refs else None)
+    corpus_index = corpus_index if corpus_index is not None else getattr(discovery, "corpus", None)
 
     conc = transform.concentration(mvp)
     var, baseline = transform.variance(mvp)
@@ -73,6 +83,19 @@ def build_estate_report(mvp, discovery: Optional[DiscoveryProvider] = None,
         correlated=corr, exposure=exp,
         calendar=cal,
     )
+    report.owner = Owner(**mvp.owner) if getattr(mvp, "owner", None) else None
+    report.entities = build_entities(mvp, cal, disc, owner_disc, corpus_index, now=now)
+    report.provenance = {
+        "entities.subdomains": "Hostnames observed in certificate transparency (Datazag CT "
+                               "archive), not a live inventory. Notable = a label matching "
+                               + "/".join(NOTABLE_LABELS) + ".",
+        "entities.saas": "Platforms evidenced by MX, SPF include or CNAME; ownership-"
+                         "verification TXT tokens are not counted.",
+        "entities.brand_lookalikes": (brand_lookalikes.RULE if corpus_index is not None else
+                                      "Not measured: no corpus index for this run."),
+        "entities.linked_domains": "Strong-tier discovery (shared certificate, shared "
+                                   "infrastructure) attributed to the entity whose domain produced it.",
+    }
     report.exceptions = build_exceptions(report)
     patterns, admin_points = build_remediation(mvp, cal)
     report.remediation = patterns

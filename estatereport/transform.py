@@ -125,7 +125,7 @@ def calendar(mvp) -> list[CalItem]:
             cls = "later"
         out.append(CalItem(
             domain=it.domain, segment=it.segment, host=it.host or it.domain, item_kind=it.kind,
-            due=it.date, overdue=(it.days_left is not None and it.days_left < 0),
+            due=it.date, days_left=it.days_left, overdue=(it.days_left is not None and it.days_left < 0),
             detail=it.detail, due_class=cls,
         ))
     return out

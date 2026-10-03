@@ -38,6 +38,7 @@ class DiscoveredDomain(_Base):
     evidence: list[Evidence] = Field(default_factory=list)
     registrant_matches: Optional[bool] = None
     available_for_registration: Optional[bool] = None   # defensive tier
+    linked_to: list[str] = Field(default_factory=list)  # declared domains that surfaced it
 
 
 class EstateDiscovery(_Base):
@@ -169,6 +170,7 @@ class CalItem(_Base):
     host: Optional[str] = None         # the name that lapses (domain or certificate hostname)
     item_kind: str
     due: Optional[str] = None          # None → standing
+    days_left: Optional[int] = None    # from the report date; negative == overdue
     overdue: bool = False
     detail: str = ""
     due_class: str = "later"           # overdue | soon | later
@@ -240,6 +242,102 @@ class AdminPoint(_Base):
     detail: str = ""
 
 
+# ── Entities (Phase 2: one record per company in the estate, plus the owner) ──
+
+class Owner(_Base):
+    name: str
+    domain: str
+
+
+class SubdomainSummary(_Base):
+    """Hostnames OBSERVED IN CERTIFICATE TRANSPARENCY, not a live inventory."""
+    source: str = "observed in certificate transparency"
+    count: int = 0
+    notable: list[str] = Field(default_factory=list)   # auth/login/admin/staging/dev/demo/vpn/api…
+
+
+class SaasPlatform(_Base):
+    provider: str
+    category: str = ""
+    evidence: str = ""                 # MX / SPF include / CNAME — never an ownership token
+
+
+class EmailGateway(_Base):
+    provider: str
+    kind: Literal["gateway", "mailbox"]
+    category: str = ""
+
+
+class CertIssue(_Base):
+    host: str
+    kind: str                          # cert_expiring | cert_expired
+    due: Optional[str] = None
+    days_left: Optional[int] = None
+
+
+class BrandLookalike(_Base):
+    domain: str
+    confidence: float
+    signals: list[str] = Field(default_factory=list)
+
+
+class BrandLookalikes(_Base):
+    label: str
+    total_matches: int = 0             # exact-label registrations after ownership exclusions
+    active_matches: int = 0            # of those, at or above the confidence threshold
+    shown: list[BrandLookalike] = Field(default_factory=list)
+
+
+class DomainRecord(_Base):
+    """One declared domain of an entity. The free tier reads only the primary
+    domain's record; paid reads them all."""
+    domain: str
+    primary: bool = False
+    assessed: bool = True
+    not_assessed_reason: Optional[str] = None
+    grade: Optional[str] = None
+    score: Optional[float] = None
+    controls: dict[str, str] = Field(default_factory=dict)   # vocab: estatereport/controls.py
+    findings: list[str] = Field(default_factory=list)        # gaps, urgency order
+    subdomains: SubdomainSummary = Field(default_factory=SubdomainSummary)
+    saas: list[SaasPlatform] = Field(default_factory=list)
+    email_gateway: Optional[EmailGateway] = None
+    cert_issues: list[CertIssue] = Field(default_factory=list)
+
+
+class LinkedDomain(_Base):
+    domain: str
+    tier: str                          # strong (owned, corroborated)
+    evidence: list[Evidence] = Field(default_factory=list)
+
+
+class Entity(_Base):
+    name: str
+    primary_domain: str
+    role: str = "portfolio"            # owner | portfolio | insured | client
+    domains: list[str] = Field(default_factory=list)          # declared domains
+    assessed: bool = True              # primary domain assessed
+    grade: Optional[str] = None        # the PRIMARY domain's grade
+    score: Optional[float] = None
+    prev_grade: Optional[str] = None   # set when a prior run exists
+    controls: dict[str, str] = Field(default_factory=dict)    # primary domain, 7 controls
+    top_issue: Optional[str] = None                           # primary domain
+    records: list[DomainRecord] = Field(default_factory=list) # every declared domain, primary first
+    # Attack surface across ALL declared domains (union of the records).
+    subdomains: SubdomainSummary = Field(default_factory=SubdomainSummary)
+    saas: list[SaasPlatform] = Field(default_factory=list)
+    email_gateway: Optional[EmailGateway] = None
+    cert_issues: list[CertIssue] = Field(default_factory=list)
+    # None = not measured (no corpus index); an empty list would claim "none found".
+    brand_lookalikes: Optional[BrandLookalikes] = None
+    linked_domains: list[LinkedDomain] = Field(default_factory=list)
+    insurer_signals: dict = Field(default_factory=dict)
+
+    @property
+    def primary_record(self) -> Optional["DomainRecord"]:
+        return next((r for r in self.records if r.primary), self.records[0] if self.records else None)
+
+
 class CorpusInfo(_Base):
     """Corpus size read live from the Observatory (`corpus_domains`)."""
     domains: int
@@ -253,6 +351,13 @@ class EstateReport(_Base):
     # Live from the Observatory; None when it is unreachable, and every sentence that
     # quotes the corpus size is then left out. Never a hard-coded figure.
     corpus: Optional[CorpusInfo] = None
+    # Entity model (Phase 2). The owner's record has role "owner"; it is never part
+    # of the estate grade, distribution or concentration.
+    owner: Optional[Owner] = None
+    entities: list[Entity] = Field(default_factory=list)
+    peer_cohort: Optional[dict] = None                 # open question 1: null for now
+    # How derived fields were produced (rules, thresholds), for the analyst reading JSON.
+    provenance: dict[str, str] = Field(default_factory=dict)
     # page 1
     synthesis_html: str = ""
     dash: list[dict] = Field(default_factory=list)     # 4 cover cards {cls,key,state,note}

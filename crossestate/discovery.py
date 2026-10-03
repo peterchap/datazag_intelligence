@@ -63,6 +63,7 @@ class DiscoveredDomain:
     evidence: list[dict] = field(default_factory=list)   # {kind, detail}
     confidence: float = 0.0
     corroboration: list[str] = field(default_factory=list)
+    linked_to: list[str] = field(default_factory=list)   # declared domains that produced it
 
 
 @dataclass
@@ -155,13 +156,15 @@ class ConnectedDomainDiscoveryProvider:
             if corroborated:
                 conf = min(0.95, 0.7 + 0.1 * len(links) + (0.1 if apex_match else 0.0))
                 tier = "defensive" if defensive else "strong"
-                discovered.append(DiscoveredDomain(dom, "owned", tier, ev, round(conf, 2), corr))
+                discovered.append(DiscoveredDomain(dom, "owned", tier, ev, round(conf, 2), corr,
+                                                   linked_to=sorted(links)))
             else:
                 # shared cert but no ownership corroboration → likely a co-tenant.
                 conf = 0.45 + 0.05 * (len(links) - 1)
                 candidates.append(DiscoveredDomain(dom, "ambiguous", "possible", ev,
                                                    round(min(conf, 0.6), 2),
-                                                   corr + ["no apex/brand corroboration — held for review"]))
+                                                   corr + ["no apex/brand corroboration — held for review"],
+                                                   linked_to=sorted(links)))
 
         # ── Corpus stem-sweep source (the tailored index) ────────────────────
         corpus_n = 0
@@ -194,6 +197,7 @@ class ConnectedDomainDiscoveryProvider:
         for stem, _group in by_stem.items():
             if not stem:
                 continue
+            group_domains = sorted(r.domain for r in _group)
             rows = self.corpus.stem_matches(stem)          # declared + candidates, one partition read
             estate_ns = {r.ns_domain for r in rows if r.domain.lower() in declared and r.ns_domain}
             estate_mx = {r.mx_domain for r in rows if r.domain.lower() in declared and r.mx_domain}
@@ -221,7 +225,8 @@ class ConnectedDomainDiscoveryProvider:
                 # is held for review (possible) or flagged (hostile).
                 if infra:                                   # shared NS/MX = corroborated ownership
                     discovered.append(DiscoveredDomain(dom, "owned", "strong",
-                                       ev + [{"kind": "ns", "detail": corr[0]}], 0.9, corr))
+                                       ev + [{"kind": "ns", "detail": corr[0]}], 0.9, corr,
+                                       linked_to=group_domains))
                 elif typo or dga >= self.dga_threshold:     # lookalike/typosquat — hostile lane
                     hostile.append(DiscoveredDomain(dom, "hostile", "defensive",
                                     ev + [{"kind": "dga",

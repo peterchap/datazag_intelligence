@@ -121,5 +121,184 @@ def test_owner_is_excluded_from_the_report_grade_and_worksheet():
     assert all(e.domain != "osneycapital.com" for p in rep.remediation for e in p.entries)
 
 
+# ── controls vocabulary ─────────────────────────────────────────────────────
+
+from estatereport.controls import CONTROL_ORDER, VOCAB, controls_for  # noqa: E402
+from intelligence_contract import DnsHygiene, DnsRecordSet, PlatformSignal  # noqa: E402
+
+
+def _vm(**hyg):
+    vm = make_ref("x.com", "s").vm
+    vm.hygiene = DnsHygiene(**hyg)
+    return vm
+
+
+@pytest.mark.parametrize("hyg,control,expected", [
+    ({"dmarc_policy": "reject"}, "dmarc", "reject"),
+    ({"dmarc_policy": "none", "dmarc_record": "v=DMARC1; p=none"}, "dmarc", "monitor"),
+    ({}, "dmarc", "missing"),
+    ({"dmarc_record": "v=DMARC1; rua=mailto:x@y"}, "dmarc", "invalid"),
+    ({"spf_record": "v=spf1 include:_spf.google.com -all"}, "spf", "hardfail"),
+    ({"spf_record": "v=spf1 include:_spf.google.com ~all"}, "spf", "softfail"),
+    ({"spf_record": "v=spf1 ?all"}, "spf", "neutral"),
+    ({"spf_record": "v=spf1 +all"}, "spf", "permissive"),
+    ({"spf_record": "v=spf1 redirect=_spf.example.com"}, "spf", "delegated"),
+    ({}, "spf", "missing"),
+    ({"mta_sts_mode": "enforce"}, "mta_sts", "enforce"),
+    ({"mta_sts_txt_present": True}, "mta_sts", "invalid"),
+    ({}, "mta_sts", "missing"),
+    ({"bimi_present": True}, "bimi", "present"),
+])
+def test_control_values(hyg, control, expected):
+    assert controls_for(_vm(**hyg))[control] == expected
+
+
+def test_every_control_uses_its_fixed_vocabulary():
+    for kw in ({}, {"dmarc_policy": "quarantine", "spf_record": "v=spf1 -all", "caa_present": True,
+                    "dnssec": True, "mta_sts_mode": "testing", "bimi_present": True}):
+        ctl = controls_for(_vm(**kw))
+        assert tuple(ctl) == CONTROL_ORDER
+        assert all(ctl[c] in VOCAB[c] for c in CONTROL_ORDER)
+
+
+def test_unassessed_domain_is_unknown_on_every_control_never_missing():
+    vm = make_ref("x.com", "s", has_intel=False).vm
+    assert set(controls_for(vm).values()) == {"unknown"}
+    vm = make_ref("y.com", "s").vm
+    assert set(controls_for(vm, load_error="live DNS scan did not finish").values()) == {"unknown"}
+
+
+def test_registrar_lock_unknown_when_rdap_gave_no_status():
+    assert controls_for(make_ref("x.com", "s", status=None).vm)["registrar_lock"] == "unknown"
+    assert controls_for(make_ref("x.com", "s", status="ok").vm)["registrar_lock"] == "unlocked"
+    assert controls_for(make_ref("x.com", "s", status="client transfer prohibited").vm)[
+        "registrar_lock"] == "locked"
+
+
+def test_controls_doc_lists_every_vocabulary_value():
+    with open(os.path.join(_ROOT, "docs", "report-editions", "controls.md"), encoding="utf-8") as fh:
+        doc = fh.read()
+    for control, values in VOCAB.items():
+        assert f"`{control}`" in doc, control
+        for v in values:
+            assert f"`{v}`" in doc, f"{control}: {v}"
+
+
+# ── entities[] ──────────────────────────────────────────────────────────────
+
+def _report(path=None, corpus_index=None):
+    from estatereport.build import build_estate_report_from_manifest
+    from crossestate.build import build_estate_from_manifest
+    from estatereport.build import build_estate_report
+    mvp = build_estate_from_manifest(path or _owner_estate(), now=NOW)
+    return build_estate_report(mvp, now=NOW, observatory=no_observatory(),
+                               corpus_index=corpus_index)
+
+
+def test_entities_owner_first_then_portfolio_each_graded_with_seven_controls():
+    rep = _report()
+    assert rep.owner.name == "Osney Capital"
+    assert [(e.name, e.role) for e in rep.entities] == [
+        ("Osney Capital", "owner"), ("Aisy", "portfolio"), ("Ploy", "portfolio")]
+    for e in rep.entities:
+        assert e.grade and e.score is not None
+        assert tuple(e.controls) == CONTROL_ORDER
+        assert e.records[0].primary and e.records[0].domain == e.primary_domain
+    owner = rep.entities[0]
+    assert owner.top_issue == "No registrar lock"           # urgency order: lock first
+    assert owner.cert_issues == [] and owner.domains == ["osneycapital.com"]
+
+
+def test_owner_calendar_rows_reach_only_the_owner_record():
+    rep = _report()
+    assert not any(c.domain == "osneycapital.com" for c in rep.calendar)
+
+
+def _vm_surface():
+    ref = make_ref("ploy.io", "s", mailbox="Google Workspace", subs=[
+        {"dns_name": "auth.ploy.io"}, {"dns_name": "staging-api.ploy.io"},
+        {"dns_name": "www.ploy.io"}, {"dns_name": "*.ploy.io"}, {"dns_name": "ploy.io"},
+        {"dns_name": "dev2.eu.ploy.io"}, {"dns_name": "other.com"}])
+    ref.vm.dns_records = DnsRecordSet(mx=["10 ploy-io.mail.protection.outlook.com"])
+    ref.vm.annotation.platform_signals = [
+        PlatformSignal(provider="HubSpot", category="Marketing", signal_type="SPF_INCLUDE",
+                       evidence="include:hubspotemail.net"),
+        PlatformSignal(provider="Atlassian", category="Dev", signal_type="TXT",
+                       evidence="atlassian-domain-verification=abc"),
+    ]
+    return ref
+
+
+def test_subdomains_are_ct_observed_with_notable_names():
+    from estatereport.entities import subdomain_summary
+    s = subdomain_summary(_vm_surface().vm, "ploy.io")
+    assert s.source == "observed in certificate transparency"
+    assert s.count == 4                            # wildcard, apex and foreign names dropped
+    assert s.notable == ["auth.ploy.io", "dev2.eu.ploy.io", "staging-api.ploy.io"]
+
+
+def test_saas_never_counts_ownership_tokens():
+    from estatereport.entities import saas_platforms
+    names = [p.provider for p in saas_platforms(_vm_surface().vm)]
+    assert "HubSpot" in names and "Atlassian" not in names
+
+
+def test_email_gateway_prefers_a_security_gateway_over_the_mailbox():
+    from estatereport.entities import email_gateway
+    ref = _vm_surface()
+    ref.vm.dns_records = DnsRecordSet(mx=["10 mx1-eu1.ppe-hosted.com"])
+    g = email_gateway(ref.vm)
+    assert g.kind == "gateway" and g.provider == "Proofpoint"
+    ref.vm.dns_records = DnsRecordSet(mx=[])
+    assert email_gateway(ref.vm) is None
+
+
+# ── linked domains + brand same-name registrations ─────────────────────────
+
+def test_linked_domains_attach_to_the_entity_that_produced_them():
+    a = make_ref("ploy.io", "x", cert={"cross_domain_sans": [{"dns_name": "ploy.co.uk"}]})
+    b = make_ref("aisy.ai", "x")
+    rep = _report(_write_estate([(a, "portfolio", "Ploy"), (b, "portfolio", "Aisy")]))
+    by = {e.name: e for e in rep.entities}
+    assert [l.domain for l in by["Ploy"].linked_domains] == ["ploy.co.uk"]
+    assert by["Aisy"].linked_domains == []
+
+
+class _FakeCorpus:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def stem_matches(self, stem, include_hyphen=True, exclude=None, limit=500):
+        return [r for r in self.rows if r.stem == stem]
+
+
+def test_brand_lookalikes_none_without_an_index():
+    assert all(e.brand_lookalikes is None for e in _report().entities)
+
+
+def test_brand_lookalikes_rule():
+    from crossestate.corpus_index import CorpusRow as R
+    rows = [
+        R("ploy.io", "ploy", "io", ns_domain="cloudflare.com", mx_domain="google.com", ip="1.1.1.1"),
+        R("ploy.com", "ploy", "com", mx_domain="outlook.com", ip="2.2.2.2"),          # 0.9
+        R("ploy.de", "ploy", "de", ip="3.3.3.3"),                                      # 0.6
+        R("ploy.net", "ploy", "net"),                                                  # 0.4: hidden
+        R("ploy.co", "ploy", "co", ns_domain="cloudflare.com", ip="4.4.4.4"),         # shares NS
+        R("ploy.org", "ploy", "org", mx_domain="x.com", ip="5.5.5.5"),
+        R("ploy.app", "ploy", "app", mx_domain="y.com", ip="6.6.6.6"),
+        R("ploy.xyz", "ploy", "xyz", mx_domain="z.com", ip="7.7.7.7"),
+        R("ploy.ai", "ploy", "ai", mx_domain="w.com", ip="8.8.8.8"),
+    ]
+    a = make_ref("ploy.io", "x")
+    rep = _report(_write_estate([(a, "portfolio", "Ploy")]), corpus_index=_FakeCorpus(rows))
+    bl = rep.entities[0].brand_lookalikes
+    assert bl.label == "ploy"
+    assert bl.total_matches == 7                 # own ploy.io and NS-sharing ploy.co excluded
+    assert bl.active_matches == 6                # ploy.net has no activity
+    assert len(bl.shown) == 5
+    assert bl.shown[0].confidence == 0.9 and "ploy.de" not in [s.domain for s in bl.shown]
+    assert "Exact brand label" in rep.provenance["entities.brand_lookalikes"]
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

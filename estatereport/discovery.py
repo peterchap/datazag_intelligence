@@ -36,6 +36,7 @@ def _convert(dd) -> DiscoveredDomain:
     return DiscoveredDomain(
         domain=dd.domain, tier=tier,
         evidence=[Evidence(kind=e.get("kind", ""), detail=e.get("detail", "")) for e in dd.evidence],
+        linked_to=list(getattr(dd, "linked_to", []) or []),
     )
 
 
