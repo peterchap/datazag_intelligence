@@ -301,6 +301,7 @@ html,body{background:#D9DEE5;font-family:'Inter',sans-serif;-webkit-font-smoothi
 .ex-sev.high{color:var(--bad);background:var(--bad-wash)}
 .ex-sev.elevated{color:var(--warn);background:var(--warn-wash)}
 .ex-sev.watch{color:var(--cyan-deep);background:var(--cyan-wash)}
+.ex-sev.info{color:var(--ink-3);background:var(--tint)}
 .exc .ex-body{padding:10px 15px;font-size:11px;line-height:1.55;color:var(--ink-2)}
 .exc .ex-body b{color:var(--ink);font-weight:600}
 .exc .ex-ev{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--ink-3);margin-top:6px;padding-top:6px;border-top:1px solid var(--rule-2)}

@@ -71,9 +71,17 @@ def test_exceptions_collapsed_5_to_7_and_ranked():
     assert 3 <= len(ex) <= 7
     ranks = [e.rank for e in ex]
     assert ranks == sorted(ranks) and ranks[0] == 1
-    order = {"high": 0, "elevated": 1, "watch": 2}
+    order = {"high": 0, "elevated": 1, "watch": 2, "info": 3}
     sevs = [order[e.severity] for e in ex]
     assert sevs == sorted(sevs)
+
+
+def test_platform_impersonation_is_informational_never_a_ranked_risk():
+    """Platform-wide lookalike counts are the same for every organization on those
+    platforms, so they must never rank as a risk to this estate (2026-10-03)."""
+    ex = [e for e in _report().exceptions if "impersonating the estate's platforms" in e.title]
+    assert ex and all(e.severity == "info" for e in ex)
+    assert "not a finding against this estate" in ex[0].body_html
 
 
 def test_correlated_and_concentration_collapse_into_single_entries():
