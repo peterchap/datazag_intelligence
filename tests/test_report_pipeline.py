@@ -22,6 +22,17 @@ from intelligence_contract import (  # noqa: E402
     BrandExposure, DomainIntelligence, ExternalThreat, PlatformImpersonation,
 )
 import report_pipeline as rp  # noqa: E402
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_cert_archive(monkeypatch):
+    """Assembly tests must not reach the CT archive on R2. With R2 credentials in
+    the environment, build_view_model would otherwise run a live 100-day archive
+    query per test (minutes each)."""
+    async def _empty(domain):  # noqa: ARG001 - signature must match
+        return {"subdomains": [], "cert_analysis": {}}
+    monkeypatch.setattr(rp, "_ensure_cert_intel", _empty)
 
 _FIX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 
