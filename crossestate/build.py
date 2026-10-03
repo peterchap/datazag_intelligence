@@ -43,11 +43,12 @@ def build_estate_from_manifest(
     thresholds: Optional[EstateThresholds] = None,
     discovery: Optional[DiscoveryProvider] = None,
     now: Optional[datetime] = None,
+    tls_probe=None,
 ) -> EstateViewModel:
     """Convenience wrapper: parse the manifest file, then build."""
     group, entries = load_manifest(manifest_path)
     return build_estate_view_model(group, entries, thresholds=thresholds,
-                                   discovery=discovery, now=now)
+                                   discovery=discovery, now=now, tls_probe=tls_probe)
 
 
 def build_estate_view_model(
@@ -56,7 +57,10 @@ def build_estate_view_model(
     thresholds: Optional[EstateThresholds] = None,
     discovery: Optional[DiscoveryProvider] = None,
     now: Optional[datetime] = None,
+    tls_probe=None,
 ) -> EstateViewModel:
+    """`tls_probe` (crossestate.tls_probe.probe_hosts, or None) confirms certificate
+    calendar rows against the live served cert. None keeps the build pure."""
     thresholds = thresholds or EstateThresholds()
     discovery = discovery or default_discovery()
     now = now or datetime.now(timezone.utc)
@@ -95,7 +99,7 @@ def build_estate_view_model(
     correlated = compute_correlated(refs, thresholds)
     variance = compute_variance(refs, thresholds)
     exposure = compute_exposure(refs, thresholds)
-    calendar = compute_calendar(refs, thresholds, now=now)
+    calendar = compute_calendar(refs, thresholds, now=now, tls_probe=tls_probe)
     completeness = to_completeness(discovery.discover(group, refs))
 
     # ── Segment hierarchy (posture from the variance block) ──────────────

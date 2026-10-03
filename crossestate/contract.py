@@ -61,6 +61,9 @@ class EstateThresholds(_Base):
     exposure_concentration_pct: float = 0.50
     # §2.6 — calendar horizons (days).
     cert_expiring_days: int = 30
+    # Auto-renewing issuers (ACME / managed: Let's Encrypt, Google TS, Cloudflare,
+    # ACM) renew inside the last 30 days by design; flag them only this close.
+    acme_expiring_days: int = 7
     domain_expiring_days: int = 60
 
 
@@ -202,15 +205,19 @@ class ExposureRollup(_Base):
 class CalendarItem(_Base):
     domain: str
     segment: str = ""
-    kind: str                        # domain_expiry | unlocked | cert_expiring | cert_expired | missed_renewal
-    date: Optional[str] = None
+    host: Optional[str] = None       # the name that lapses: the domain, or a certificate hostname
+    kind: str                        # domain_expiry | unlocked | cert_expiring | cert_expired
+    date: Optional[str] = None       # the due date (registration expiry / cert notAfter)
     days_left: Optional[int] = None  # negative == overdue
     severity: str = "info"
     detail: str = ""
+    renewal_window_passed: bool = False   # cert: inside its last 60 days with no newer cert seen
+    auto_renewing: bool = False           # cert: issued by an auto-renewing (ACME/managed) issuer
 
 
 class CalendarBlock(_Base):
     items: list[CalendarItem] = Field(default_factory=list)
+    # Counts are DISTINCT HOSTS due in the window, not rows.
     next_30d: int = 0
     next_90d: int = 0
     overdue: int = 0

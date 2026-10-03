@@ -35,8 +35,12 @@ def _slug(name: str) -> str:
 
 
 async def run(manifest: str, formats: list[str], output_dir: Path = None,
-              skip_pdf: bool = False) -> dict:
-    report = build_estate_report_from_manifest(manifest)
+              skip_pdf: bool = False, tls_confirm: bool = True) -> dict:
+    tls_probe = None
+    if tls_confirm:
+        from crossestate.tls_probe import probe_hosts
+        tls_probe = probe_hosts
+    report = build_estate_report_from_manifest(manifest, tls_probe=tls_probe)
     print(f"  Group: {report.group} | grade {report.grade.grade} "
           f"({report.grade.score:.0f}/100) | {report.grade.domain_count} graded")
     print(f"  Exceptions: {len(report.exceptions)} | remediation patterns: "
@@ -80,8 +84,11 @@ if __name__ == "__main__":
     parser.add_argument("--format", default="json,html,markdown", help="Comma-separated formats")
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--skip-pdf", action="store_true")
+    parser.add_argument("--tls-confirm", action=argparse.BooleanOptionalAction, default=True,
+                        help="Confirm certificate-expiry rows with a live TLS handshake "
+                             "(default on); --no-tls-confirm for offline runs.")
     args = parser.parse_args()
     formats = [f.strip() for f in args.format.split(",") if f.strip()]
     asyncio.run(run(manifest=args.manifest, formats=formats,
                     output_dir=Path(args.output_dir) if args.output_dir else None,
-                    skip_pdf=args.skip_pdf))
+                    skip_pdf=args.skip_pdf, tls_confirm=args.tls_confirm))

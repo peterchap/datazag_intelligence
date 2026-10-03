@@ -114,6 +114,106 @@ def test_record_data_carries_no_markup():
             assert "<span" not in ln.text and "&lt;" not in ln.text
 
 
+# ── #5 / #6 calendar: one row per host, due populated, lapses = distinct hosts ─
+
+from crossestate.analytics import compute_calendar  # noqa: E402
+from crossestate.contract import EstateThresholds  # noqa: E402
+
+TH = EstateThresholds()
+
+
+def _cert(name, not_after, issuer="digicert"):
+    days = (datetime.fromisoformat(not_after).replace(tzinfo=timezone.utc) - _NOW).days
+    row = {"dns_name": name, "not_after": not_after, "days_remaining": days,
+           "issuer_category": issuer}
+    return row
+
+
+def _ca(*rows, expired=()):
+    """Reproduce CertAnalysis: every expiring cert also lands in missed_renewals."""
+    return {"expiring_soon": list(rows), "missed_renewals": [dict(r) for r in rows],
+            "expired": list(expired)}
+
+
+def test_expiring_cert_and_its_missed_renewal_twin_are_one_row_with_a_due_date():
+    ref = make_ref("mindgard.ai", "s", cert=_ca(_cert("auth.mindgard.ai", "2026-07-20")))
+    cal = compute_calendar([ref], TH, now=_NOW)
+    rows = [it for it in cal.items if it.kind.startswith("cert")]
+    assert len(rows) == 1
+    assert rows[0].host == "auth.mindgard.ai"
+    assert rows[0].date == "2026-07-20" and rows[0].days_left == 18
+    assert rows[0].renewal_window_passed is True
+
+
+def test_no_host_appears_twice():
+    ref = make_ref("sitehop.com", "s", status="ok", expires="2026-07-10",
+                   cert=_ca(_cert("sitea.sitehop.com", "2026-07-20"),
+                            _cert("siteb.sitehop.com", "2026-07-25")))
+    hosts = [(it.kind.startswith("cert"), it.host)
+             for it in compute_calendar([ref], TH, now=_NOW).items]
+    cert_hosts = [h for is_cert, h in hosts if is_cert]
+    assert len(cert_hosts) == len(set(cert_hosts)) == 2
+    assert all(it.date for it in compute_calendar([ref], TH, now=_NOW).items
+               if it.kind != "unlocked")
+
+
+def test_auto_renewing_certs_only_flag_close_to_expiry():
+    ref = make_ref("ploy.io", "s", cert=_ca(
+        _cert("le-20d.ploy.io", "2026-07-22", issuer="letsencrypt"),   # normal ACME renewal window
+        _cert("le-5d.ploy.io", "2026-07-07", issuer="letsencrypt"),    # genuinely close
+        _cert("dc-20d.ploy.io", "2026-07-22", issuer="digicert"),      # manual issuer
+    ))
+    hosts = {it.host for it in compute_calendar([ref], TH, now=_NOW).items}
+    assert hosts == {"le-5d.ploy.io", "dc-20d.ploy.io"}
+
+
+def test_live_tls_drops_a_cert_already_renewed_and_keeps_unconfirmed_rows():
+    ref = make_ref("huntbase.io", "s", cert=_ca(_cert("a.huntbase.io", "2026-07-20"),
+                                                _cert("b.huntbase.io", "2026-07-20")))
+    renewed = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    probe = lambda hosts: {"a.huntbase.io": renewed, "b.huntbase.io": None}  # noqa: E731
+    hosts = {it.host for it in compute_calendar([ref], TH, now=_NOW, tls_probe=probe).items}
+    assert hosts == {"b.huntbase.io"}
+
+
+def test_a_failing_probe_never_sinks_the_calendar():
+    def boom(hosts):
+        raise OSError("network down")
+    ref = make_ref("x.com", "s", cert=_ca(_cert("a.x.com", "2026-07-20")))
+    assert len(compute_calendar([ref], TH, now=_NOW, tls_probe=boom).items) == 1
+
+
+def test_window_counts_are_distinct_hosts():
+    # registration AND a cert on the same apex host, plus a second cert host
+    ref = make_ref("aisy.ai", "s", expires="2026-07-20",
+                   cert=_ca(_cert("aisy.ai", "2026-07-15"), _cert("app.aisy.ai", "2026-07-16")))
+    cal = compute_calendar([ref], TH, now=_NOW)
+    assert len(cal.items) == 3
+    assert cal.next_30d == 2                       # aisy.ai, app.aisy.ai
+
+
+def test_cover_lapses_kpi_equals_distinct_hosts():
+    from crossestate.build import build_estate_view_model
+    from crossestate.manifest import ManifestEntry
+    from estatereport.build import build_estate_report
+    import json
+    import tempfile
+    refs = [make_ref("aisy.ai", "s", expires="2026-07-20",
+                     cert=_ca(_cert("aisy.ai", "2026-07-15"), _cert("app.aisy.ai", "2026-07-16")))]
+    with tempfile.TemporaryDirectory() as d:
+        entries = []
+        for r in refs:
+            p = os.path.join(d, f"{r.domain}.json")
+            with open(p, "w", encoding="utf-8") as fh:
+                json.dump(r.vm.model_dump(mode="json"), fh)
+            entries.append(ManifestEntry(domain=r.domain, segment="s", contract_path=p))
+        mvp = build_estate_view_model("g", entries, now=_NOW)
+    rep = build_estate_report(mvp, now=_NOW)
+    lapses = next(c for c in rep.dash if c["key"] == "Live lapses")
+    hosts = {c.host for c in rep.calendar if c.due_class in ("overdue", "soon")}
+    assert lapses["state"] == str(len(hosts)) == "2"
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))

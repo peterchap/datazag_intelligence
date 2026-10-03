@@ -17,7 +17,7 @@ import re
 
 import statistics
 from datetime import datetime, timezone
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from crossestate.contract import (
     CalendarBlock,
@@ -482,9 +482,21 @@ def _parse_date(val) -> Optional[datetime]:
 
 
 def compute_calendar(refs: list[DomainRef], thresholds: EstateThresholds,
-                     now: Optional[datetime] = None) -> CalendarBlock:
+                     now: Optional[datetime] = None,
+                     tls_probe: Optional[Callable] = None) -> CalendarBlock:
+    """Domain expiry, registrar locks and certificate expiry, one row per host.
+
+    `tls_probe` (optional, network) takes hostnames and returns {host: served
+    notAfter | None}; rows for certs already renewed are then dropped. Absent, the
+    calendar is pure (tests, offline runs)."""
     now = now or datetime.now(timezone.utc)
     items: list[CalendarItem] = []
+    served: dict = {}
+    if tls_probe is not None:
+        try:
+            served = tls_probe(cert_hosts_to_confirm(refs, thresholds, now=now)) or {}
+        except Exception as e:  # noqa: BLE001 - a failed probe never sinks the calendar
+            print(f"  calendar: TLS confirmation skipped ({type(e).__name__}: {e})")
 
     for r in _assessed(refs):
         vm = r.vm
@@ -495,7 +507,7 @@ def compute_calendar(refs: list[DomainRef], thresholds: EstateThresholds,
             if days <= thresholds.domain_expiring_days:
                 sev = "high" if days < 0 else "elevated" if days <= 14 else "medium"
                 items.append(CalendarItem(
-                    domain=r.domain, segment=r.segment, kind="domain_expiry",
+                    domain=r.domain, segment=r.segment, host=r.domain, kind="domain_expiry",
                     date=vm.registration.expires_date, days_left=days, severity=sev,
                     detail=("Domain registration expired" if days < 0
                             else f"Domain registration expires in {days}d"),
@@ -504,47 +516,121 @@ def compute_calendar(refs: list[DomainRef], thresholds: EstateThresholds,
         status = re.sub(r"[\s_-]", "", (vm.registration.status or "").lower())  # RDAP spaces
         if status and not any(tok in status for tok in _LOCK_TOKENS):
             items.append(CalendarItem(
-                domain=r.domain, segment=r.segment, kind="unlocked", severity="medium",
+                domain=r.domain, segment=r.segment, host=r.domain, kind="unlocked", severity="medium",
                 detail="No registrar lock present (transfer/delete not prohibited)",
             ))
         # Certificate hygiene from cert_analysis
-        items.extend(_cert_calendar_items(r, thresholds))
+        items.extend(_cert_calendar_items(r, thresholds, served, now=now))
 
     # Sort: overdue first, then soonest. Items without a date go last.
     def _key(it: CalendarItem):
         return (it.days_left is None, it.days_left if it.days_left is not None else 10**9)
 
     items.sort(key=_key)
-    next_30 = sum(1 for it in items if it.days_left is not None and 0 <= it.days_left <= 30)
-    next_90 = sum(1 for it in items if it.days_left is not None and 0 <= it.days_left <= 90)
-    overdue = sum(1 for it in items if it.days_left is not None and it.days_left < 0)
-    return CalendarBlock(items=items, next_30d=next_30, next_90d=next_90, overdue=overdue)
+
+    # Counts are DISTINCT HOSTS, not rows: a domain whose registration and
+    # certificate both lapse is still one thing to fix per host.
+    def _hosts(pred) -> int:
+        return len({it.host or it.domain for it in items
+                    if it.days_left is not None and pred(it.days_left)})
+
+    return CalendarBlock(items=items, next_30d=_hosts(lambda d: 0 <= d <= 30),
+                         next_90d=_hosts(lambda d: 0 <= d <= 90),
+                         overdue=_hosts(lambda d: d < 0))
 
 
-def _cert_calendar_items(ref: DomainRef, thresholds: EstateThresholds) -> list[CalendarItem]:
+# Issuers whose certificates are short-lived and renewed automatically (ACME or a
+# managed platform). Such a cert sits inside 30 days of expiry for a third of its
+# life as a matter of course, so it only becomes a calendar item close to the end.
+AUTO_RENEW_ISSUERS = frozenset({"letsencrypt", "google_ts", "cloudflare", "amazon_acm"})
+
+
+def _cert_hosts(ref: DomainRef) -> dict[str, dict]:
+    """One record per certificate hostname, merged across CertAnalysis buckets.
+
+    dnsproject's CertAnalysis.missed_renewals() flags `not_after - 60d < today`,
+    the same test as expiring_soon(60), so every expiring cert arrived twice. The
+    buckets are views of one latest-cert-per-name set; merge them by name."""
     ca = ref.vm.cert_analysis or {}
-    out: list[CalendarItem] = []
+    hosts: dict[str, dict] = {}
+    for key in ("expired", "expiring_soon", "missed_renewals"):
+        bucket = ca.get(key)
+        if not isinstance(bucket, list):
+            continue
+        for c in bucket:
+            if not isinstance(c, dict):
+                continue
+            name = (c.get("dns_name") or c.get("common_name") or ref.domain).lower().rstrip(".")
+            h = hosts.setdefault(name, {"host": name})
+            for f in ("not_after", "days_remaining", "issuer_category"):
+                if c.get(f) is not None and h.get(f) is None:
+                    h[f] = c[f]
+            if key == "expired":
+                h["expired"] = True
+            if key == "missed_renewals":
+                h["renewal_window_passed"] = True
+    return hosts
 
-    def _emit(bucket_key: str, kind: str, severity: str, verb: str):
-        bucket = ca.get(bucket_key)
-        if isinstance(bucket, list):
-            for c in bucket:
-                if not isinstance(c, dict):
-                    continue
-                name = c.get("dns_name") or c.get("common_name") or ref.domain
-                days = c.get("days_remaining")
-                out.append(CalendarItem(
-                    domain=ref.domain, segment=ref.segment, kind=kind,
-                    days_left=(int(days) if isinstance(days, (int, float)) else None),
-                    severity=severity, detail=f"Certificate {verb}: {name}",
-                ))
-        elif isinstance(bucket, int) and bucket > 0:
-            out.append(CalendarItem(
-                domain=ref.domain, segment=ref.segment, kind=kind, severity=severity,
-                detail=f"{bucket} certificate(s) {verb}",
-            ))
 
-    _emit("expired", "cert_expired", "high", "expired")
-    _emit("expiring_soon", "cert_expiring", "elevated", "expiring soon")
-    _emit("missed_renewals", "missed_renewal", "medium", "renewal missed")
+def _cert_counts_only(ref: DomainRef) -> list[CalendarItem]:
+    """Older contracts carry bucket COUNTS, not rows. One row per bucket, no host."""
+    ca = ref.vm.cert_analysis or {}
+    out = []
+    for key, kind, sev, verb in (("expired", "cert_expired", "high", "expired"),
+                                 ("expiring_soon", "cert_expiring", "elevated", "expiring")):
+        n = ca.get(key)
+        if isinstance(n, int) and not isinstance(n, bool) and n > 0:
+            out.append(CalendarItem(domain=ref.domain, segment=ref.segment, kind=kind,
+                                    severity=sev, detail=f"{n} certificate(s) {verb}"))
     return out
+
+
+def _cert_calendar_items(ref: DomainRef, thresholds: EstateThresholds,
+                         served: Optional[dict] = None,
+                         now: Optional[datetime] = None) -> list[CalendarItem]:
+    """One calendar row per certificate hostname, with `date` = the cert's notAfter.
+
+    Kept: expired certs, and certs inside the expiry horizon for their issuer class
+    (thresholds.acme_expiring_days for auto-renewing issuers, cert_expiring_days
+    otherwise). Dropped: a host whose live handshake (`served`) shows a newer cert
+    than the one CT logged, i.e. one renewed in an archive gap."""
+    served = served or {}
+    now = now or datetime.now(timezone.utc)
+    out: list[CalendarItem] = []
+    for name, h in sorted(_cert_hosts(ref).items()):
+        ct_after = _parse_date(h.get("not_after"))
+        # Days from the REPORT date: CertAnalysis' days_remaining is as of collection.
+        if ct_after is not None:
+            days = (ct_after - now).days
+        else:
+            d = h.get("days_remaining")
+            days = int(d) if isinstance(d, (int, float)) else None
+        expired = (days is not None and days < 0) or (days is None and bool(h.get("expired")))
+        live = served.get(name)
+        if live is not None and ct_after is not None and live > ct_after:
+            continue                                         # superseded by a newer cert
+        auto = (h.get("issuer_category") or "") in AUTO_RENEW_ISSUERS
+        horizon = thresholds.acme_expiring_days if auto else thresholds.cert_expiring_days
+        if not expired and (days is None or days > horizon):
+            continue
+        out.append(CalendarItem(
+            domain=ref.domain, segment=ref.segment, host=name,
+            kind="cert_expired" if expired else "cert_expiring",
+            date=(str(h["not_after"])[:10] if h.get("not_after") else None),
+            days_left=days, severity="high" if expired else "elevated",
+            detail=(f"Certificate expired: {name}" if expired
+                    else f"Certificate expires in {days}d: {name}"),
+            renewal_window_passed=bool(h.get("renewal_window_passed")),
+            auto_renewing=auto,
+        ))
+    return out or _cert_counts_only(ref)
+
+
+def cert_hosts_to_confirm(refs: list[DomainRef], thresholds: EstateThresholds,
+                          now: Optional[datetime] = None) -> list[str]:
+    """The hostnames a live TLS check should look at: the ones that would become
+    calendar rows without it."""
+    hosts: list[str] = []
+    for r in _assessed(refs):
+        hosts.extend(it.host for it in _cert_calendar_items(r, thresholds, now=now) if it.host)
+    return sorted(set(hosts))

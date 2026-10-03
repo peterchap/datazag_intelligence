@@ -31,8 +31,10 @@ _GRADE_SCOPE_NOTE = (
 def build_estate_report_from_manifest(manifest_path: str,
                                       thresholds: Optional[EstateThresholds] = None,
                                       discovery: Optional[DiscoveryProvider] = None,
-                                      now: Optional[datetime] = None) -> EstateReport:
-    mvp = build_estate_from_manifest(manifest_path, thresholds=thresholds, now=now)
+                                      now: Optional[datetime] = None,
+                                      tls_probe=None) -> EstateReport:
+    mvp = build_estate_from_manifest(manifest_path, thresholds=thresholds, now=now,
+                                     tls_probe=tls_probe)
     return build_estate_report(mvp, discovery=discovery, now=now)
 
 
@@ -100,7 +102,8 @@ def _synthesis(mvp, disc, grade, exp) -> str:
 
 def _dash(mvp, disc, grade, exp) -> list[dict]:
     from estatereport.transform import grade_cls
-    overdue = sum(1 for it in mvp.calendar.items if it.days_left is not None and it.days_left < 0)
+    # Distinct hosts, not rows (crossestate counts them that way).
+    overdue = mvp.calendar.overdue
     soon = mvp.calendar.next_30d
     return [
         {"cls": "cy", "key": "Estate discovered",

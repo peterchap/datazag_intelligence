@@ -132,6 +132,7 @@ class Exposure(_Base):
 class CalItem(_Base):
     domain: str
     segment: str = ""
+    host: Optional[str] = None         # the name that lapses (domain or certificate hostname)
     item_kind: str
     due: Optional[str] = None          # None → standing
     overdue: bool = False
