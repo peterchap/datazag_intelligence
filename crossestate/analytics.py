@@ -77,9 +77,14 @@ def _dim_value(dimension: str, ref: DomainRef) -> Optional[str]:
     if dimension == "registrar":
         return vm.registration.registrar
     if dimension == "asn":
-        if vm.trust.asn:
-            return f"AS{vm.trust.asn}" + (f" {vm.trust.isp}" if vm.trust.isp else "")
-        return None
+        from freereport.compose import _in_prefix, _live_ip, _network_facts
+        asn, _prefix, _country = _network_facts(vm)
+        if not asn:
+            return None
+        ip, tp = _live_ip(vm), vm.trust.prefix
+        stale = bool(ip and tp) and not _in_prefix(ip, tp)
+        isp = vm.annotation.asn_name if stale else (vm.trust.isp or vm.annotation.asn_name)
+        return f"AS{asn}" + (f" {isp}" if isp else "")
     if dimension == "hosting":
         return vm.annotation.hosting_provider
     return None
@@ -404,15 +409,17 @@ def compute_exposure(refs: list[DomainRef], thresholds: EstateThresholds) -> Exp
             if getattr(imp, "confidence", "exact") != "exact":
                 continue
             p = imp.platform
-            plat_7d[p] = plat_7d.get(p, 0) + int(imp.count_7d or 0)
-            plat_30d[p] = plat_30d.get(p, 0) + int(imp.count_30d or 0)
+            # Internet-wide for the platform, identical on every domain that uses it:
+            # take it once (max), never once per domain.
+            plat_7d[p] = max(plat_7d.get(p, 0), int(imp.count_7d or 0))
+            plat_30d[p] = max(plat_30d.get(p, 0), int(imp.count_30d or 0))
             plat_domains.setdefault(p, set()).add(r.domain)
             if imp.sample_domains:
                 plat_samples.setdefault(p, [])
                 for d in imp.sample_domains:
                     if d not in plat_samples[p]:
                         plat_samples[p].append(d)
-            by_segment[r.segment] = by_segment.get(r.segment, 0) + int(imp.count_30d or 0)
+            by_segment[r.segment] = max(by_segment.get(r.segment, 0), int(imp.count_30d or 0))
         lookalike_30d += sum(int(c.count_30d or 0) for c in ext.lookalike_candidates)
 
     platforms = [
