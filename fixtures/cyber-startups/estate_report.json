@@ -1,0 +1,1575 @@
+{
+  "group": "cyber-startups",
+  "generated_at": "2026-10-03T13:49:11.717043+00:00",
+  "corpus_label": "340M",
+  "synthesis_html": "Starting from <b>11 declared domains</b>, Datazag found <b>16 across the estate</b>. The estate grades <b>B</b> (24/100). It is single-threaded on <b>Google</b> for email / mailbox platform (55%). 44,522 new lookalike domains impersonating the estate's platforms (30d, internet-wide): they target every organization on those platforms, not this estate specifically.",
+  "dash": [
+    {
+      "cls": "cy",
+      "key": "Estate discovered",
+      "state": "16",
+      "note": "11 declared \u2192 16 found"
+    },
+    {
+      "cls": "good",
+      "key": "Estate grade",
+      "state": "B",
+      "note": "24/100 across 11 graded domains"
+    },
+    {
+      "cls": "warn",
+      "key": "Active exposure",
+      "state": "44,522",
+      "note": "platform lookalikes (30d, internet-wide)"
+    },
+    {
+      "cls": "warn",
+      "key": "Live lapses",
+      "state": "16",
+      "note": "0 overdue \u00b7 16 due \u226430d"
+    }
+  ],
+  "lens_html": "On the externally observable evidence, an underwriter would weigh accumulation risk on <b>Google</b> (55% of email / mailbox platform, hyperscale); <b>44,522</b> internet-wide lookalikes of the estate's platforms.",
+  "scope_caveat": "Scope: this assessment covers only what is visible from public DNS and certificate transparency at a point in time. It does not cover endpoint security, network segmentation, identity and access management, patch posture, or physical security \u2014 all of which a full underwriting assessment also weighs.",
+  "discovery": {
+    "enabled": true,
+    "declared_count": 11,
+    "total_found": 16,
+    "tiers": {
+      "declared": [
+        {
+          "domain": "osneycapital.com",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "ploy.io",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "sitehop.com",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "strandintelligence.com",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "refute.com",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "aisy.ai",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "overmindlab.ai",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "huntbase.io",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "mindgard.ai",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "ossprey.com",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "aviel.tech",
+          "tier": "declared",
+          "evidence": [
+            {
+              "kind": "declared",
+              "detail": "On your declared list"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        }
+      ],
+      "strong": [],
+      "possible": [
+        {
+          "domain": "1fd3f647.sni.cloudflaressl.com",
+          "tier": "possible",
+          "evidence": [
+            {
+              "kind": "san",
+              "detail": "On a certificate with ossprey.com"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "34b5f1fb.sni.cloudflaressl.com",
+          "tier": "possible",
+          "evidence": [
+            {
+              "kind": "san",
+              "detail": "On a certificate with mindgard.ai"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "3d2bbf2c.sni.cloudflaressl.com",
+          "tier": "possible",
+          "evidence": [
+            {
+              "kind": "san",
+              "detail": "On a certificate with huntbase.io"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "9e96c6cb.sni.cloudflaressl.com",
+          "tier": "possible",
+          "evidence": [
+            {
+              "kind": "san",
+              "detail": "On a certificate with overmindlab.ai"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        },
+        {
+          "domain": "adacccb0.sni.cloudflaressl.com",
+          "tier": "possible",
+          "evidence": [
+            {
+              "kind": "san",
+              "detail": "On a certificate with sitehop.com"
+            }
+          ],
+          "registrant_matches": null,
+          "available_for_registration": null
+        }
+      ],
+      "defensive": []
+    },
+    "note": "Discovery ran over shared-certificate links across 11 declared domains. 0 undeclared owned domain(s) surfaced; 5 low-confidence candidate(s) held for review. Companies House CRN (UK) and the live impersonation feed extend this."
+  },
+  "grade_scope_note": "Grades cover the declared and strongly-associated estate. Possible-tier domains are listed but left ungraded (pending confirmation); defensive / acquisition domains are never graded.",
+  "grade": {
+    "grade": "B",
+    "score": 24.0,
+    "domain_count": 11,
+    "distribution": {
+      "C": 4,
+      "B": 4,
+      "A": 3
+    }
+  },
+  "concentration": [
+    {
+      "dimension": "mailbox",
+      "label": "Email / mailbox platform",
+      "provider": "Google",
+      "share_post_discovery": 0.5454545454545454,
+      "share_pre_discovery": null,
+      "known_count": 11,
+      "resilience_tier": "hyperscale",
+      "exit_friction": "medium",
+      "resilience_assessed": true,
+      "severity": "watch",
+      "recommendation": "verify account-level controls (MFA, admin recovery); concentration acceptable if deliberate",
+      "surface_diversity_masking": false,
+      "bar_class": ""
+    },
+    {
+      "dimension": "ns",
+      "label": "Nameserver / DNS provider",
+      "provider": "Cloudflare",
+      "share_post_discovery": 0.6,
+      "share_pre_discovery": null,
+      "known_count": 10,
+      "resilience_tier": "hyperscale",
+      "exit_friction": "low",
+      "resilience_assessed": true,
+      "severity": "watch",
+      "recommendation": "verify account-level controls (MFA, admin recovery); concentration acceptable if deliberate",
+      "surface_diversity_masking": false,
+      "bar_class": ""
+    },
+    {
+      "dimension": "registrar",
+      "label": "Registrar",
+      "provider": "GoDaddy.com, LLC",
+      "share_post_discovery": 0.4444444444444444,
+      "share_pre_discovery": null,
+      "known_count": 9,
+      "resilience_tier": "commodity",
+      "exit_friction": "high",
+      "resilience_assessed": true,
+      "severity": "elevated",
+      "recommendation": "plan to reduce before it grows",
+      "surface_diversity_masking": false,
+      "bar_class": ""
+    },
+    {
+      "dimension": "asn",
+      "label": "Hosting network (ASN)",
+      "provider": "AS13335 Cloudflare",
+      "share_post_discovery": 0.45454545454545453,
+      "share_pre_discovery": null,
+      "known_count": 11,
+      "resilience_tier": "hyperscale",
+      "exit_friction": "low",
+      "resilience_assessed": true,
+      "severity": null,
+      "recommendation": "",
+      "surface_diversity_masking": false,
+      "bar_class": ""
+    },
+    {
+      "dimension": "hosting",
+      "label": "Hosting provider",
+      "provider": "cloudflare",
+      "share_post_discovery": 0.8333333333333334,
+      "share_pre_discovery": null,
+      "known_count": 6,
+      "resilience_tier": "hyperscale",
+      "exit_friction": "low",
+      "resilience_assessed": true,
+      "severity": "watch",
+      "recommendation": "verify account-level controls (MFA, admin recovery); concentration acceptable if deliberate",
+      "surface_diversity_masking": false,
+      "bar_class": ""
+    },
+    {
+      "dimension": "technographic",
+      "label": "Third-party vendor (SPF-observed)",
+      "provider": "Google Workspace",
+      "share_post_discovery": 0.5454545454545454,
+      "share_pre_discovery": null,
+      "known_count": 11,
+      "resilience_tier": "commodity",
+      "exit_friction": "medium",
+      "resilience_assessed": false,
+      "severity": "high",
+      "recommendation": "reduce: migrate the weakest segment to the group-standard provider",
+      "surface_diversity_masking": false,
+      "bar_class": ""
+    }
+  ],
+  "variance": [
+    {
+      "segment": "ns:AWS",
+      "domain_count": 3,
+      "median_grade": "C",
+      "bands_below_baseline": 1,
+      "outlier": false
+    },
+    {
+      "segment": "ns:Cloudflare",
+      "domain_count": 6,
+      "median_grade": "A",
+      "bands_below_baseline": -1,
+      "outlier": false
+    },
+    {
+      "segment": "ns:Namecheap",
+      "domain_count": 1,
+      "median_grade": "C",
+      "bands_below_baseline": 1,
+      "outlier": false
+    },
+    {
+      "segment": "reg:HOSTINGER operations, UAB",
+      "domain_count": 1,
+      "median_grade": "B",
+      "bands_below_baseline": 0,
+      "outlier": false
+    }
+  ],
+  "baseline_grade": "B",
+  "vanity_mx_note": "Mailbox shares are resolved through vanity MX records to the operating provider \u2014 a domain fronting Google Workspace behind its own MX counts as Google Workspace concentration.",
+  "correlated": [
+    {
+      "control": "caa",
+      "label": "CAA record missing",
+      "affected": 11,
+      "estate_size": 11,
+      "pct": 1.0,
+      "segments": [
+        "ns:AWS",
+        "ns:Cloudflare",
+        "ns:Namecheap",
+        "reg:HOSTINGER operations, UAB"
+      ],
+      "segment_isolated": false,
+      "hot": false
+    },
+    {
+      "control": "dnssec",
+      "label": "DNSSEC not enabled",
+      "affected": 9,
+      "estate_size": 11,
+      "pct": 0.8181818181818182,
+      "segments": [
+        "ns:AWS",
+        "ns:Cloudflare",
+        "ns:Namecheap",
+        "reg:HOSTINGER operations, UAB"
+      ],
+      "segment_isolated": false,
+      "hot": false
+    },
+    {
+      "control": "dmarc",
+      "label": "DMARC not enforced",
+      "affected": 4,
+      "estate_size": 11,
+      "pct": 0.36363636363636365,
+      "segments": [
+        "ns:AWS",
+        "ns:Namecheap"
+      ],
+      "segment_isolated": false,
+      "hot": true
+    },
+    {
+      "control": "spf",
+      "label": "SPF not strict",
+      "affected": 4,
+      "estate_size": 11,
+      "pct": 0.36363636363636365,
+      "segments": [
+        "reg:HOSTINGER operations, UAB"
+      ],
+      "segment_isolated": false,
+      "hot": false
+    }
+  ],
+  "exposure": {
+    "total_exact": 44522,
+    "top_platform": "Google Workspace",
+    "top_share": 0.415,
+    "rows": [
+      {
+        "domain": "google-feud.ph",
+        "target": "Google Workspace",
+        "detail": "18479 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "google-bot.com.ph",
+        "target": "Google Workspace",
+        "detail": "18479 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "google-bnpparibas-brainchildtech.com.ph",
+        "target": "Google Workspace",
+        "detail": "18479 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "google-bizum-deliveryhero.com.ph",
+        "target": "Google Workspace",
+        "detail": "18479 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "amazon-expediaenel.ph",
+        "target": "Amazon SES",
+        "detail": "9574 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "amazon-clone-services-transaction.ph",
+        "target": "Amazon SES",
+        "detail": "9574 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "amazon-clone-services-feedback.ph",
+        "target": "Amazon SES",
+        "detail": "9574 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "amazon-clone-secure-account.com.ph",
+        "target": "Amazon SES",
+        "detail": "9574 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "microsoft-com3107.ph",
+        "target": "GoDaddy / Microsoft",
+        "detail": "6054 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "microsoft-login-8k8app.net.ph",
+        "target": "GoDaddy / Microsoft",
+        "detail": "6054 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "microsoft-error-found0xxx0xxxo007.ph",
+        "target": "GoDaddy / Microsoft",
+        "detail": "6054 in 30d",
+        "pattern": "Exact platform match"
+      },
+      {
+        "domain": "microsoft-toolkit-2020.com.ph",
+        "target": "GoDaddy / Microsoft",
+        "detail": "6054 in 30d",
+        "pattern": "Exact platform match"
+      }
+    ],
+    "lookalike_total": 41898,
+    "unchecked_domains": [],
+    "provenance": "external_threat.impersonations \u00b7 confidence = \"exact\""
+  },
+  "calendar": [
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: auth.hera.juno.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: auth.hera.juno.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: auth.gaia.demo.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: auth.gaia.demo.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: auth.lyra.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: auth.lyra.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: sitea.sitehop.com",
+      "due_class": "soon"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: siteb.sitehop.com",
+      "due_class": "soon"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: sitea.sitehop.com",
+      "due_class": "soon"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: siteb.sitehop.com",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: auth.frey.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: auth.frey.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: auth.arke.iris.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: auth.arke.iris.us.mindgard.ai",
+      "due_class": "soon"
+    },
+    {
+      "domain": "overmindlab.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: 9e96c6cb.sni.cloudflaressl.com",
+      "due_class": "soon"
+    },
+    {
+      "domain": "overmindlab.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: 9e96c6cb.sni.cloudflaressl.com",
+      "due_class": "soon"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: login.clio.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: login.clio.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: api.clio.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: api.clio.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "ossprey.com",
+      "segment": "ns:Namecheap",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: 1fd3f647.sni.cloudflaressl.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "ossprey.com",
+      "segment": "ns:Namecheap",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: go.ossprey.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "ossprey.com",
+      "segment": "ns:Namecheap",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: 1fd3f647.sni.cloudflaressl.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "ossprey.com",
+      "segment": "ns:Namecheap",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: go.ossprey.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: admin.gaia.demo.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: admin.gaia.demo.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: help.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: help.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: api.sandbox.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: login.iris.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: api.sandbox.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: login.iris.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: api.iris.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: api.iris.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: api.remi.eu.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: app.remi.eu.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: login.remi.eu.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: api.remi.eu.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: app.remi.eu.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: login.remi.eu.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: partners.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: partners.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "osneycapital.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: track.sl.osneycapital.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "osneycapital.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: track.sl.osneycapital.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: status.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: status.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: vaultpreprod.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: www.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: vaultpreprod.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: www.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: support.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: support.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: product.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: product.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: hb04.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: hb03.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: hb02.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: hb01.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: hb01.osctrl.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: osctrl.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: hb02.osctrl.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: hb04.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: hb03.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: hb02.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: hb01.osctrl.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: hb01.osctrl.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: osctrl.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: hb02.osctrl.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: ec.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "huntbase.io",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: ec.staging.huntbase.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: login.juno.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "mindgard.ai",
+      "segment": "ns:Cloudflare",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: login.juno.us.mindgard.ai",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: adacccb0.sni.cloudflaressl.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: discover.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: adacccb0.sni.cloudflaressl.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "sitehop.com",
+      "segment": "ns:AWS",
+      "item_kind": "missed_renewal",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate renewal missed: discover.sitehop.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "ossprey.com",
+      "segment": "ns:Namecheap",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: auth.ossprey.com",
+      "due_class": "later"
+    },
+    {
+      "domain": "ploy.io",
+      "segment": "ns:AWS",
+      "item_kind": "cert_expiring",
+      "due": null,
+      "overdue": false,
+      "detail": "Certificate expiring soon: www.ploy.io",
+      "due_class": "later"
+    },
+    {
+      "domain": "osneycapital.com",
+      "segment": "ns:AWS",
+      "item_kind": "unlocked",
+      "due": null,
+      "overdue": false,
+      "detail": "No registrar lock present (transfer/delete not prohibited)",
+      "due_class": "later"
+    }
+  ],
+  "exceptions": [
+    {
+      "rank": 1,
+      "severity": "high",
+      "title": "1 domain(s) expired or unlocked \u2014 recover before anything else",
+      "body_html": "Expired registrations and absent registrar locks are live takeover windows. Renew and re-lock these before DNS hygiene work.",
+      "evidence_line": "calendar.overdue \u00d7 0 \u00b7 registrar_lock = none \u00d7 1",
+      "collapsed_from": null
+    },
+    {
+      "rank": 2,
+      "severity": "high",
+      "title": "Provider concentration across the estate \u2014 5 single points of failure",
+      "body_html": "Top concentrations: Google Workspace 55% (third-party vendor (spf-observed)), GoDaddy.com, LLC 44% (registrar), Google 55% (email / mailbox platform), Cloudflare 60% (nameserver / dns provider). Severity reflects provider resilience, not share alone.",
+      "evidence_line": "technographic=Google Workspace 55% [commodity] \u00b7 registrar=GoDaddy.com, LLC 44% [commodity/high-exit] \u00b7 mailbox=Google 55% [hyperscale] \u00b7 ns=Cloudflare 60% [hyperscale]",
+      "collapsed_from": "concentration \u00d7 5"
+    },
+    {
+      "rank": 3,
+      "severity": "elevated",
+      "title": "Systemic misconfiguration repeats across the estate \u2014 fix as a standard",
+      "body_html": "Most prevalent: CAA record missing (100%), DNSSEC not enabled (82%), DMARC not enforced (36%). These share fixes \u2014 see the correlated-weakness rollup and the remediation worksheet (Appendix A), not per-domain tickets.",
+      "evidence_line": "correlated_weakness \u00d7 4 \u00b7 see page 4 rollup",
+      "collapsed_from": "correlated_weakness \u00d7 4"
+    },
+    {
+      "rank": 4,
+      "severity": "info",
+      "title": "44,522 new lookalike domains impersonating the estate's platforms (30d, internet-wide)",
+      "body_html": "Context, not a finding against this estate: these imitate the platforms, so every organization using them sees the same count. Most are Google Workspace lookalikes (42%).",
+      "evidence_line": "external_threat.impersonations \u00b7 confidence = \"exact\"",
+      "collapsed_from": null
+    }
+  ],
+  "admin_points": [
+    {
+      "key": "admin point",
+      "name": "Cloudflare",
+      "detail": "13 change(s) batch here"
+    },
+    {
+      "key": "admin point",
+      "name": "AWS",
+      "detail": "9 change(s) batch here"
+    },
+    {
+      "key": "admin point",
+      "name": "Namecheap",
+      "detail": "3 change(s) batch here"
+    }
+  ],
+  "remediation": [
+    {
+      "pattern_id": "recovery",
+      "title": "Recover expired / unlocked domains",
+      "why_html": "Expired registrations and absent locks are live takeover windows \u2014 recover these before any DNS hygiene work.",
+      "priority": "now",
+      "record_template": "<span class=\"cm\"># at the registrar: renew, then enable</span>\nclientTransferProhibited \u00b7 clientDeleteProhibited \u00b7 clientUpdateProhibited",
+      "end_state": null,
+      "entries": [
+        {
+          "domain": "osneycapital.com",
+          "segment": "ns:AWS",
+          "admin_point": "Amazon Registrar, Inc.",
+          "now": "no registrar lock",
+          "fix": "renew + set registrar locks"
+        }
+      ],
+      "overflow": 0
+    },
+    {
+      "pattern_id": "dmarc",
+      "title": "Enforce DMARC",
+      "why_html": "DMARC lets you reject mail spoofed as your domain. Staged: publish <code>p=none</code> with <code>rua</code> first to observe, then move to enforcement.",
+      "priority": "now",
+      "record_template": "_dmarc.<domain>.  TXT  \"v=DMARC1; p=none; rua=mailto:dmarc@<domain>\"\n<span class=\"cm\"># then, once rua confirms your senders:</span>\n_dmarc.<domain>.  TXT  \"v=DMARC1; p=quarantine; rua=mailto:dmarc@<domain>\"",
+      "end_state": "p=reject once rua confirms all senders",
+      "entries": [
+        {
+          "domain": "osneycapital.com",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "p=none (monitor only)",
+          "fix": "p=quarantine"
+        },
+        {
+          "domain": "ploy.io",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "p=none (monitor only)",
+          "fix": "p=quarantine"
+        },
+        {
+          "domain": "refute.com",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "p=none (monitor only)",
+          "fix": "p=quarantine"
+        },
+        {
+          "domain": "ossprey.com",
+          "segment": "ns:Namecheap",
+          "admin_point": "Namecheap",
+          "now": "p=none (monitor only)",
+          "fix": "p=quarantine"
+        }
+      ],
+      "overflow": 0
+    },
+    {
+      "pattern_id": "spf",
+      "title": "Tighten SPF to hard-fail",
+      "why_html": "SPF declares which servers may send as your domain. Move to hard-fail (<code>-all</code>) once DMARC reports confirm your legitimate senders; non-sending domains can go to <code>-all</code> immediately.",
+      "priority": "now",
+      "record_template": "<span class=\"cm\"># target apex record (after DMARC confirms senders):</span>\nv=spf1 include:&lt;your-sender&gt; -all",
+      "end_state": "-all once DMARC confirms senders",
+      "entries": [
+        {
+          "domain": "ploy.io",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "soft-fail (~all)",
+          "fix": "-all after DMARC confirms senders"
+        },
+        {
+          "domain": "overmindlab.ai",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "soft-fail (~all)",
+          "fix": "-all after DMARC confirms senders"
+        },
+        {
+          "domain": "strandintelligence.com",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "soft-fail (~all)",
+          "fix": "-all after DMARC confirms senders"
+        },
+        {
+          "domain": "aviel.tech",
+          "segment": "reg:HOSTINGER operations, UAB",
+          "admin_point": "DNS zone host",
+          "now": "soft-fail (~all)",
+          "fix": "-all after DMARC confirms senders"
+        }
+      ],
+      "overflow": 0
+    },
+    {
+      "pattern_id": "caa",
+      "title": "Publish CAA records",
+      "why_html": "CAA reduces the set of certificate authorities that may issue for your domains.",
+      "priority": "soon",
+      "record_template": "<domain>.  IN  CAA  0 issue \"&lt;your-ca&gt;\"\n<domain>.  IN  CAA  0 iodef \"mailto:security@<domain>\"",
+      "end_state": null,
+      "entries": [
+        {
+          "domain": "osneycapital.com",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "ploy.io",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "sitehop.com",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "aisy.ai",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "huntbase.io",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "mindgard.ai",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "overmindlab.ai",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "refute.com",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "strandintelligence.com",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "aviel.tech",
+          "segment": "reg:HOSTINGER operations, UAB",
+          "admin_point": "DNS zone host",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        },
+        {
+          "domain": "ossprey.com",
+          "segment": "ns:Namecheap",
+          "admin_point": "Namecheap",
+          "now": "no CAA record",
+          "fix": "issue \"&lt;your-ca&gt;\""
+        }
+      ],
+      "overflow": 0
+    },
+    {
+      "pattern_id": "dnssec",
+      "title": "Enable DNSSEC",
+      "why_html": "DNSSEC cryptographically signs your DNS records. Gold-standard; plan it \u2014 its absence does not create exploitable risk today.",
+      "priority": "plan",
+      "record_template": "<span class=\"cm\"># enable signing at the DNS provider, then publish the DS at the registry</span>",
+      "end_state": null,
+      "entries": [
+        {
+          "domain": "osneycapital.com",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "ploy.io",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "sitehop.com",
+          "segment": "ns:AWS",
+          "admin_point": "AWS",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "aisy.ai",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "mindgard.ai",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "overmindlab.ai",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "strandintelligence.com",
+          "segment": "ns:Cloudflare",
+          "admin_point": "Cloudflare",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "aviel.tech",
+          "segment": "reg:HOSTINGER operations, UAB",
+          "admin_point": "DNS zone host",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        },
+        {
+          "domain": "ossprey.com",
+          "segment": "ns:Namecheap",
+          "admin_point": "Namecheap",
+          "now": "zone unsigned",
+          "fix": "sign zone + DS at registry"
+        }
+      ],
+      "overflow": 0
+    }
+  ],
+  "appendix_pages": 3
+}
