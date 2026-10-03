@@ -201,12 +201,16 @@ def derive_estate_exceptions(estate: EstateViewModel) -> list[EstateException]:
         top = exp.by_platform[0] if exp.by_platform else None
         out.append(EstateException(
             finding="active_impersonation",
-            severity="high",
+            # Informational, never a ranked risk: the count is platform-wide (every
+            # organization on these platforms sees the same lookalikes), so it says
+            # nothing about this estate being targeted (2026-10-03).
+            severity="info",
             title=f"{exp.total_30d:,} new lookalike domains impersonating the estate's platforms (30d, internet-wide), "
                   f"{len(exp.by_platform)} platform(s)",
             evidence=(f"Top target: {top.platform} ({top.count_30d} in 30d)." if top else ""),
-            detail="Standing exposure snapshot (EXACT matches). The live feed (SKU-2) "
-                   "delivers these as events; this report is the map.",
+            detail="Context, not a finding against this estate: these lookalikes imitate the "
+                   "platforms, so every organization using them sees the same count. "
+                   "EXACT matches only.",
             remediation="Brief staff on the most-imitated platforms and enforce phishing-resistant MFA; "
                         "wire the live impersonation feed for continuous alerting.",
             category="active_exposure",

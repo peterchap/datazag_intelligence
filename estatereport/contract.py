@@ -140,7 +140,8 @@ class CalItem(_Base):
 
 class Exception_(_Base):
     rank: int
-    severity: Severity
+    # "info" is for context that is not a risk to this estate (platform-wide counts).
+    severity: Literal["high", "elevated", "watch", "info"]
     title: str
     body_html: str = ""
     evidence_line: str = ""            # monospace provenance
